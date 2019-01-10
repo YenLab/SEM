@@ -1,2 +1,3 @@
-# Size-based Expectation Maximum
-123
+# Size-based Expectation Maximum (SEM)
+
+@author Jianyu Yang
