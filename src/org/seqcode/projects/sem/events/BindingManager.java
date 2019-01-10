@@ -28,10 +28,10 @@ public class BindingManager {
 	protected Map<ExperimentCondition, List<BindingEvent>> conditionEvents;
 	protected Map<ExperimentCondition, List<BindingSubtype>> bindingSubtypes;
 	protected Map<ExperimentCondition, Integer> numBindingType;
-	protected Map<ControlledExperiment, BindingModel> unstrandedModel;
 	protected Map<ExperimentCondition, Double> alpha;
 	protected Map<ExperimentCondition, List<BindingSubtype>> potentialBindingSubtypes;
 	protected Map<ExperimentCondition, Integer> maxInfluenceRange;
+	protected Map<ExperimentCondition, Map<Integer, List<Double>>> cachePDF; // &Indexed by ExperimentCondition:BindingSubtype index:fragment size
 	
 	public BindingManager(EventsConfig con, ExperimentManager exptman) {
 		config = con;
@@ -41,7 +41,6 @@ public class BindingManager {
 		bindingSubtypes = new HashMap<ExperimentCondition, List<BindingSubtype>>();
 		alpha = new HashMap<ExperimentCondition, Double>();
 		numBindingType = new HashMap<ExperimentCondition, Integer>();
-		unstrandedModel = new HashMap<ControlledExperiment, BindingModel>();
 		potentialBindingSubtypes = new HashMap<ExperimentCondition, List<BindingSubtype>>();
 		for(ExperimentCondition cond: manager.getConditions()) {
 			conditionEvents.put(cond,  new ArrayList<BindingEvent>());
@@ -49,30 +48,50 @@ public class BindingManager {
 			numBindingType.put(cond, 1);
 			alpha.put(cond, 0.0);
 			potentialBindingSubtypes.put(cond, new ArrayList<BindingSubtype>());
+			cachePDF.put(cond, new HashMap<Integer, List<Double>>());
 		}
 	}
 	
 	//Accessors
 	public List<BindingEvent> getBindingEvents(){return events;}
 	public List<BindingEvent> getConditionBindingEvents(ExperimentCondition ec){return conditionEvents.get(ec);}
-	public List<BindingSubtype> getBindingSubtype(ExperimentCondition ec){return bindingSubtypes.get(ec);}
+	public List<BindingSubtype> getBindingSubtypes(ExperimentCondition ec){return bindingSubtypes.get(ec);}
 	public Integer getNumBindingType(ExperimentCondition ec){return numBindingType.get(ec);}
-	public BindingModel getBindingModel(ControlledExperiment ce){return unstrandedModel.get(ce);}
 	public Double getAlpha(ExperimentCondition ec){return alpha.get(ec);}
 //	public List<List<StrandedPoint>> getAlignedEventPoints(ExperimentCondition ec){return alignedEventPoints.get(ec);}
 	public List<BindingSubtype> getPotentialBindingSubtypes(ExperimentCondition ec){return potentialBindingSubtypes.get(ec);}
 	public Integer getMaxInfluenceRange(ExperimentCondition ec) {return maxInfluenceRange.get(ec);}
+	public Map<Integer, List<Double>> getCachePDF(ExperimentCondition ec) {return cachePDF.get(ec);}
 	
 	//Setters
 	public void setBindingEvents(List<BindingEvent> e){events =e;}
 	public void setConditionBindingEvents(ExperimentCondition ec, List<BindingEvent> e){conditionEvents.put(ec, e);}
-	public void setBindingSubtypes(ExperimentCondition ec, List<BindingSubtype> sub){bindingSubtypes.put(ec, sub); numBindingType.put(ec, sub.size());}
 	public void setAlpha(ExperimentCondition ec, Double a){alpha.put(ec,a);}
-	public void setUnstrandedBindingModel(ControlledExperiment ce, BindingModel mod){unstrandedModel.put(ce, mod);}
 //	public void setAlignedEventPoints(ExperimentCondition ec, List<List<StrandedPoint>> points){alignedEventPoints.put(ec, points);}
 	public void addPotentialBindingSubtypes(ExperimentCondition ec, List<BindingSubtype> subtypes){potentialBindingSubtypes.get(ec).addAll(subtypes);}
 	public void clearPotentialBindingSubtypes(ExperimentCondition ec){ potentialBindingSubtypes.put(ec, new ArrayList<BindingSubtype>());}
-	public void setBindingModel(ControlledExperiment ce, BindingModel mod) {unstrandedModel.put(ce, mod);}
+	public void setBindingSubtypes(ExperimentCondition ec, List<BindingSubtype> sub){
+		bindingSubtypes.put(ec, sub); 
+		numBindingType.put(ec, sub.size());
+		}
+	
+	/**
+	 * Cache PDF value for fragment size ranging from min to max
+	 * Reduce computational cost
+	 * @param min
+	 * @param max
+	 * @author Jianyu Yang
+	 */
+	public void cache() {
+		for(ExperimentCondition cond: manager.getConditions()) {
+			for(BindingSubtype b: bindingSubtypes.get(cond)) {
+				cachePDF.get(cond).put(b.getIndex(), new ArrayList<Double>());
+				for(int j=0; j<=1000; j++) {
+					cachePDF.get(cond).get(b.getIndex()).add(b.probability(j));
+				}
+			}
+		}
+	}
 	
 	public void updateNumBindingTypes() {
 		int[] numBindingTypes = new int[manager.getNumConditions()];
@@ -82,14 +101,6 @@ public class BindingManager {
 		}
 	}
 	
-	public void updateMaxInfluenceRange(ExperimentCondition ec) {
-		int max=0;
-		for(ControlledExperiment rep: ec.getReplicates()) {
-			if(getBindingModel(rep).getInfluenceRange()>max)
-				max=getBindingModel(rep).getInfluenceRange();
-		}
-		maxInfluenceRange.put(ec, max);
-	}
 	
 	//For each controlled experiment, simply calculate the proportion of reads in the provided list of
 	//binding events to everything else.

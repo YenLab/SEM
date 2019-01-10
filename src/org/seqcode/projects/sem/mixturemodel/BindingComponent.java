@@ -1,7 +1,6 @@
 package org.seqcode.projects.sem.mixturemodel;
 
 import org.seqcode.genome.location.Point;
-import org.seqcode.projects.chexmix.mixturemodel.BindingSubComponents;
 
 /**
  * BindingComponents are used in mixture models to represent potential binding events
@@ -12,20 +11,19 @@ import org.seqcode.projects.chexmix.mixturemodel.BindingSubComponents;
 
 public class BindingComponent implements Comparable<BindingComponent>{
 	
-	protected Point coord;			//Event coordinate
-	protected Point[][] coords; 	//Event coordinates
-	protected int position;			//Position without the chromosome name
-	protected int[][] positions;	//Position without the chromosome name
-	protected double[][] tau;		//Subtype probabilities
-	protected double pi;		//Emission probability
-	protected double sumResp = 0;	//Sum of read responsibilities
+	protected Point coord;			// Event coordinate (nucleosome dyad location)
+	protected int position;			// Position without the chromosome name
+	protected double fuzziness;		// Fuzziness score (Variance of Gaussian Distribution)
+	protected double[] tau;			// Fragment size subtype probabilities (indexed by subtype index)
+	protected double pi;			// Emission probability
+	protected double sumResp = 0;	// Sum of read responsibilities
+	protected double[][]	readProfile;	// Read responsibility for each read (indexed by replicate & read index) 
 	protected int index = 0;
 	protected boolean isSubtype = false;
 	
 	public BindingComponent(Point pos, int numReps) {
 		coord = pos;
 		position  = coord.getLocation();
-		positions = null;
 		pi = 1;		
 	}
 	
@@ -33,10 +31,10 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	public double getPi() {return pi;}
 	public Point getCoord() {return coord;}
 	public int getPosition() {return position;}
+	public double getFuzziness() {return fuzziness;}
 	public int getIndex() {return index;}
-	public double[][] getTau() {return tau;}
+	public double[] getTau() {return tau;}
 	public boolean isSubtype() {return isSubtype;}
-	
 	public boolean isNonZero() {return pi>0;}
 	
 	public double getResponsibility() {return sumResp;}
@@ -47,19 +45,9 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	public void setCoord(Point p) {coord = p; position = p.getLocation();}
 	public void updateCoordFromLocation(){Point newCoord = new Point(coord.getGenome(), coord.getChrom(), position); coord=newCoord;}
 	public void setIndex(int i){index=i;}
-	public void setTau(double[][] t){tau=t;isSubtype=true;}
-	public void setSumResponsibilities(double sumResp) { this.sumResp = sumResp;}
-	
-	public void setPositions(int[][] p){
-		positions = p;
-		coords = new Point[p.length][2];
-		for (int bt=0; bt< p.length;bt++){
-			for (int s=0; s< p[bt].length; s++){
-				Point newCoord = new Point(coord.getGenome(), coord.getChrom(), positions[bt][s]); 
-				coords[bt][s]= newCoord;
-			}
-		}
-	}
+	public void setFuzziness(double f) {fuzziness=f;}
+	public void setTau(double[] t){tau=t; isSubtype=true;}
+	public void setSumResponsibility(double sumResp) { this.sumResp = sumResp;}
 	
 	public void uniformInit(double initValue){
 		pi=initValue;

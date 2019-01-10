@@ -6,6 +6,7 @@ import org.seqcode.math.diff.Normalization;
 
 import org.seqcode.genome.GenomeConfig;
 import org.seqcode.genome.location.Region;
+import org.seqcode.deepseq.events.EnrichmentSignificance;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;
@@ -19,6 +20,7 @@ import org.seqcode.projects.sem.GMM.GaussianMixture;
 import org.seqcode.projects.sem.framework.SEMConfig;
 import org.seqcode.projects.sem.framework.OutputFormatter;
 import org.seqcode.projects.sem.framework.PotentialRegionFilter;
+import org.seqcode.gseutils.Pair;
 
 public class SEM {
 	
@@ -46,17 +48,6 @@ public class SEM {
 		semconfig.makeSEMOutputDirs(true);
 		bindingManager = new BindingManager(evconfig, manager);
 		
-		//Initialize binding models & binding model record
-		repBindingModels = new HashMap<ControlledExperiment, List<BindingModel>>();
-		for(ControlledExperiment rep: manager.getReplicates()) {
-			if(evconfig.getDefaultBindingModel()!=null)
-				bindingManager.setBindingModel(rep, evconfig.getDefaultBindingModel());
-			repBindingModels.put(rep, new ArrayList<BindingModel>());
-			repBindingModels.get(rep).add(bindingManager.getBindingModel(rep));
-		}
-		for(ExperimentCondition cond: manager.getConditions())
-			bindingManager.updateMaxInfluenceRange(cond);
-		
 		//Insert fragment size distribution initializing here
 		System.err.println("Doing GMM on fragment size");
 		condModels = new HashMap<ExperimentCondition, List<BindingSubtype>>();
@@ -69,10 +60,17 @@ public class SEM {
 			}
 		}
 		//Employ GMM on each experiment condition's fragment size distribution
-		for(ExperimentCondition cond: manager.getConditions())
-			gmm = new GaussianMixture(cond, condFragSizeFrequency.get(cond));
-			List<BindingSubtype> subtypes = gmm.getBindingSubtypes();
-			condModels.put(cond, subtypes);
+		for(ExperimentCondition cond: manager.getConditions()) {
+			gmm = new GaussianMixture(cond, semconfig, condFragSizeFrequency.get(cond));
+			gmm.excute();
+			List<BindingSubtype> fragSizeSubtypes = new ArrayList<BindingSubtype>();
+			int index=0;
+			for (Pair<Double, Double> para: gmm.getParameters()) {
+				fragSizeSubtypes.add(new BindingSubtype(cond, para, index));
+				index++;
+			}
+			bindingManager.setBindingSubtypes(cond, fragSizeSubtypes);
+		}
 		
 		//Find potential binding regions
 		System.err.println("Finding potential binding regions.");
@@ -88,10 +86,67 @@ public class SEM {
 	
 	//Run the mixture model to find binding events
 	public void runMixtureModel() {
-		Double[] kl;
+		
 		System.err.println("Initialize mixture model");
 		mixtureModel = new BindingMixture(gconfig, econfig, evconfig, semconfig, manager, bindingManager, potentialFilter);
+		
+		int round = 0;
+		boolean converged = false;
+		while (!converged) {
+		
+		System.err.println("\n============================== Round "+round+" =====================");
+		
+		//Execute the SEM mixture model
+		if(round==0)
+			mixtureModel.execute(true, true); //EM
+		else
+			mixtureModel.execute(true, false); //EM
+		
+		//Update binding models in multiGPS, I think SEM doesn't need it
+		
+		//Update motifs in multiGPS, I think SEM doesn't need it
+		
+		//Update noise models
+		mixtureModel.updateGlobalNoise();
+		
+		//Print current components
+		mixtureModel.printActiveComponentsToFile();
+		
+		round++;
+		
+		//Check for convergence
+		if(round>semconfig.getMaxModelUpdateRounds()) {
+			converged=true;
+		}else {
+			converged=true;
+		}
+		}
 		
 	}
 	
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

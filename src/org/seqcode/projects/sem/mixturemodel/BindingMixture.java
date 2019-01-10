@@ -184,9 +184,30 @@ public class BindingMixture {
 						Double[] noiseRSums = new Double[manager.getNumConditions()];
 						for(int e=0; e<manager.getNumConditions(); e++) { noiseRSums[e] = 0.0;}
 						for(Region w: windows) {
-							Pair<List<NoiseComponent>, List<List<BindingComponent>>> wCompos = analyzeWindowEM(w);
+							Pair<List<NoiseComponent>, List<List<BindingComponent>>> wComps = analyzeWindowEM(w);
+							for(int e=0; e<manager.getNumConditions(); e++) {
+								noiseRSums[e] += wComps.car().get(e).getSumResponsibility();
+								currComps.get(e).addAll(wComps.cdr().get(e));
+							}
 						}
+						
+						//Only non-zero components are returned by analyzeWindow, so add them to the recorded active components
+						synchronized(activeComponents) { activeComponents.put(rr, currComps);}
+						
+						//Add the sum of noise responsibilities to this region
+						synchronized(noiseResp) { noiseResp.put(rr, noiseRSums);}
+					} else {
+						//Run ML assignment
+						List<BindingEvent> windowBindingEvents = new ArrayList<BindingEvent>();
+						for (Region w: windows) {
+							windowBindingEvents.addAll(analyzeWindowML(w));
+						}
+						synchronized(bindingEvents) {bindingEvents.addAll(windowBindingEvents);}
 					}
+				} catch(Exception e) {
+					System.err.println("ERROR: Exception when analyzing region"+rr.toString());
+					e.printStackTrace(System.err);
+					System.exit(-1);
 				}
 			}
 		}
@@ -215,9 +236,37 @@ public class BindingMixture {
             else
             	bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, true);
             
-            //EM learning: resulting binding components list will only contain non-zero components
-            nonZeroComponents = EM.train(signals, w, noiseComponents, bindingComponents, numBindingComponents, trainingRound);
+            //ATAC-seq prior
+            double[][] atacPrior;
             
+            //EM learning: resulting binding components list will only contain non-zero components
+            nonZeroComponents = EM.train(signals, w, noiseComponents, bindingComponents, numBindingComponents, atacPrior, trainingRound);
+            
+            return new Pair<List<NoiseComponent>, List<List<BindingComponent>>>(noiseComponents, nonZeroComponents);
+		}
+		
+		/**
+		 * Assign BindingComponents over a given window with ML solution
+		 * 
+		 * @param w
+		 * @return Pair of component lists (noise components and binding components) indexed by condition
+		 */
+		private List<BindingEvent> analyzeWindowML(Region w){
+			BindingMLAssignment ML = new BindingMLAssignment(econfig, evconfig, config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions());
+			List<BindingComponent> bindingComponents = null;
+			List<NoiseComponent> noiseComponents = null;
+			List<BindingEvent> currEvents = new ArrayList<BindingEvent>();
+			
+			//Load signal data
+			List<List<StrandedPair>> signals = loadSignalData(w);
+			if (signals==null)
+				return currEvents;
+			
+			//Load control data
+			List<List<StrandedPair>> controls = loadControlData(w);
+			
+			//Initialize noise components
+			noiseComponents = initializeNoiseComponents(w, signals, controls);
 		}
 		
 		/**

@@ -69,14 +69,26 @@ public class SEMConfig {
 	protected int modelRange = 100; // Window size to extract tag counts
 	protected boolean verbose = false; //Print extra output
 	protected boolean shareSubtypes=true; //Share subtypes across experiments
+	protected boolean useAtacPrior=true;
 		
 	//Constants
 	public final double LOG2 = Math.log(2);
 	public final int POTREG_BIN_STEP = 100; //Sliding window step in potential region scanner(?)
 	public final int MAXSECTION = 5000000;
+	public final int MAX_EM_ITER = 3;
 	public final double NOISE_EMISSION_MIN = 0.01; //Arbitrary floor on the emission probability of noise (must be non-zero to mop up noise reads)
     public final double NOISE_EMISSION_MAX = 0.95; //Arbitrary ceiling on the emission probability of noise
     public final int NOISE_DISTRIB_SMOOTHING_WIN = 50; //Smoothing window for the noise distribution used in the BindingMixture
+	public final int EM_ML_ITER = 3; // &
+	public final int EM_MU_UPDATE_WIN = 200; // &
+	public final int ALPHA_ANNEALING_ITER = 3; // &
+	public final double SPARSE_PRIOR_SUBTYPE = 0.05; // &
+	public final boolean CALC_LL = true; // &
+	public final int POSPRIOR_ITER = 3; // &
+	public final double EM_CONVERGENCE = 0.01; // &
+	public final int EM_STATE_EQUIV_ROUNDS = 1; // &
+	public final double EM_STATE_EQUIV_THRES = 0.01; // &
+	public final int INIT_COMPONENT_SPACING = 50; // &
 	
 	protected String[] args;
 	public String getArgs() {
@@ -232,6 +244,7 @@ public class SEMConfig {
 	public int getInitialCompSpacing(){return initComponentSpacing;}
 	public int getModelRange(){return modelRange;}
 	public boolean getShareSubtypes(){return shareSubtypes;}
+	public boolean useAtacPrior() {return useAtacPrior;}
 	
 	/**
 	 * Make output directories used by SEM

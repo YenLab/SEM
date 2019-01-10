@@ -8,6 +8,7 @@ import org.seqcode.projects.sem.framework.SEMConfig;
 import org.seqcode.deepseq.experiments.ExperimentManager;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
+import org.seqcode.gseutils.Pair;
 
 import com.datumbox.framework.common.Configuration;
 import com.datumbox.framework.core.machinelearning.MLBuilder;
@@ -25,7 +26,6 @@ public class GaussianMixture {
 	protected SEMConfig semconfig;
 	protected Map<Integer, Integer> mergeFragSizeFrequency;
 	protected List<HashMap<Integer, Integer>> fragSizeFrequency;
-	protected List<BindingSubtype> subtypes;
 	
 	protected Dataframe trainingData;
 	protected Map<Object, RealVector> clusterMu;
@@ -64,8 +64,6 @@ public class GaussianMixture {
 				trainingData.add(newDataVector(new Object[] {fz}, null));
 			}
 		}
-		
-		subtypes = new ArrayList<BindingSubtype>();
 	}
 	
 	/**
@@ -121,6 +119,13 @@ public class GaussianMixture {
 	//Accessors
 	public Map<Object, RealVector> getMu() {return clusterMu;}
 	public Map<Object, RealMatrix> getSigma() {return clusterSigma;}
+	public List<Pair<Double, Double>> getParameters() {
+		List<Pair<Double, Double>> fragSizeParaList = new ArrayList<Pair<Double, Double>>();
+		for (Object o: clusterMu.keySet()) {
+			fragSizeParaList.add(new Pair(clusterMu.get(o).getEntry(0), clusterSigma.get(0).getEntry(0, 0)));
+		}
+		return fragSizeParaList;
+	}
 	
 	/**
 	 * Fit Gaussian DPMM on trainingData
