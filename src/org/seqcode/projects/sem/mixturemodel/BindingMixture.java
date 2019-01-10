@@ -267,6 +267,8 @@ public class BindingMixture {
 			
 			//Initialize noise components
 			noiseComponents = initializeNoiseComponents(w, signals, controls);
+			
+			//
 		}
 		
 		/**
