@@ -108,6 +108,8 @@ public class BindingEM {
 		lastRBind = new double[numConditions][][];
 		lastPi = new double[numConditions][numComponents];
 		lastMu = new int[numConditions][numComponents];
+		lastFuzz = new double[numConditions][numComponents];
+		lastTau = new double[numConditions][numComponents][];
 		
 		// Initializing data structures
 		for(ExperimentCondition cond: manager.getConditions()) {
@@ -165,6 +167,7 @@ public class BindingEM {
 				mu[c][j] = components.get(c).get(j).getPosition();
 				fuzz[c][j] = components.get(c).get(j).getFuzziness();
 				tau[c][j] = components.get(c).get(j).getTau();
+				lastTau[c][j] = new double[fragSizePDF.keySet().size()];
 			}
 			
 			// Initialize H function for all positions in the current region
@@ -183,6 +186,7 @@ public class BindingEM {
 					}
 					hc[j][i] = fuzzProb * fragSizeProb;
 				}
+				nc[i] = noise.get(c).scorePosition(hitPos[c][i], repIndices[c][i]);
 			}
 			h[c] = hc;
 			n[c] = nc;

@@ -70,6 +70,7 @@ public class SEMConfig {
 	protected boolean verbose = false; //Print extra output
 	protected boolean shareSubtypes=true; //Share subtypes across experiments
 	protected boolean useAtacPrior=true;
+	protected boolean MLSharedComponentConfiguration = true; //For ML assignment: use a component configuration shared across all conditions or have condition-specific configs.
 		
 	//Constants
 	public final double LOG2 = Math.log(2);
@@ -245,6 +246,7 @@ public class SEMConfig {
 	public int getModelRange(){return modelRange;}
 	public boolean getShareSubtypes(){return shareSubtypes;}
 	public boolean useAtacPrior() {return useAtacPrior;}
+	public boolean getMLSharedComponentConfiguration(){return MLSharedComponentConfiguration;}
 	
 	/**
 	 * Make output directories used by SEM

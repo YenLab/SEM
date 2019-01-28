@@ -237,7 +237,7 @@ public class BindingMixture {
             	bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, true);
             
             //ATAC-seq prior
-            double[][] atacPrior;
+            double[][] atacPrior = new double[999][];
             
             //EM learning: resulting binding components list will only contain non-zero components
             nonZeroComponents = EM.train(signals, w, noiseComponents, bindingComponents, numBindingComponents, atacPrior, trainingRound);
@@ -252,7 +252,7 @@ public class BindingMixture {
 		 * @return Pair of component lists (noise components and binding components) indexed by condition
 		 */
 		private List<BindingEvent> analyzeWindowML(Region w){
-			BindingMLAssignment ML = new BindingMLAssignment(econfig, evconfig, config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions());
+			BindingMLAssignment ML = new BindingMLAssignment(econfig, evconfig, config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
 			List<BindingComponent> bindingComponents = null;
 			List<NoiseComponent> noiseComponents = null;
 			List<BindingEvent> currEvents = new ArrayList<BindingEvent>();
@@ -268,8 +268,75 @@ public class BindingMixture {
 			//Initialize noise components
 			noiseComponents = initializeNoiseComponents(w, signals, controls);
 			
-			//
-		}
+			//Configuration seen in another condition
+			ArrayList<ComponentConfiguration> seenConfigs = new ArrayList<ComponentConfiguration>();
+			//Assign reads to components
+			for(ExperimentCondition cond: manager.getConditions()) {
+				//Initialize binding components: shared configuration or condition-specific
+				//Q: It looks like two paths determined by getMLSharedComponentConfiguration have the same result
+				if(config.getMLSharedComponentConfiguration()) {
+					bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, false).get(cond.getIndex());				
+				} else {
+					bindingComponents = initializeBindingComponentsFromOneConditionActive(w, noiseComponents.get(cond.getIndex()), cond.getIndex());
+				}
+				int numComp = bindingComponents.size();
+				
+				//Construct configuration
+				ComponentConfiguration currCC = new ComponentConfiguration(bindingComponents, cond.getIndex());
+				
+				//Have we already seen this configuration?
+				boolean ccFound = false;
+				for(ComponentConfiguration cc: seenConfigs) {
+					if(currCC.isSameAs(cc)) {
+						int parent = cc.getParentCondition();
+						if(!config.getMLSharedComponentConfiguration()) {
+							for(BindingEvent be: currEvents)
+								if(be.isFoundInCondition(parent))
+									be.setIsFoundInCondition(cond.getIndex(), true);
+						}
+						ccFound=true;
+						break;
+					}
+				}
+				
+				if(!ccFound) {
+					//Add configuration to seenConfigs
+					seenConfigs.add(currCC);
+					
+					//ML assignment
+					List<BindingEvent> condEvents = ML.assign(signals, controls, w, noiseComponents, bindingComponents, numComp);
+					for(BindingEvent be: condEvents)
+						if(config.getMLSharedComponentConfiguration())
+							setFoundInConditions(be, w);
+						else
+							be.setIsFoundInCondition(cond.getIndex(), true);
+					currEvents.addAll(condEvents);
+				}
+			}
+			
+			//If we haven't used shared component ML, we need to edit and consolidate binding events
+            // 1) Consolidate, because otherwise you can have duplicate binding events
+            // 2) Edit - set counts to zero at conditions where the event is not active
+			if(!config.getMLSharedComponentConfiguration()) {
+				currEvents = consolidateBindingEvents(currEvents);
+			}
+			
+			//Add in sequences and final atac-seq scores here Q: I want to rewrite this part after finish atacFinder (which is similar to motif)
+//            if(evconfig.isAddingSequences()){
+//	            String seq = config.getFindingMotifs() ? motifFinder.getSeq(w):null;
+//	            Pair<Double[][], String[][]> motifScores = config.getFindingMotifs() ? motifFinder.scanRegionWithMotifsGetSeqs(w, seq) : null;
+//	            if(seq!=null && motifScores!=null){
+//		            for(ExperimentCondition cond : manager.getConditions()){
+//		            	for(BindingEvent b: currEvents){
+//		            		b.setMotifScore(cond, motifScores.car()[cond.getIndex()][b.getPoint().getLocation()-w.getStart()]);
+//		            		b.setSequence(cond, motifScores.cdr()[cond.getIndex()][b.getPoint().getLocation()-w.getStart()]);
+//		            	}
+//		            }
+//	            }
+//            }
+            
+            return currEvents;
+		}//end of analyzeWindowML method
 		
 		/**
 		 * Load all signal read hits in a region by condition. 
@@ -341,6 +408,20 @@ public class BindingMixture {
 				System.err.println("Global noise per base initialization for "+cond.getName()+" = "+String.format("%.4f", noisePerBase[e]));
 			
 			}
+		}
+		
+		/**
+		 * Set the conditions in which a given binding event is still active after EM training
+		 * @param b
+		 * @param currReg
+		 */
+		private void setFoundInConditions(BindingEvent b, Region currReg){
+			for(int e=0; e<manager.getNumConditions(); e++)
+        		for(BindingComponent comp : activeComponents.get(currReg).get(e)){
+        			if(comp.getPosition() == b.getPoint().getLocation()){
+        				b.setIsFoundInCondition(e, true);
+        			}
+        		}
 		}
 	
 		/**	
@@ -509,6 +590,43 @@ public class BindingMixture {
         }//end of initializeComponents method
         
         /**
+         * Initializes components from active components in a single condition: 
+         * 		Uses active component locations from the last round of training in one condition,
+         * 		No flanking components or resuce components added here, since resulting components will only be used
+         * 		in ML assignment.  
+         *
+         * @param currReg
+         */
+        private List<BindingComponent> initializeBindingComponentsFromOneConditionActive(Region currReg, NoiseComponent noise, int conditionIndex){
+        	//Initialize component positions with active locations
+        	List<Integer> componentPositions = new ArrayList<Integer>();
+        	for(BindingComponent comp : activeComponents.get(currReg).get(conditionIndex)){
+        		if(!componentPositions.contains(comp.getPosition()) && comp.getPosition()>=currReg.getStart() && comp.getPosition()<currReg.getEnd())
+        			componentPositions.add(comp.getPosition());
+        	}
+
+        	numBindingComponents = componentPositions.size();
+
+        	//Make new components with these locations
+        	List<BindingComponent> components = new ArrayList<BindingComponent>();
+        	
+        	//Set up the components
+        	double numC=(double)numBindingComponents; int index=0;
+    		double emission = (1-noise.getPi())/numC;
+    		for(Integer i : componentPositions){
+    			Point pos = new Point(config.getGenome(), currReg.getChrom(), i);
+    			BindingComponent currComp = new BindingComponent(pos, manager.getReplicates().size());
+    			currComp.setIndex(index);
+    			index++;
+    			//Initialize normalized mixing probabilities (subtracting the noise emission probability)
+    			currComp.uniformInit(emission);
+				components.add(currComp);
+			}
+    		
+        	return components; 
+        }//end of initializeComponents method
+        
+        /**
          * Smooth the distribution of the control reads over the window to make a probability distribution of noise over the region
          * @param currReg
          * @param ctrlHits
@@ -546,6 +664,80 @@ public class BindingMixture {
         		distrib[d] = distrib[d]/total;
         	
         	return distrib;
+        }
+        
+    	/**
+    	 * Consolidate and edit binding events.
+    	 * Follows a strict definition of binding event quantification - 
+    	 * if the event is not present in the condition, it gets a zero count assigned.
+    	 * Also merges positional duplicate events. 
+    	 * @param ev
+    	 * @return
+    	 */
+    	private List<BindingEvent> consolidateBindingEvents(List<BindingEvent> ev){
+    		List<BindingEvent> newEvents = new ArrayList<BindingEvent>();
+    		HashMap<Point, Integer> eventMap = new HashMap<Point, Integer>();
+    		int count=0;
+    		for(BindingEvent be : ev){
+    			if(!eventMap.containsKey(be.getPoint())){
+    				eventMap.put(be.getPoint(), count);
+    				count++;
+    				
+    				newEvents.add(be);
+    				//First time an event is added, clear out inactive events
+    				for(ExperimentCondition cond : manager.getConditions()){
+    					if(!be.isFoundInCondition(cond)){
+    						be.setCondSigHits(cond, 0.0);
+    		        		for(ControlledExperiment rep : cond.getReplicates()){
+    		        			be.setRepSigHits(rep, 0.0);
+    		        		}if(evconfig.CALC_EVENTS_LL)
+    			            	be.setLLd(cond, 0);
+    		        }	}
+    			}else{
+    				int index = eventMap.get(be.getPoint());
+    				//For events that are already in the list, just update the active condition read counts
+    				for(ExperimentCondition cond : manager.getConditions()){
+    					if(be.isFoundInCondition(cond)){
+    						newEvents.get(index).setCondSigHits(cond, be.getCondSigHits(cond));
+    						newEvents.get(index).setCondCtrlHits(cond, be.getCondCtrlHits(cond));
+    		        		for(ControlledExperiment rep : cond.getReplicates()){
+    		        			newEvents.get(index).setRepSigHits(rep, be.getRepSigHits(rep));
+    							newEvents.get(index).setRepCtrlHits(rep, be.getRepCtrlHits(rep));
+    		        		}if(evconfig.CALC_EVENTS_LL)
+    		        			newEvents.get(index).setLLd(cond, be.getLLd(cond));
+    		        }	}
+    			}
+    		}
+    		return newEvents;
+    	}
+        
+        /**
+         * ComponentConfiguration: represents a configuration of binding components as an array of positions 
+         * @author Jianyu Yang
+         * 
+         */
+        protected class ComponentConfiguration{
+        	int[] positions = null;
+        	int parentCondIndex;
+        	//Constructor
+        	public ComponentConfiguration(List<BindingComponent> comps, int parentCondition) {
+        		Collections.sort(comps);
+        		positions = new int[comps.size()];
+        		for(int p=0; p<comps.size(); p++)
+        			positions[p] = comps.get(p).getPosition();
+        		parentCondIndex = parentCondition;
+        	}
+        	//Return the index of the condition where this configuration comes from
+        	public int getParentCondition() {return parentCondIndex;}
+        	//Compare two configurations
+        	public boolean isSameAs(ComponentConfiguration cc) {
+        		if(positions.length != cc.positions.length)
+        			return false;
+        		boolean isEqual = true;
+        		for(int p=0; p<positions.length; p++)
+        			isEqual = isEqual && positions[p]==cc.positions[p];
+        		return isEqual;
+        	}
         }
 	}
 }
