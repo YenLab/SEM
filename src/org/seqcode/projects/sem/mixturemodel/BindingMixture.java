@@ -97,7 +97,30 @@ public class BindingMixture {
 
     		
     		noisePerBase[e] = nonPotRegCountsSigChannel/nonPotRegLengthTotal;  //Signal channel noise per base
+    		System.out.println("Condition: "+cond.getName()+"\n"
+    				+ "potRegCountsSignalChannel: "+potRegCountsSigChannel+"\n"
+    				+ "nonPotRegCountsSignalChannel: "+nonPotRegCountsSigChannel+"\n"
+    				+ "potRegCountsCtrlChannel: "+potRegCountsCtrlChannel + "\n"
+    				+ "nonPotRegCountsCtrlChannel: " +nonPotRegCountsCtrlChannel+"\n"
+    				+ "potRegLengthTotal: " + potRegLengthTotal + "\n"
+    				+ "nonPotRegLengthTotal: " + nonPotRegLengthTotal + "\n");
     		System.err.println("Global noise per base initialization for "+cond.getName()+" = "+String.format("%.4f", noisePerBase[e]));
+    	}
+    }
+    
+    /**
+     * Update the global noise parameters, using both non-potential region counts and assigned noise responsibilities
+     */
+    public void updateGlobalNoise(){
+    	for(int e=0; e<manager.getNumConditions(); e++){
+    		ExperimentCondition cond = manager.getIndexedCondition(e);
+    		
+    		//Don't need to examine noise reads in the update
+    		double noiseReads=potRegFilter.getNonPotRegCountsSigChannel(cond); 
+    		
+    		for(Region r : noiseResp.keySet())
+    			noiseReads+=noiseResp.get(r)[e];
+    		noisePerBase[e] = noiseReads/config.getGenome().getGenomeLength();  //Signal channel noise per base
     	}
     }
     
@@ -353,7 +376,7 @@ public class BindingMixture {
 			}
 			for(ExperimentCondition cond : manager.getConditions()){
 				for(ControlledExperiment rep : cond.getReplicates()){
-					data.get(rep.getIndex()).addAll(rep.getSignal().getPairs(w));
+					data.get(rep.getIndex()).addAll(rep.getSignal().getPairsByMid(w));
 				}
 			}
 			return data;
@@ -375,7 +398,7 @@ public class BindingMixture {
 			for(ExperimentCondition cond : manager.getConditions()){
 				for(ControlledExperiment rep : cond.getReplicates()){
 					if(rep.hasControl())
-						data.get(rep.getIndex()).addAll(rep.getControl().getPairs(w));
+						data.get(rep.getIndex()).addAll(rep.getControl().getPairsByMid(w));
 				}
 			}
 			return data;
