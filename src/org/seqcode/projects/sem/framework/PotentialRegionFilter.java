@@ -11,7 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.seqcode.deepseq.StrandedBaseCount;
+import org.seqcode.deepseq.StrandedPair;
 import org.seqcode.projects.sem.events.BindingManager;
 import org.seqcode.projects.sem.events.BindingModel;
 import org.seqcode.projects.sem.events.EventsConfig;
@@ -202,25 +202,25 @@ public class PotentialRegionFilter {
                     Region currSubRegion = new Region(gen, currentRegion.getChrom(), x, y);
                     
                     List<Region> currPotRegions = new ArrayList<Region>();
-                    List<List<StrandedBaseCount>> ipHits = new ArrayList<List<StrandedBaseCount>>();
-                    List<List<StrandedBaseCount>> backHits = new ArrayList<List<StrandedBaseCount>>();
-                    List<List<StrandedBaseCount>> ipHitsByRep = new ArrayList<List<StrandedBaseCount>>();
+                    List<List<StrandedPair>> ipHits = new ArrayList<List<StrandedPair>>();
+                    List<List<StrandedPair>> backHits = new ArrayList<List<StrandedPair>>();
+                    List<List<StrandedPair>> ipHitsByRep = new ArrayList<List<StrandedPair>>();
                     
                     synchronized(manager){
 	                    //Initialize the read lists
                     	for(ExperimentCondition cond : manager.getConditions()){
-                    		ipHits.add(new ArrayList<StrandedBaseCount>());
-                			backHits.add(new ArrayList<StrandedBaseCount>());
+                    		ipHits.add(new ArrayList<StrandedPair>());
+                			backHits.add(new ArrayList<StrandedPair>());
                     		for(ControlledExperiment rep : cond.getReplicates())
-                    			ipHitsByRep.add(new ArrayList<StrandedBaseCount>());
+                    			ipHitsByRep.add(new ArrayList<StrandedPair>());
                     	}
                     	//Load signal reads by condition and by replicate, so that signal proportion estimates can be assigned to each replicate 
                     	for(ExperimentCondition cond : manager.getConditions()){
                     		for(ControlledExperiment rep : cond.getReplicates()){
-                    			ipHits.get(cond.getIndex()).addAll(rep.getSignal().getBases(currSubRegion));
-                    			ipHitsByRep.get(rep.getIndex()).addAll(rep.getSignal().getBases(currSubRegion));
+                    			ipHits.get(cond.getIndex()).addAll(rep.getSignal().getPairs(currSubRegion));
+                    			ipHitsByRep.get(rep.getIndex()).addAll(rep.getSignal().getPairs(currSubRegion));
                     		}for(Sample ctrl : cond.getControlSamples())
-                    			backHits.get(cond.getIndex()).addAll(ctrl.getBases(currSubRegion));
+                    			backHits.get(cond.getIndex()).addAll(ctrl.getPairs(currSubRegion));
                     		Collections.sort(ipHits.get(cond.getIndex()));
                     		Collections.sort(backHits.get(cond.getIndex()));
                     	}
@@ -311,7 +311,7 @@ public class PotentialRegionFilter {
         //Break up a long window into parts
         //For now, we just choose the break points as the bins with the lowest total signal read count around the desired length.
         //TODO: improve?
-        protected List<Region> breakWindow(Region lastPotential, List<List<StrandedBaseCount>> ipHits, int preferredWinLen, char str) {
+        protected List<Region> breakWindow(Region lastPotential, List<List<StrandedPair>> ipHits, int preferredWinLen, char str) {
 			List<Region> parts = new ArrayList<Region>();
 			makeHitLandscape(ipHits, lastPotential, maxBinWidth, binStep, str);
             float ipHitCounts[][] = landscape.clone();
@@ -367,27 +367,25 @@ public class PotentialRegionFilter {
 		//Makes integer arrays corresponding to the read landscape over the current region.
         //Reads are semi-extended out to bin width to account for the bin step
         //No needlefiltering here as that is taken care of during read loading (i.e. in Sample)
-    	protected void makeHitLandscape(List<List<StrandedBaseCount>> hits, Region currReg, float binWidth, float binStep, char strand){
+    	protected void makeHitLandscape(List<List<StrandedPair>> hits, Region currReg, float binWidth, float binStep, char strand){
     		int numBins = (int)(currReg.getWidth()/binStep);
     		landscape = new float[hits.size()][numBins+1];
     		starts = new float[hits.size()][numBins+1];
     		float halfWidth = binWidth/2;
 
     		for(ExperimentCondition cond : manager.getConditions()){
-        		List<StrandedBaseCount> currHits = hits.get(cond.getIndex());
+        		List<StrandedPair> currHits = hits.get(cond.getIndex());
     			for(int i=0; i<=numBins; i++){landscape[cond.getIndex()][i]=0; starts[cond.getIndex()][i]=0; }
-	    		for(StrandedBaseCount r : currHits){
-	    			if(strand=='.' || r.getStrand()==strand){
-	    				int offset=inBounds(r.getCoordinate()-currReg.getStart(),0,currReg.getWidth());
+	    		for(StrandedPair r : currHits){
+	    				int offset=inBounds(r.getMidpoint().getLocation()-currReg.getStart(),0,currReg.getWidth());
 	    				int binoff = inBounds((int)(offset/binStep), 0, numBins);
-	    				starts[cond.getIndex()][binoff]+=r.getCount();
+	    				starts[cond.getIndex()][binoff]+=r.getWeight();
 	    				int binstart = inBounds((int)((double)(offset-halfWidth)/binStep), 0, numBins);
-	    				int binend = inBounds((int)((double)(offset)/binStep), 0, numBins);
+	    				int binend = inBounds((int)((double)(offset+halfWidth)/binStep), 0, numBins);
 	    				for(int b=binstart; b<=binend; b++)
-	    					landscape[cond.getIndex()][b]+=r.getCount();
-	    			}
-            	}
-    		}
+	    					landscape[cond.getIndex()][b]+=r.getWeight();
+	    		}
+           	}
     	}
     	protected final int inBounds(int x, int min, int max){
     		if(x<min){return min;}
@@ -407,17 +405,17 @@ public class PotentialRegionFilter {
     	 * @param ctrlHits
     	 * @param endCoord
     	 */
-    	protected void countReadsInRegions(List<Region> regs, List<List<StrandedBaseCount>> ipHits, List<List<StrandedBaseCount>> ctrlHits, int endCoord){
+    	protected void countReadsInRegions(List<Region> regs, List<List<StrandedPair>> ipHits, List<List<StrandedPair>> ctrlHits, int endCoord){
     		//Iterate through experiments
     		for(ExperimentCondition cond : manager.getConditions()){
     			double currPotWeightSig=0, currNonPotWeightSig=0, currPotWeightCtrl=0, currNonPotWeightCtrl=0;
     			//Iterate through signal hits
-    			for(StrandedBaseCount hit : ipHits.get(cond.getIndex())){
+    			for(StrandedPair hit : ipHits.get(cond.getIndex())){
     				if(regs.size()==0)
-    					currNonPotWeightSig+=hit.getCount();
+    					currNonPotWeightSig+=hit.getWeight();
     				else{
     					//Binary search for closest region start
-        				int hpoint = hit.getCoordinate();
+        				int hpoint = hit.getMidpoint().getLocation();
         				if(hpoint<endCoord){ //Throw this check in for the overhang
 	        				int l = 0, r = regs.size()-1;
 	        	            while (r - l > 1) {
@@ -431,21 +429,21 @@ public class PotentialRegionFilter {
 	        	            boolean inPot = false;
 	        	            for(int x=l; x<=r; x++){
 	        	            	if(hpoint >= regs.get(x).getStart() && hpoint <= regs.get(x).getEnd()){
-	        	            		currPotWeightSig+=hit.getCount(); inPot=true; break;
+	        	            		currPotWeightSig+=hit.getWeight(); inPot=true; break;
 	        	            	}
 	        	            }
 	        	            if(!inPot)
-	        	            	currNonPotWeightSig+=hit.getCount();
+	        	            	currNonPotWeightSig+=hit.getWeight();
         				}
     				}
     			}
     			//Iterate through control hits
-    			for(StrandedBaseCount hit : ctrlHits.get(cond.getIndex())){
+    			for(StrandedPair hit : ctrlHits.get(cond.getIndex())){
     				if(regs.size()==0)
-    					currNonPotWeightCtrl+=hit.getCount();
+    					currNonPotWeightCtrl+=hit.getWeight();
     				else{
         				//Binary search for closest region start
-        				int hpoint = hit.getCoordinate();
+        				int hpoint = hit.getMidpoint().getLocation();
         				if(hpoint<endCoord){ //Throw this check in for the overhang
 	        				int l = 0, r = regs.size()-1;
 	        	            while (r - l > 1) {
@@ -459,11 +457,11 @@ public class PotentialRegionFilter {
 	        	            boolean inPot = false;
 	        	            for(int x=l; x<=r; x++){
 	        	            	if(hpoint >= regs.get(x).getStart() && hpoint <= regs.get(x).getEnd()){
-	        	            		currPotWeightCtrl+=hit.getCount(); inPot=true; break;
+	        	            		currPotWeightCtrl+=hit.getWeight(); inPot=true; break;
 	        	            	}
 	        	            }
 	        	            if(!inPot)
-	        	            	currNonPotWeightCtrl+=hit.getCount();
+	        	            	currNonPotWeightCtrl+=hit.getWeight();
         				}
     				}
     			}
@@ -495,18 +493,18 @@ public class PotentialRegionFilter {
 	 * @param ctrlHits
 	 * @param endCoord
 	 */
-	protected void countReadsInRegionsByRep(List<Region> regs, List<List<StrandedBaseCount>> ipHitsByRep, int endCoord){
+	protected void countReadsInRegionsByRep(List<Region> regs, List<List<StrandedPair>> ipHitsByRep, int endCoord){
 		//Iterate through experiments
 		for(ExperimentCondition cond : manager.getConditions()){
 			for(ControlledExperiment rep : cond.getReplicates()){
 				double currPotWeightSig=0, currNonPotWeightSig=0;
 				//Iterate through signal hits
-				for(StrandedBaseCount hit : ipHitsByRep.get(rep.getIndex())){
+				for(StrandedPair hit : ipHitsByRep.get(rep.getIndex())){
 					if(regs.size()==0)
-						currNonPotWeightSig+=hit.getCount();
+						currNonPotWeightSig+=hit.getWeight();
 					else{
 						//Binary search for closest region start
-	    				int hpoint = hit.getCoordinate();
+	    				int hpoint = hit.getMidpoint().getLocation();
 	    				if(hpoint<endCoord){ //Throw this check in for the overhang
 	        				int l = 0, r = regs.size()-1;
 	        	            while (r - l > 1) {
@@ -520,11 +518,11 @@ public class PotentialRegionFilter {
 	        	            boolean inPot = false;
 	        	            for(int x=l; x<=r; x++){
 	        	            	if(hpoint >= regs.get(x).getStart() && hpoint <= regs.get(x).getEnd()){
-	        	            		currPotWeightSig+=hit.getCount(); inPot=true; break;
+	        	            		currPotWeightSig+=hit.getWeight(); inPot=true; break;
 	        	            	}
 	        	            }
 	        	            if(!inPot)
-	        	            	currNonPotWeightSig+=hit.getCount();
+	        	            	currNonPotWeightSig+=hit.getWeight();
 	    				}
 					}
 				}
