@@ -1,6 +1,7 @@
 package org.seqcode.projects.sem.mixturemodel;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,12 +116,22 @@ public class BindingEM {
 		for(ExperimentCondition cond: manager.getConditions()) {
 			int c = cond.getIndex();
 			
-			// Load binding fragment size PDF cache
+			// Load binding fragment size PDF cache (indexed by type index)
 			Map<Integer, List<Double>> fragSizePDF = bindingManager.getCachePDF(cond);
+			
+			// monitor code: show fragment size subtype information
+			for(int subIndex: fragSizePDF.keySet()) {
+				System.out.println("fragment size subtype index: "+subIndex);
+				System.out.println("mean: "+fragSizePDF.get(subIndex).get(0));
+				System.out.println("std: "+fragSizePDF.get(subIndex).get(1));
+			}
 			
 			// Set maximum alphas
 			alphaMax[c] = semconfig.getFixedAlpha()>0 ? semconfig.getFixedAlpha() :
 					semconfig.getAlphaScalingFactor() * (double)conditionBackgrounds.get(cond).getMaxThreshold('.');
+			
+			// monitor code: show alphaMax information
+			System.out.println("Maximum alpha: "+alphaMax[c]);
 			
 			// Load Read pairs (merge from all replicates)
 			List<StrandedPair> pairs = new ArrayList<StrandedPair>();
@@ -129,7 +140,11 @@ public class BindingEM {
 			int numPairs = pairs.size();
 			hitNum[c] = numPairs;
 			
+			// monitor code: show number of strandedPairs
+			System.out.println("Number of loaded read pairs: "+hitNum[c]);
+			
 			// Load replicate index for each read
+			
 			repIndices[c] = new int[numPairs];
 			int y=0, z=0;
 			for(ControlledExperiment rep: cond.getReplicates()) {
@@ -141,13 +156,14 @@ public class BindingEM {
 			}
 			
 			// Load read pair info
+			// TODO: It looks like I can merge pairs with the same fragment size and midpoint
 			double[] countc = new double[numPairs];
 			int[] posc = new int[numPairs];
 			int[] sizec = new int[numPairs];
 			for(int i=0; i<numPairs; i++) {
 				posc[i] = pairs.get(i).getMidpoint().getLocation();
 				sizec[i] = pairs.get(i).getFragmentSize();
-				countc[i] = 1;
+				countc[i] = pairs.get(i).getWeight();
 			}
 			hitPos[c] = posc;
 			hitCounts[c] = countc;
@@ -167,7 +183,7 @@ public class BindingEM {
 				mu[c][j] = components.get(c).get(j).getPosition();
 				fuzz[c][j] = components.get(c).get(j).getFuzziness();
 				tau[c][j] = components.get(c).get(j).getTau();
-				lastTau[c][j] = new double[fragSizePDF.keySet().size()];
+//				lastTau[c][j] = new double[fragSizePDF.keySet().size()];
 			}
 			
 			// Initialize H function for all positions in the current region
@@ -186,7 +202,7 @@ public class BindingEM {
 					}
 					hc[j][i] = fuzzProb * fragSizeProb;
 				}
-				nc[i] = noise.get(c).scorePosition(hitPos[c][i], repIndices[c][i]);
+				nc[i] = noise.get(c).score(hitPos[c][i], hitSize[c][i], repIndices[c][i]);
 			}
 			h[c] = hc;
 			n[c] = nc;
@@ -196,6 +212,25 @@ public class BindingEM {
 			lastRBind[c] = new double[numComp][numPairs];
 		}
 		// End of data structure initialization
+		
+		//monitor code: show initialized data structure
+		for(ExperimentCondition cond: manager.getConditions()) {
+			int c = cond.getIndex();
+			System.out.println("ExperimentCondition index: "+c);
+			System.out.println("H function:");
+			for(double[] i: h[c]) {
+				System.out.println(Arrays.toString(i));
+			}
+			System.out.println("N function:");
+			System.out.println(Arrays.toString(n[c]));
+			System.out.println("Hit pair information:");
+			System.out.println("hitPos:");
+			System.out.println(Arrays.toString(hitPos[c]));
+			System.out.println("hitCounts:");
+			System.out.println(Arrays.toString(hitCounts[c]));
+			System.out.println("hitSize:");
+			System.out.println(Arrays.toString(hitSize[c]));
+		}
 		
 		/////////
 		// Run EM steps
@@ -240,6 +275,10 @@ public class BindingEM {
      * Assumes H function, pi, and responsibilities have all been initialized
      */
 	private void EM_MAP(Region currRegion) {
+		
+		//monitor code: Mark EM_MAP start
+		System.out.println("EM_MAP start.......................");
+		
 		int numComp = numComponents;
 		double [][] totalResp = new double[numConditions][];
 		int regStart = currRegion.getStart();
@@ -300,6 +339,21 @@ public class BindingEM {
         			rNoise[c][i]/=totalResp[c][i];
         		}
         	}
+        	
+        	//monitor code: Show normalized responsibilities for each read pair
+        	for(int c=0; c<numConditions; c++) {
+        		int numPairs = hitNum[c];
+        		for(int i=0; i<numPairs; i++) {
+        			System.out.println("Read pair"+i);
+        			for(int j=0; j<numComp; j++) {
+        				System.out.println("\tBinding component"+j+": "+rBind[c][j][i]);
+        			}
+        			System.out.println("\tNoise component: "+rNoise[c][i]);
+        		}
+        	}
+        	
+    		//monitor code: exit here
+    		System.exit(1);
         	
     		/////////////////////
     		//M-step: maximize mu (positions), fuzz (fuzziness), tau (fragment size subtype), pi (strength)

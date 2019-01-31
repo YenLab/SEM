@@ -43,6 +43,7 @@ public class BindingMixture {
 	protected double noisePerBase[];		//Defines global noise
 	protected double relativeCtrlNoise[];	//Defines global noise
 	protected HashMap<Region, Double[]> noiseResp = new HashMap<Region, Double[]>(); //noise responsibilities after a round of execute(). Hashed by Region, indexed by condition
+	protected HashMap<ExperimentCondition, Map<Integer, Double>> noiseFragSizeFreq;
 	
 	public BindingMixture(GenomeConfig gcon, ExptConfig econ, EventsConfig evcon, SEMConfig semconfig, ExperimentManager eMan, BindingManager bMan, PotentialRegionFilter filter) {
 		gconfig = gcon;
@@ -68,6 +69,16 @@ public class BindingMixture {
 		
 		noisePerBase = new double[manager.getNumConditions()];
 		relativeCtrlNoise = new double[manager.getNumConditions()];
+		noiseFragSizeFreq = filter.getNonPotRegFragSizeFreqSigChannel();
+		
+		//monitor code: show noiseFragSizeFreq
+		System.out.println("noise fragment size frequency: ");
+		for(ExperimentCondition cond: manager.getConditions()) {
+			for(int key: noiseFragSizeFreq.get(cond).keySet()) {
+				System.out.println("Fragment size: "+key+"\tFrequency: "+noiseFragSizeFreq.get(cond).get(key));
+			}
+		}
+		
 		initializeGlobalNoise();
 	}
 	
@@ -97,6 +108,7 @@ public class BindingMixture {
 
     		
     		noisePerBase[e] = nonPotRegCountsSigChannel/nonPotRegLengthTotal;  //Signal channel noise per base
+    		
     		System.out.println("Condition: "+cond.getName()+"\n"
     				+ "potRegCountsSignalChannel: "+potRegCountsSigChannel+"\n"
     				+ "nonPotRegCountsSignalChannel: "+nonPotRegCountsSigChannel+"\n"
@@ -117,6 +129,8 @@ public class BindingMixture {
     		
     		//Don't need to examine noise reads in the update
     		double noiseReads=potRegFilter.getNonPotRegCountsSigChannel(cond); 
+    		
+    		//Don't forget to update noise fragment size frequency here!!!!!!!!!!!!!!!!
     		
     		for(Region r : noiseResp.keySet())
     			noiseReads+=noiseResp.get(r)[e];
@@ -247,11 +261,47 @@ public class BindingMixture {
 			List<List<StrandedPair>> signals = loadSignalData(w);
 			if (signals==null)
 				return new Pair<List<NoiseComponent>, List<List<BindingComponent>>>(noiseComponents, nonZeroComponents);
+			
+			//monitor code: show selected signal strandedPair in region
+			System.out.println("signal data:/n"+"Region start: "+w.getStart()+"\nRegion end: "+w.getEnd());
+			System.out.println("StrandedPair in region:\n");
+			for(ExperimentCondition cond: manager.getConditions()) {
+				for(StrandedPair sp: signals.get(cond.getIndex())) {
+					System.out.println(sp);
+				}
+			}
+			
 			//Load control data
 			List<List<StrandedPair>> controls = loadControlData(w);
 			
+			//monitor code: show selected control strandedPair in region
+			System.out.println("control data:\n"+"Region start: "+w.getStart()+"\nRegion end: "+w.getEnd());
+			System.out.println("StrandedPair in region:\n");
+			for(ExperimentCondition cond: manager.getConditions()) {
+				for(StrandedPair sp: controls.get(cond.getIndex())) {
+					System.out.println(sp);
+				}
+			}
+						
 			//Initialize noise components
 			noiseComponents = initializeNoiseComponents(w, signals, controls);
+			
+			//monitor code: show noise components information
+			System.out.println("noise component:\n");
+			for(ExperimentCondition cond: manager.getConditions()) {
+				System.out.println(noiseComponents.get(cond.getIndex()));
+				System.out.print("\tnoise distrib:");
+				for(double[] i: noiseComponents.get(cond.getIndex()).distrib) {
+					System.out.print("\n");
+					for(double j: i) {
+						System.out.print("\t\t"+j+"\t");
+					}
+				}
+				System.out.println("\tfragment size distribution:");
+				for(int key: noiseComponents.get(cond.getIndex()).fragSizeFreq.keySet()) {
+					System.out.println("Fragment size: "+key+"\tFrequency: "+noiseComponents.get(cond.getIndex()).fragSizeFreq.get(key));
+				}
+			}
 			
 			//Initialize binding components
             if(uniformBindingComponents)
@@ -259,9 +309,17 @@ public class BindingMixture {
             else
             	bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, true);
             
+            //monitor code: show signal components information
+            System.out.println("signal components:\n");
+            for(ExperimentCondition cond:manager.getConditions()) {
+            	for(BindingComponent bc: bindingComponents.get(cond.getIndex())) {
+            		System.out.println(bc);
+            	}
+            }
+            
             //ATAC-seq prior
             double[][] atacPrior = new double[999][];
-            
+                      
             //EM learning: resulting binding components list will only contain non-zero components
             nonZeroComponents = EM.train(signals, w, noiseComponents, bindingComponents, numBindingComponents, atacPrior, trainingRound);
             
@@ -455,7 +513,7 @@ public class BindingMixture {
 		 */
 		private List<NoiseComponent> initializeNoiseComponents(Region currReg, List<List<StrandedPair>> sigHits, List<List<StrandedPair>> ctrlHits){
 			List<NoiseComponent> noise = new ArrayList<NoiseComponent>();
-			int numReps = manager.getReplicates().size();
+			int numReps = manager.getReplicates().size();		
 			double [] localSigRepCounts=new double [numReps];
 			double [] localCtrlRepCounts=new double [numReps];
     	
@@ -471,7 +529,13 @@ public class BindingMixture {
 					}else
 						distribs[rep.getIndex()] = null;
 				}
-    	
+			
+			//Calculate expected fragment size frequency distribution
+			Map<ExperimentCondition, HashMap<Integer, Double>> fragSizeFreq = new HashMap<ExperimentCondition, HashMap<Integer, Double>>();
+			for(ExperimentCondition cond: manager.getConditions()) {
+				fragSizeFreq.put(cond, normalizeFragSizeFreq(noiseFragSizeFreq.get(cond)));
+			}
+			    	
 			//Initialize the noise component
 			for(int e=0; e<manager.getNumConditions(); e++){
 				ExperimentCondition cond = manager.getIndexedCondition(e);
@@ -513,7 +577,7 @@ public class BindingMixture {
 					emission = config.NOISE_EMISSION_MIN;
     		
 				//Add the noise component
-				NoiseComponent n = new NoiseComponent(emission, distribs, currReg, numReps);
+				NoiseComponent n = new NoiseComponent(emission, distribs, currReg, numReps, fragSizeFreq.get(cond));
 				noise.add(n);
 			}
 			return noise;
@@ -547,9 +611,17 @@ public class BindingMixture {
     	           components.get(e).add(currComp);
 				}
 				//Initialize normalized mixing probabilities (subtracting the noise emission probability)
+				//Add initialization step for fuzziness and tau here @Jianyu Yang
 				double emission = (1-noise.get(e).getPi())/numC;
+				int numBindingSubtype = bindingManager.getBindingSubtypes(manager.getIndexedCondition(e)).size();
+				double[] tauInit = new double[numBindingSubtype];
+				for(int i=0; i<numBindingSubtype; i++) {
+					tauInit[i] = (double)1/(double)numBindingSubtype;
+				}
 				for(BindingComponent b : components.get(e)){
-					b.uniformInit(emission);	                
+					b.uniformInit(emission);
+					b.setFuzziness(50);
+					b.setTau(tauInit);
 				}
 			}
 			return components; 
@@ -688,6 +760,33 @@ public class BindingMixture {
         	
         	return distrib;
         }
+        
+        /**
+         * Normalize the distribution of the fragment size
+         */
+        private HashMap<Integer, Double> normalizeFragSizeFreq(Map<Integer, Double> freq){
+        	HashMap<Integer, Double> normalizedFreq = new HashMap<Integer, Double>();
+        	//Add pseudo fragment size into frequency map
+        	for(int i=1; i<=1000; i++) {
+        		normalizedFreq.put(i, 1d);
+        	}
+        	//Add fragment size frequency in freq to normalizedFreq
+        	for(int key: freq.keySet()) {
+        		double count = normalizedFreq.containsKey(key)? normalizedFreq.get(key):1;
+        		normalizedFreq.put(key, count+freq.get(key));
+        	}
+        	//Normalize        	
+			double totalCount = 0;
+			for(int key: normalizedFreq.keySet()) {
+				totalCount += normalizedFreq.get(key); 
+			}
+			for(int key: normalizedFreq.keySet()) {
+				double oldValue = normalizedFreq.get(key);
+				normalizedFreq.put(key, oldValue/totalCount); 
+			}		
+        	return normalizedFreq;
+        }
+        
         
     	/**
     	 * Consolidate and edit binding events.

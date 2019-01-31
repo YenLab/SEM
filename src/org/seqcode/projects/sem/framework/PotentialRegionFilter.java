@@ -57,6 +57,7 @@ public class PotentialRegionFilter {
 	protected HashMap<ExperimentCondition, Double> nonPotRegCountsSigChannel = new HashMap<ExperimentCondition, Double>();
 	protected HashMap<ExperimentCondition, Double> potRegCountsCtrlChannel = new HashMap<ExperimentCondition, Double>();
 	protected HashMap<ExperimentCondition, Double> nonPotRegCountsCtrlChannel = new HashMap<ExperimentCondition, Double>();	
+	protected HashMap<ExperimentCondition, Map<Integer, Double>> nonPotRegFragSizeFreqSigChannel = new HashMap<ExperimentCondition, Map<Integer, Double>>(); //Fragment size frequency in non potential region
 	protected HashMap<ControlledExperiment, Double> potRegCountsSigChannelByRep = new HashMap<ControlledExperiment, Double>();
 	protected HashMap<ControlledExperiment, Double> nonPotRegCountsSigChannelByRep = new HashMap<ControlledExperiment, Double>();
 	
@@ -91,6 +92,7 @@ public class PotentialRegionFilter {
     			potRegCountsSigChannelByRep.put(rep, 0.0);
         		nonPotRegCountsSigChannelByRep.put(rep, 0.0);
     		}
+    		nonPotRegFragSizeFreqSigChannel.put(cond, new HashMap<Integer, Double>());
     	}
 		binStep = config.POTREG_BIN_STEP;
 		if(binStep>maxBinWidth/2)
@@ -105,6 +107,7 @@ public class PotentialRegionFilter {
 	public Double getNonPotRegCountsCtrlChannel(ExperimentCondition e){ return nonPotRegCountsCtrlChannel.get(e);}
 	public Double getPotRegCountsSigChannelByRep(ControlledExperiment e){ return potRegCountsSigChannelByRep.get(e);}
 	public Double getNonPotRegCountsSigChannelByRep(ControlledExperiment e){ return nonPotRegCountsSigChannelByRep.get(e);}
+	public HashMap<ExperimentCondition, Map<Integer, Double>> getNonPotRegFragSizeFreqSigChannel() { return nonPotRegFragSizeFreqSigChannel;}
 	public List<Region> getPotentialRegions(){return potentialRegions;}
 	public double getPotRegionLengthTotal(){return potRegionLengthTotal;}
 	
@@ -429,11 +432,17 @@ public class PotentialRegionFilter {
 	        	            boolean inPot = false;
 	        	            for(int x=l; x<=r; x++){
 	        	            	if(hpoint >= regs.get(x).getStart() && hpoint <= regs.get(x).getEnd()){
-	        	            		currPotWeightSig+=hit.getWeight(); inPot=true; break;
+	        	            		currPotWeightSig+=hit.getWeight(); 
+	        	            		inPot=true;
+	        	            		break;
 	        	            	}
 	        	            }
-	        	            if(!inPot)
+	        	            if(!inPot) {
 	        	            	currNonPotWeightSig+=hit.getWeight();
+	        	            	//Add hit to frequency channel
+        	            		double frequency = nonPotRegFragSizeFreqSigChannel.get(cond).containsKey(hit.getFragmentSize())? nonPotRegFragSizeFreqSigChannel.get(cond).get(hit.getFragmentSize()):0;
+        	            		nonPotRegFragSizeFreqSigChannel.get(cond).put(hit.getFragmentSize(), frequency+hit.getWeight());
+	        	            }
         				}
     				}
     			}

@@ -1,7 +1,11 @@
 package org.seqcode.projects.sem.mixturemodel;
 
+import java.util.Map;
+import java.util.HashMap;
+
 import org.seqcode.deepseq.ReadHit;
 import org.seqcode.deepseq.StrandedBaseCount;
+import org.seqcode.deepseq.StrandedPair;
 import org.seqcode.genome.location.Region;
 
 /**
@@ -19,6 +23,7 @@ public class NoiseComponent {
 	protected boolean uniformDistrib=true;
 	protected Region reg;
 	protected int regionWidth=0;
+	protected HashMap<Integer, Double> fragSizeFreq;
 	
 	/**
 	 * Constructor
@@ -26,11 +31,12 @@ public class NoiseComponent {
 	 * @param noiseDistrib: relative distribution of noise in the region (must be same length as width of region, indexed by replicate)
 	 * @param reg: region that this noise component is being used in (only required for the width and the starting coordinate) 
 	 */
-	public NoiseComponent(double emissionProb, double[][] noiseDistrib, Region r, int numReps){
+	public NoiseComponent(double emissionProb, double[][] noiseDistrib, Region r, int numReps,  HashMap<Integer, Double> fragSizeFreq){
 		pi = emissionProb; 
 		reg = r;
 		regionWidth=reg.getWidth();
 		distrib = new double[numReps][];
+		this.fragSizeFreq = fragSizeFreq;
 		for(int h=0; h<numReps; h++){
 			if(noiseDistrib[h]==null){
 				uniformDistrib=true;
@@ -77,6 +83,15 @@ public class NoiseComponent {
 		if(i<0){i=0;}
 		else if(i>=regionWidth){i=regionWidth;}
 		return distrib[rep][i];
+	}
+	
+	public double score(int mid, int size, int rep) {
+		int i = mid-reg.getStart();
+		if(i<0) {i=0;}
+		else if(i>=regionWidth){i=regionWidth;}
+		double distribProb = distrib[rep][i];
+		double fragSizeProb = fragSizeFreq.containsKey(size)? fragSizeFreq.get(size):0;
+		return distribProb*fragSizeProb;
 	}
 	
 	public String toString(){
