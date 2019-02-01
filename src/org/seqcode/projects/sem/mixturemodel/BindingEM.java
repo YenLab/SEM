@@ -69,7 +69,8 @@ public class BindingEM {
 		bindingManager = bMan;
 		conditionBackgrounds = condBacks;
 		numConditions = manager.getNumConditions();
-		numPotentialRegions = (double)numPotReg;		
+		numPotentialRegions = (double)numPotReg;
+
 	}
 	
 	public List<List<BindingComponent>> train(List<List<StrandedPair>> signals,
@@ -116,33 +117,17 @@ public class BindingEM {
 		for(ExperimentCondition cond: manager.getConditions()) {
 			int c = cond.getIndex();
 			
-			// Load binding fragment size PDF cache (indexed by type index)
-			Map<Integer, List<Double>> fragSizePDF = bindingManager.getCachePDF(cond);
-			
-			// monitor code: show fragment size subtype information
-			for(int subIndex: fragSizePDF.keySet()) {
-				System.out.println("fragment size subtype index: "+subIndex);
-				System.out.println("mean: "+fragSizePDF.get(subIndex).get(0));
-				System.out.println("std: "+fragSizePDF.get(subIndex).get(1));
-			}
-			
 			// Set maximum alphas
 			alphaMax[c] = semconfig.getFixedAlpha()>0 ? semconfig.getFixedAlpha() :
 					semconfig.getAlphaScalingFactor() * (double)conditionBackgrounds.get(cond).getMaxThreshold('.');
-			
-			// monitor code: show alphaMax information
-			System.out.println("Maximum alpha: "+alphaMax[c]);
-			
+					
 			// Load Read pairs (merge from all replicates)
 			List<StrandedPair> pairs = new ArrayList<StrandedPair>();
 			for(ControlledExperiment rep: cond.getReplicates())
 				pairs.addAll(signals.get(rep.getIndex()));
 			int numPairs = pairs.size();
 			hitNum[c] = numPairs;
-			
-			// monitor code: show number of strandedPairs
-			System.out.println("Number of loaded read pairs: "+hitNum[c]);
-			
+
 			// Load replicate index for each read
 			
 			repIndices[c] = new int[numPairs];
@@ -187,51 +172,15 @@ public class BindingEM {
 			}
 			
 			// Initialize H function for all positions in the current region
-			// Due to different binding components have different fuzziness, we cannot precompute
-			// H function here for SEM
+			// Due to different binding components have different fuzziness, we cannot precompute H function here for SEM
 			
 			// Initialize responsibility functions
-			double[][] hc = new double[numComp][numPairs];
-			double[] nc = new double[numPairs];
-			for(int i=0; i<numPairs; i++) {
-				for(int j=0; j<numComp; j++) {
-					double fuzzProb = BindingModel.probability(fuzz[c][j], mu[c][j]-hitPos[c][i]);
-					double fragSizeProb = 0;
-					for(int index: fragSizePDF.keySet()) {
-						fragSizeProb += tau[c][j][index] * fragSizePDF.get(index).get(hitSize[c][i]);
-					}
-					hc[j][i] = fuzzProb * fragSizeProb;
-				}
-				nc[i] = noise.get(c).score(hitPos[c][i], hitSize[c][i], repIndices[c][i]);
-			}
-			h[c] = hc;
-			n[c] = nc;
-			
 			rBind[c] = new double[numComp][numPairs];
 			rNoise[c] = new double[numPairs];
 			lastRBind[c] = new double[numComp][numPairs];
 		}
 		// End of data structure initialization
-		
-		//monitor code: show initialized data structure
-		for(ExperimentCondition cond: manager.getConditions()) {
-			int c = cond.getIndex();
-			System.out.println("ExperimentCondition index: "+c);
-			System.out.println("H function:");
-			for(double[] i: h[c]) {
-				System.out.println(Arrays.toString(i));
-			}
-			System.out.println("N function:");
-			System.out.println(Arrays.toString(n[c]));
-			System.out.println("Hit pair information:");
-			System.out.println("hitPos:");
-			System.out.println(Arrays.toString(hitPos[c]));
-			System.out.println("hitCounts:");
-			System.out.println(Arrays.toString(hitCounts[c]));
-			System.out.println("hitSize:");
-			System.out.println(Arrays.toString(hitSize[c]));
-		}
-		
+
 		/////////
 		// Run EM steps
 		/////////
@@ -312,11 +261,36 @@ public class BindingEM {
         int t=0, iter=0;
         while(t<semconfig.MAX_EM_ITER) {
         	
+        	//monitor code: show EM round
+        	System.err.println("EM round "+iter);
+        	
     		////////
     		//E-step
     		////////
         	for(int c=0; c<numConditions; c++) {
         		int numPairs = hitNum[c];
+        		ExperimentCondition cond = manager.getIndexedCondition(c);
+        		
+    			// Load binding fragment size PDF cache (indexed by type index)
+    			Map<Integer, List<Double>> fragSizePDF = bindingManager.getCachePDF(cond);
+    			
+    			// Compute H and N function
+    			double[][] hc = new double[numComp][numPairs];
+    			double[] nc = new double[numPairs];
+    			for(int i=0; i<numPairs; i++) {
+    				for(int j=0; j<numComp; j++) {
+    					double fuzzProb = BindingModel.probability(fuzz[c][j], mu[c][j]-hitPos[c][i]);
+    					double fragSizeProb = 0;
+    					for(int index: fragSizePDF.keySet()) {
+    						fragSizeProb += tau[c][j][index] * fragSizePDF.get(index).get(hitSize[c][i]);
+    					}
+    					hc[j][i] = fuzzProb * fragSizeProb;
+    				}
+    				nc[i] = noise.get(c).score(hitPos[c][i], hitSize[c][i], repIndices[c][i]);
+    			}
+    			h[c] = hc;
+    			n[c] = nc;
+        		
         		// Compute responsibilities
         		for(int i=0; i<numPairs; i++) {
         			totalResp[c][i] = 0;
@@ -339,22 +313,7 @@ public class BindingEM {
         			rNoise[c][i]/=totalResp[c][i];
         		}
         	}
-        	
-        	//monitor code: Show normalized responsibilities for each read pair
-        	for(int c=0; c<numConditions; c++) {
-        		int numPairs = hitNum[c];
-        		for(int i=0; i<numPairs; i++) {
-        			System.out.println("Read pair"+i);
-        			for(int j=0; j<numComp; j++) {
-        				System.out.println("\tBinding component"+j+": "+rBind[c][j][i]);
-        			}
-        			System.out.println("\tNoise component: "+rNoise[c][i]);
-        		}
-        	}
-        	
-    		//monitor code: exit here
-    		System.exit(1);
-        	
+
     		/////////////////////
     		//M-step: maximize mu (positions), fuzz (fuzziness), tau (fragment size subtype), pi (strength)
     		/////////////////////
@@ -380,8 +339,8 @@ public class BindingEM {
         				for(int x=start; x<end; x++) {
         					currScore=0;
         					for(int i=0; i<numPairs; i++) {
-        						int dist = hitPos[c][i] - x;
-        						currScore += (rBind[c][j][i]*hitCounts[c][i]) * BindingModel.logProbability(fuzz[c][j], dist);
+    							int dist = hitPos[c][i] - x;
+    							currScore += (rBind[c][j][i]*hitCounts[c][i]) * BindingModel.logProbability(fuzz[c][j], dist);
         					}
         					if(atacPrior!=null && semconfig.useAtacPrior())
         						currScore += atacPrior[c][x-regStart];
@@ -423,36 +382,37 @@ public class BindingEM {
         		}
         	}
         	
-        	
+
         	// Part2: Maximize fuzziness
         	for(int c=0; c<numConditions; c++) {
         		int numPairs = hitNum[c];
-        		for(int j=0; j<numComp; j++) {
-        			double posMean = 0;
+        		for(int j=0; j<numComp; j++) {if(pi[c][j]>0) {
         			double posVar = 0;
+        			double sumWeight = 0;
         			for(int i=0; i<numPairs; i++) 
-        				posMean += rBind[c][j][i] * hitPos[c][i];
+        				sumWeight += rBind[c][j][i] * hitCounts[c][i];
         			for(int i=0; i<numPairs; i++)
-        				posVar += rBind[c][j][i] * Math.pow(hitPos[c][i]-posMean, 2);
-        			posVar /= numPairs;
+        				posVar += (rBind[c][j][i] * hitCounts[c][i]) * Math.pow(hitPos[c][i]-mu[c][j], 2);
+        			posVar /= sumWeight;
         			fuzz[c][j] = Math.sqrt(posVar);
         		}
+        		}
         	}
-        	
+
         	// Part3: Maximize tau
         	for(ExperimentCondition cond: manager.getConditions()) {
         		int c = cond.getIndex();
         		int numPairs = hitNum[c];
         		int numSubtypes = bindingManager.getBindingSubtypes(cond).size();
-        		for(int j=0; j<numComp; j++) {
+        		for(int j=0; j<numComp; j++) {if(pi[c][j]>0) {
         			tau[c][j] = new double[numSubtypes];
         			double probSum = 0;
         			// Compute tau probability of each fragment size subtype for each component
         			for(BindingSubtype b: bindingManager.getBindingSubtypes(cond)) {
         				for(int i=0; i<numPairs; i++) {
-        					tau[c][j][b.getIndex()] += rBind[c][j][i] * b.probability(hitSize[c][i]);
-        					probSum += tau[c][j][b.getIndex()];
+        					tau[c][j][b.getIndex()] += (rBind[c][j][i]* hitCounts[c][i]) * b.probability(hitSize[c][i]);
         				}
+        				probSum += tau[c][j][b.getIndex()];
         			}
         			// Normalize tau for each component
         			for(BindingSubtype b: bindingManager.getBindingSubtypes(cond)) 
@@ -465,15 +425,15 @@ public class BindingEM {
         			// Re-normalize tau for each component after eliminating low ratio subtypes
         			probSum = 0;
         			for(BindingSubtype b: bindingManager.getBindingSubtypes(cond)) {
-        				for(int i=0; i<numPairs; i++) {
-        					tau[c][j][b.getIndex()] += rBind[c][j][i] * b.probability(hitSize[c][i]);
-        					probSum += tau[c][j][b.getIndex()];
-        				}
+       					probSum += tau[c][j][b.getIndex()];
+
         			}
         			for(BindingSubtype b: bindingManager.getBindingSubtypes(cond)) 
         				tau[c][j][b.getIndex()] /= probSum;
         		}
+        		}
         	}
+        	
         	
         	// Part4: Maximize pi
         	boolean componentEliminated = false;
@@ -497,7 +457,8 @@ public class BindingEM {
         			// No component will be eliminated, update pi[j]
         			for(int j=0; j<numComp; j++) {
         				if(pi[c][j]>0) {
-        					pi[c][j] = Math.max(0, sumR[j]-currAlpha[c]);
+//        					pi[c][j] = Math.max(0, sumR[j]-currAlpha[c]);
+        					pi[c][j] = Math.max(0, sumR[j]);
         				}
         			}
         		} else {
@@ -586,19 +547,36 @@ public class BindingEM {
     		
     		 ////////////
           	//Check Stopping condition
-          	////////////
-            if (nonZeroComps>0 && ((numConditions>1 && t<=semconfig.POSPRIOR_ITER) || (numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER) || (semconfig.CALC_LL && Math.abs(LAP-lastLAP)>semconfig.EM_CONVERGENCE) || stateEquivCount<semconfig.EM_STATE_EQUIV_ROUNDS)){
-                copyStateToLast();
-                lastLAP = LAP;
-                continue;
-            }else{
-            	copyStateToLast();
-            	lastLAP = LAP;
-            	//if(config.isVerbose())
-            		//System.err.println("\tRegTrain:"+trainingRound+"\t"+currRegion.getLocationString()+"\t"+currRegion.getWidth()+"\t"+t+"\t"+iter+"\t"+nonZeroComps);
-            	break;
-            }
+          	////////////   		
+//            if (nonZeroComps>0 && ((numConditions>1 && t<=semconfig.POSPRIOR_ITER) || (numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER) || (semconfig.CALC_LL && Math.abs(LAP-lastLAP)>semconfig.EM_CONVERGENCE) || stateEquivCount<semconfig.EM_STATE_EQUIV_ROUNDS)){
+//                copyStateToLast();
+//                lastLAP = LAP;
+//                continue;
+//            }else{
+//            	copyStateToLast();
+//            	lastLAP = LAP;
+//            	//if(config.isVerbose())
+//            		//System.err.println("\tRegTrain:"+trainingRound+"\t"+currRegion.getLocationString()+"\t"+currRegion.getWidth()+"\t"+t+"\t"+iter+"\t"+nonZeroComps);
+//            	break;
+//            }
         } //LOOP: Run EM while not converged
+        
+        //monitor code: show binding component information after EM loop
+        for(int c=0; c<numConditions; c++) {
+        	for(int j=0; j<numComp; j++) {
+        		if(pi[c][j]>0) {
+        			System.out.println("\tBinding Component"+j);
+        			System.out.println("\t\tpi: "+pi[c][j]);
+        			System.out.println("\t\tmu: "+mu[c][j]);
+        			System.out.println("\t\tfuzziness: "+fuzz[c][j]);
+        			System.out.println("\t\ttau: "+Arrays.toString(tau[c][j]));
+        		}
+        	}
+        }
+        
+    	//monitor code: exit here
+    	System.exit(1);
+    	
     } // end of EM_MAP method
 	
 	/**
