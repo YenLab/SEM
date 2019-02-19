@@ -16,7 +16,8 @@ import org.seqcode.projects.sem.events.BindingManager;
 import org.seqcode.projects.sem.events.BindingModel;
 import org.seqcode.projects.sem.events.BindingSubtype;
 import org.seqcode.projects.sem.mixturemodel.BindingMixture;
-import org.seqcode.projects.sem.GMM.GaussianMixture;
+import org.seqcode.projects.sem.GMM.AbstractCluster;
+import org.seqcode.projects.sem.GMM.GMMFactory;
 import org.seqcode.projects.sem.framework.SEMConfig;
 import org.seqcode.projects.sem.framework.OutputFormatter;
 import org.seqcode.projects.sem.framework.PotentialRegionFilter;
@@ -34,7 +35,7 @@ public class SEM {
 	protected PotentialRegionFilter potentialFilter;
 	protected OutputFormatter outFormatter;
 	protected Normalization normalizer;
-	protected GaussianMixture gmm;
+	protected AbstractCluster gmm;
 	protected Map<ControlledExperiment, List<BindingModel>> repBindingModels;
 	protected Map<ExperimentCondition, List<BindingSubtype>> condModels;
 	protected Map<ExperimentCondition, List<HashMap<Integer, Integer>>> condFragSizeFrequency;
@@ -47,6 +48,8 @@ public class SEM {
 		semconfig = c;
 		semconfig.makeSEMOutputDirs(true);
 		bindingManager = new BindingManager(evconfig, manager);
+		
+		System.out.println("Pair count: "+manager.getSamples().get(0).getPairCount());
 		
 		//Insert fragment size distribution initializing here
 		System.err.println("Doing GMM on fragment size");
@@ -61,7 +64,7 @@ public class SEM {
 		}
 		//Employ GMM on each experiment condition's fragment size distribution
 		for(ExperimentCondition cond: manager.getConditions()) {
-			gmm = new GaussianMixture(cond, semconfig, condFragSizeFrequency.get(cond));
+			gmm = GMMFactory.getGMMClass(cond, semconfig, condFragSizeFrequency.get(cond));
 			gmm.excute();
 			List<BindingSubtype> fragSizeSubtypes = new ArrayList<BindingSubtype>();
 			int index=0;
@@ -70,6 +73,8 @@ public class SEM {
 				index++;
 			}
 			bindingManager.setBindingSubtypes(cond, fragSizeSubtypes);
+			bindingManager.cache();
+			bindingManager.updateNumBindingTypes();
 		}
 		
 		//Find potential binding regions
@@ -89,7 +94,7 @@ public class SEM {
 		
 		System.err.println("Initialize mixture model");
 		mixtureModel = new BindingMixture(gconfig, econfig, evconfig, semconfig, manager, bindingManager, potentialFilter);
-		
+		System.out.println("Construct bindingMixture over");
 		int round = 0;
 		boolean converged = false;
 		while (!converged) {
@@ -107,7 +112,7 @@ public class SEM {
 		//Update motifs in multiGPS, I think SEM doesn't need it
 		
 		//Update noise models
-//		mixtureModel.updateGlobalNoise();
+		mixtureModel.updateGlobalNoise();
 		
 		//Print current components
 //		mixtureModel.printActiveComponentsToFile();

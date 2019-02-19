@@ -71,12 +71,13 @@ public class SEMConfig {
 	protected boolean shareSubtypes=true; //Share subtypes across experiments
 	protected boolean useAtacPrior=true;
 	protected boolean MLSharedComponentConfiguration = true; //For ML assignment: use a component configuration shared across all conditions or have condition-specific configs.
+	protected int numClusters = -1; //Number of clusters for GMM (if numCluster==-1 will use InfiniteGMM class to determine cluster number automatically)
 		
 	//Constants
 	public final double LOG2 = Math.log(2);
 	public final int POTREG_BIN_STEP = 100; //Sliding window step in potential region scanner(?)
 	public final int MAXSECTION = 5000000;
-	public final int MAX_EM_ITER = 3;
+	public final int MAX_EM_ITER = 20;
 	public final double NOISE_EMISSION_MIN = 0.01; //Arbitrary floor on the emission probability of noise (must be non-zero to mop up noise reads)
     public final double NOISE_EMISSION_MAX = 0.95; //Arbitrary ceiling on the emission probability of noise
     public final int NOISE_DISTRIB_SMOOTHING_WIN = 50; //Smoothing window for the noise distribution used in the BindingMixture
@@ -179,6 +180,8 @@ public class SEMConfig {
 				initComponentSpacing = Args.parseInteger(args,"compspacing",initComponentSpacing);
 				//Window size for extracting tag counts
 				modelRange = Args.parseInteger(args,"mrange",modelRange);
+				//Number of clusters to divide fragment size frequency distribution
+				numClusters = Args.parseInteger(args, "numClusters", -1);
 				
 				if(ap.hasKey("plotregions"))
 					regionsToPlot = RegionFileUtilities.loadRegionsFromFile(Args.parseString(args, "plotregions", null), gen, -1);
@@ -247,6 +250,7 @@ public class SEMConfig {
 	public boolean getShareSubtypes(){return shareSubtypes;}
 	public boolean useAtacPrior() {return useAtacPrior;}
 	public boolean getMLSharedComponentConfiguration(){return MLSharedComponentConfiguration;}
+	public int getNumClusters() {return numClusters;}
 	
 	/**
 	 * Make output directories used by SEM
@@ -313,6 +317,7 @@ public class SEMConfig {
 				"ChExMix Model:" +
 				"\t--model <filename>\n" +
 				"Miscellaneous:\n" +
+				"\t--numClusters <Number of clusters will be used to do GMM on fragment size frequency, do infinite GMM if -1(default=-1)>\n"+
 				"\t--prlogconf <Poisson log threshold for potential region scanning(default="+prLogConf+")>\n" +
 				"\t--alphascale <alpha scaling factor(default="+alphaScalingFactor+")>\n" +
 				"\t--fixedalpha <impose this alpha (default: set automatically)>\n" +
