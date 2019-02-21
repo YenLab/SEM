@@ -71,26 +71,29 @@ public class SEMConfig {
 	protected boolean shareSubtypes=true; //Share subtypes across experiments
 	protected boolean useAtacPrior=true;
 	protected boolean MLSharedComponentConfiguration = true; //For ML assignment: use a component configuration shared across all conditions or have condition-specific configs.
-	protected int numClusters = -1; //Number of clusters for GMM (if numCluster==-1 will use InfiniteGMM class to determine cluster number automatically)
+	protected int numClusters = -1; // & Number of clusters for GMM (if numCluster==-1 will use InfiniteGMM class to determine cluster number automatically)
+	protected String initialDyad = "";	// & File containing the dyad locations for fuzziness initialization (format:chr	coordinate)
 		
 	//Constants
 	public final double LOG2 = Math.log(2);
 	public final int POTREG_BIN_STEP = 100; //Sliding window step in potential region scanner(?)
 	public final int MAXSECTION = 5000000;
-	public final int MAX_EM_ITER = 20;
+	public final int MAX_EM_ITER = 9;
 	public final double NOISE_EMISSION_MIN = 0.01; //Arbitrary floor on the emission probability of noise (must be non-zero to mop up noise reads)
     public final double NOISE_EMISSION_MAX = 0.95; //Arbitrary ceiling on the emission probability of noise
     public final int NOISE_DISTRIB_SMOOTHING_WIN = 50; //Smoothing window for the noise distribution used in the BindingMixture
-	public final int EM_ML_ITER = 3; // &
+	public final int EM_ML_ITER = 2; // &
 	public final int EM_MU_UPDATE_WIN = 200; // &
-	public final int ALPHA_ANNEALING_ITER = 3; // &
+	public final int ALPHA_ANNEALING_ITER = 6; // &
+	public final int FUZZINESS_ANNEALING_ITER = 3; // & Update fuzziness every ? turns
+	public final int TAU_ANNEALING_ITER = 3; // & Update tau every ? turns
 	public final double SPARSE_PRIOR_SUBTYPE = 0.05; // &
 	public final boolean CALC_LL = true; // &
 	public final int POSPRIOR_ITER = 3; // &
 	public final double EM_CONVERGENCE = 0.01; // &
 	public final int EM_STATE_EQUIV_ROUNDS = 1; // &
 	public final double EM_STATE_EQUIV_THRES = 0.01; // &
-	public final int INIT_COMPONENT_SPACING = 50; // &
+	public final int INIT_COMPONENT_SPACING = 100; // &
 	
 	protected String[] args;
 	public String getArgs() {
@@ -182,6 +185,8 @@ public class SEMConfig {
 				modelRange = Args.parseInteger(args,"mrange",modelRange);
 				//Number of clusters to divide fragment size frequency distribution
 				numClusters = Args.parseInteger(args, "numClusters", -1);
+				//Initial dyad location file for fuzziness initialization
+				initialDyad = Args.parseString(args, "initialDyad", "");
 				
 				if(ap.hasKey("plotregions"))
 					regionsToPlot = RegionFileUtilities.loadRegionsFromFile(Args.parseString(args, "plotregions", null), gen, -1);
@@ -251,6 +256,7 @@ public class SEMConfig {
 	public boolean useAtacPrior() {return useAtacPrior;}
 	public boolean getMLSharedComponentConfiguration(){return MLSharedComponentConfiguration;}
 	public int getNumClusters() {return numClusters;}
+	public String getInitialDyad() {return initialDyad;}
 	
 	/**
 	 * Make output directories used by SEM
@@ -317,6 +323,7 @@ public class SEMConfig {
 				"ChExMix Model:" +
 				"\t--model <filename>\n" +
 				"Miscellaneous:\n" +
+				"\t--initialDyad <File containing the dyad locations for fuzziness intialization>\n"+
 				"\t--numClusters <Number of clusters will be used to do GMM on fragment size frequency, do infinite GMM if -1(default=-1)>\n"+
 				"\t--prlogconf <Poisson log threshold for potential region scanning(default="+prLogConf+")>\n" +
 				"\t--alphascale <alpha scaling factor(default="+alphaScalingFactor+")>\n" +

@@ -3,6 +3,7 @@ package org.seqcode.projects.sem;
 import java.util.*;
 
 import org.seqcode.math.diff.Normalization;
+import org.apache.commons.math3.linear.RealVector;
 
 import org.seqcode.genome.GenomeConfig;
 import org.seqcode.genome.location.Region;
@@ -21,7 +22,6 @@ import org.seqcode.projects.sem.GMM.GMMFactory;
 import org.seqcode.projects.sem.framework.SEMConfig;
 import org.seqcode.projects.sem.framework.OutputFormatter;
 import org.seqcode.projects.sem.framework.PotentialRegionFilter;
-import org.seqcode.gseutils.Pair;
 
 public class SEM {
 	
@@ -68,13 +68,26 @@ public class SEM {
 			gmm.excute();
 			List<BindingSubtype> fragSizeSubtypes = new ArrayList<BindingSubtype>();
 			int index=0;
-			for (Pair<Double, Double> para: gmm.getParameters()) {
+			for (RealVector para: gmm.getParameters()) {
 				fragSizeSubtypes.add(new BindingSubtype(cond, para, index));
 				index++;
 			}
 			bindingManager.setBindingSubtypes(cond, fragSizeSubtypes);
 			bindingManager.cache();
 			bindingManager.updateNumBindingTypes();
+		}
+		
+		//Insert bindingModel initialization here (To get the fuzziness of +1 nucleosome)
+		repBindingModels = new HashMap<ControlledExperiment, List<BindingModel>>();
+		for(ExperimentCondition cond:manager.getConditions()) {
+			for(ControlledExperiment rep: cond.getReplicates()) {
+				repBindingModels.put(rep, new ArrayList<BindingModel>());
+				repBindingModels.get(rep).add(new BindingModel(semconfig.getInitialDyad(), manager,rep, gconfig));
+				
+				//monitor code: Check if BindingModel initialization works well
+				System.out.println("replicate: "+rep.getIndex()+" InitialFuzziness: "+repBindingModels.get(rep).get(0).getIntialFuzziness());
+				System.exit(1);
+			}
 		}
 		
 		//Find potential binding regions
