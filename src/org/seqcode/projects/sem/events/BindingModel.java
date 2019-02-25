@@ -15,6 +15,7 @@ import org.seqcode.math.stats.StatUtil;
 import org.seqcode.deepseq.StrandedPair;
 import org.seqcode.deepseq.experiments.ExperimentManager;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
+import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.genome.GenomeConfig;
 import org.seqcode.genome.location.Region;
 
@@ -28,7 +29,7 @@ import org.seqcode.genome.location.Region;
 public class BindingModel {
 	protected ExperimentManager manager;
 	protected GenomeConfig gconfig;
-	protected ControlledExperiment rep;
+	protected ExperimentCondition cond;
 	
 	protected double initialFuzziness;
 	protected List<Pair<String, Integer>> initialDyad;
@@ -36,16 +37,15 @@ public class BindingModel {
 		
 	protected static final double LOG2 = Math.log(2);
 	protected static final double ROOT2PI = Math.sqrt(2*Math.PI);
-	protected static int min = -200;
 	protected static int max = 200;
-	protected static double bgProb=1e-20;
-	protected static double logBgProb=-20;
+	protected static double bgProb=Double.MIN_VALUE;
+	protected static double logBgProb=-1074;
 	
 	// Constructor: Read in dyad location of nucleosome to initialize fuzziness
-	public BindingModel(String dyadFile, ExperimentManager eman, ControlledExperiment ce, GenomeConfig gc) {
+	public BindingModel(String dyadFile, ExperimentManager eman, ExperimentCondition ec, GenomeConfig gc) {
 		manager = eman;	
 		gconfig = gc;
-		rep = ce;
+		cond = ec;
 		initialDyad = new ArrayList<Pair<String, Integer>>();
 		
 		try {
@@ -70,9 +70,15 @@ public class BindingModel {
 	//Look up the probability corresponding to a distance
 	//Distance should be defined as (Read position - Peak position)
 	public static double probability(double variance, int distance) {
-		double z = distance/Math.sqrt(variance);
-		if(z<-1.96 || z>1.96 || distance<min || distance>max ) {
-			return(bgProb);
+//		double z = distance/Math.sqrt(variance);
+//		if(z<-1.96 || z>1.96 || distance<min || distance>max ) {
+//			return(bgProb);
+//		} else {
+//			double prob = 1/(Math.sqrt(variance)*ROOT2PI) * Math.exp(-Math.pow(distance, 2)/(2*variance));
+//			return prob;
+//		}
+		if(Math.abs(distance) > max) {
+			return 0;
 		} else {
 			double prob = 1/(Math.sqrt(variance)*ROOT2PI) * Math.exp(-Math.pow(distance, 2)/(2*variance));
 			return prob;
@@ -80,12 +86,17 @@ public class BindingModel {
 	}
 	
 	public static double logProbability(double variance, int distance) {
-		double z = distance/Math.sqrt(variance);
-		if(z<-1.96 || z>1.96 || distance<min || distance>max ){
-		  return(logBgProb);
-		}else{
-		  return(Math.log(probability(variance, distance)));
-		}	  
+//		double z = distance/Math.sqrt(variance);
+//		if(z<-1.96 || z>1.96 || distance<min || distance>max ){
+//		  return(logBgProb);
+//		}else{
+//		  return(Math.log(probability(variance, distance)));
+//		}	
+		if(Math.abs(distance) > max) {
+			return(Math.log(probability(variance, distance)));
+		} else {
+			return -Double.MAX_VALUE;
+		}
 	}
 	
 	private void initializeFuzziness() {
@@ -95,15 +106,15 @@ public class BindingModel {
 			pairFreqAroundInitialDyad.put(i, 0.);
 		}
 		
-		System.out.println("chromosome name:" + gconfig.getGenome().getChromName(0));
-		
 		for(Pair<String, Integer> p: initialDyad) {
 			//Get strandedPair around dyad +/- 75bp
 			int start = (p.cdr()-75)>0 ? (p.cdr()-75) : 0;
 			int end = p.cdr() + 75;
 			Region r = new Region(gconfig.getGenome(), p.car(), start, end);
-			List<StrandedPair> pairs = rep.getSignal().getPairsByMid(r);
-			
+			List<StrandedPair> pairs = new ArrayList<StrandedPair>();
+			for(ControlledExperiment rep: cond.getReplicates()) {
+				pairs.addAll(rep.getSignal().getPairsByMid(r));
+			}
 			//Add strandedPair into frequency map
 			for (StrandedPair pair: pairs) {
 				int distance = p.cdr() - pair.getMidpoint().getLocation();
