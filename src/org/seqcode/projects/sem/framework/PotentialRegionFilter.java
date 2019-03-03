@@ -15,6 +15,7 @@ import org.seqcode.deepseq.StrandedPair;
 import org.seqcode.projects.sem.events.BindingManager;
 import org.seqcode.projects.sem.events.BindingModel;
 import org.seqcode.projects.sem.events.EventsConfig;
+import org.seqcode.projects.sem.utilities.NucleosomePoissonBackgroundModel;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;
@@ -77,7 +78,7 @@ public class PotentialRegionFilter {
     		if(binWidth>maxBinWidth){maxBinWidth=binWidth;}
     			
     		//global threshold
-    		conditionBackgrounds.get(cond).addBackgroundModel(new PoissonBackgroundModel(-1, config.getPRLogConf(), cond.getTotalSignalCount(), config.getGenome().getGenomeLength(), econfig.getMappableGenomeProp(), binWidth, '.', 1, true));
+    		conditionBackgrounds.get(cond).addBackgroundModel(new NucleosomePoissonBackgroundModel(-1, config.getPRLogConf(), cond.getTotalSignalPairCount(), config.getGenome().getGenomeLength(), econfig.getMappableGenomeProp(), binWidth, '.', 1, true));
     		//local windows won't work since we are testing per condition and we don't have a way to scale signal vs controls at the condition level (at least at this stage of execution)
     		
     		double thres = conditionBackgrounds.get(cond).getGenomicModelThreshold();
@@ -251,7 +252,7 @@ public class PotentialRegionFilter {
                         		double ipWinHits=ipHitCounts[cond.getIndex()][currBin];
                         		//First Test: is the read count above the genome-wide thresholds?
                         		//If there is a fixed alpha, we should use that as the only threshold
-                        		if(config.getFixedAlpha()>0){
+                        		if(config.getFixedAlpha()>0) {
                         			if(ipWinHits>config.getFixedAlpha()){
                         				regionPasses=true;
                         				break;
@@ -268,7 +269,10 @@ public class PotentialRegionFilter {
                         	}
                         	if(regionPasses){
                         		Region currPotential = new Region(gen, currentRegion.getChrom(), Math.max(i-expansion, 1), Math.min((int)(i-1+expansion), currentRegion.getEnd()));
-                        		if(lastPotential!=null && currPotential.overlaps(lastPotential)){
+                        		if(lastPotential!=null && 
+                        				currPotential.overlaps(lastPotential) &&
+                        				(x<=currentRegion.getEnd()-config.MAXSECTION ||
+                        				i<currSubRegion.getEnd()-(int)maxBinWidth-(int)binStep)){
                         			lastPotential = lastPotential.expand(0, currPotential.getEnd()-lastPotential.getEnd());
                         		}else{
                         			//Add the last recorded region to the list
@@ -291,7 +295,7 @@ public class PotentialRegionFilter {
                         }
 					}
                     //Count all "signal" reads overlapping the regions in currPotRegions (including the lastPotential)
-                    if(lastPotential!=null)
+                    if(lastPotential!=null && x<=currentRegion.getEnd()-config.MAXSECTION)
                     	currPotRegions.add(lastPotential);
                     currPotRegions = filterExcluded(currPotRegions);
                     countReadsInRegions(currPotRegions, ipHits, backHits, y==currentRegion.getEnd() ? y : y-expansion);
@@ -300,9 +304,11 @@ public class PotentialRegionFilter {
                     //currPotRegions is only used to count sig/noise reads in the current section. threadPotentials stores regions over the entire run.
                 }
                 //Add the final recorded region to the list
-                if(lastPotential!=null)
-    				threadPotentials.add(lastPotential);
-                threadPotentials = filterExcluded(threadPotentials);
+                //Warning: For SEM, it is possible that lastPotential region is quite large (e.g., millions of base pairs)
+                //So I need to add lastPotential in the loop to break it
+//                if(lastPotential!=null)
+//    				threadPotentials.add(lastPotential);
+//                threadPotentials = filterExcluded(threadPotentials);
             }
         	if(threadPotentials.size()>0){
         		synchronized(potentialRegions){
