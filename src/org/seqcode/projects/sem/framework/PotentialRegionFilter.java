@@ -230,7 +230,7 @@ public class PotentialRegionFilter {
                     	}
                     }
                     
-            		int numStrandIter = stranded ? 2 : 1;
+            		int numStrandIter = stranded ? 2:1;
                     for(int stranditer=1; stranditer<=numStrandIter; stranditer++){
                         //If stranded peak-finding, run over both strands separately
                         char str = !stranded ? '.' : (stranditer==1 ? '+' : '-');
