@@ -157,8 +157,11 @@ public class PotentialRegionFilter {
         //Initialize signal & noise counts based on potential region calls
         for(ExperimentCondition cond : manager.getConditions()){
     		for(ControlledExperiment rep : cond.getReplicates()){
-    			if(rep.getSignalVsNoiseFraction()==0) //Only update if not already initialized
+    			if(rep.getSignalVsNoiseFraction()==0) { //Only update if not already initialized
+    				System.out.println(potRegCountsSigChannelByRep.get(rep));
+    				System.out.println(potRegCountsSigChannelByRep.get(rep)+nonPotRegCountsSigChannelByRep.get(rep));
     				rep.setSignalVsNoiseFraction(potRegCountsSigChannelByRep.get(rep)/(potRegCountsSigChannelByRep.get(rep)+nonPotRegCountsSigChannelByRep.get(rep)));
+    			}
     		}
         }
         
@@ -221,10 +224,10 @@ public class PotentialRegionFilter {
                     	//Load signal reads by condition and by replicate, so that signal proportion estimates can be assigned to each replicate 
                     	for(ExperimentCondition cond : manager.getConditions()){
                     		for(ControlledExperiment rep : cond.getReplicates()){
-                    			ipHits.get(cond.getIndex()).addAll(rep.getSignal().getPairs(currSubRegion));
-                    			ipHitsByRep.get(rep.getIndex()).addAll(rep.getSignal().getPairs(currSubRegion));
+                    			ipHits.get(cond.getIndex()).addAll(rep.getSignal().getPairsByMid(currSubRegion));
+                    			ipHitsByRep.get(rep.getIndex()).addAll(rep.getSignal().getPairsByMid(currSubRegion));
                     		}for(Sample ctrl : cond.getControlSamples())
-                    			backHits.get(cond.getIndex()).addAll(ctrl.getPairs(currSubRegion));
+                    			backHits.get(cond.getIndex()).addAll(ctrl.getPairsByMid(currSubRegion));
                     		Collections.sort(ipHits.get(cond.getIndex()));
                     		Collections.sort(backHits.get(cond.getIndex()));
                     	}
