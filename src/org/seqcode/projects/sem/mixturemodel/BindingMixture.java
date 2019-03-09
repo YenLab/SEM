@@ -1,14 +1,18 @@
 package org.seqcode.projects.sem.mixturemodel;
 
 import java.io.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import org.seqcode.deepseq.StrandedBaseCount;
 import org.seqcode.deepseq.StrandedPair;
+import org.seqcode.gseutils.Args;
 import org.seqcode.gseutils.Pair;
 import org.seqcode.projects.sem.mixturemodel.BindingComponent;
 import org.seqcode.projects.sem.mixturemodel.NoiseComponent;
 import org.seqcode.projects.sem.events.*;
 import org.seqcode.projects.sem.framework.*;
+import org.seqcode.projects.sem.utilities.Timer;
 import org.seqcode.deepseq.experiments.*;
 import org.seqcode.deepseq.stats.BackgroundCollection;
 import org.seqcode.deepseq.stats.PoissonBackgroundModel;
@@ -17,7 +21,6 @@ import org.seqcode.genome.location.*;
 import org.seqcode.gsebricks.verbs.location.ChromosomeGenerator;
 import org.seqcode.deepseq.stats.BackgroundCollection;
 import org.seqcode.deepseq.stats.PoissonBackgroundModel;
-
 
 /**
  * BindingMixture: defines a mixture model over binding events.
@@ -62,22 +65,16 @@ public class BindingMixture {
 		activeComponents = new HashMap<Region, List<List<BindingComponent>>>();
 		for(ExperimentCondition cond: manager.getConditions()) {
 			conditionBackgrounds.put(cond, new BackgroundCollection());
-			conditionBackgrounds.get(cond).addBackgroundModel(new PoissonBackgroundModel(-1, config.getSigLogConf(), cond.getTotalSignalCount()*(1-cond.getTotalSignalVsNoiseFrac()), config.getGenome().getGenomeLength(), econfig.getMappableGenomeProp(), bindingManager.getMaxInfluenceRange(cond), '.', 1, true));
+			System.out.println(config.getGenome().getGenomeLength()-potRegFilter.getPotRegionLengthTotal());
+			conditionBackgrounds.get(cond).addBackgroundModel(new PoissonBackgroundModel(-1, config.getSigLogConf(), cond.getTotalSignalPairCount()*(1-cond.getTotalSignalPairVsNoisePairFrac()), config.getGenome().getGenomeLength()-potRegFilter.getPotRegionLengthTotal(), econfig.getMappableGenomeProp(), bindingManager.getMaxInfluenceRange(cond), '.', 1, true));
 			double alf = config.getFixedAlpha()>0 ? config.getFixedAlpha() : (double)conditionBackgrounds.get(cond).getMaxThreshold('.');
 			System.err.println("Alpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf);
+			
 		}
 		
 		noisePerBase = new double[manager.getNumConditions()];
 		relativeCtrlNoise = new double[manager.getNumConditions()];
 		noiseFragSizeFreq = filter.getNonPotRegFragSizeFreqSigChannel();
-		
-		//monitor code: show noiseFragSizeFreq
-		System.out.println("noise fragment size frequency: ");
-		for(ExperimentCondition cond: manager.getConditions()) {
-			for(int key: noiseFragSizeFreq.get(cond).keySet()) {
-				System.out.println("Fragment size: "+key+"\tFrequency: "+noiseFragSizeFreq.get(cond).get(key));
-			}
-		}
 		
 		initializeGlobalNoise();
 	}
@@ -135,10 +132,12 @@ public class BindingMixture {
     		for(Region r : noiseResp.keySet())
     			noiseReads+=noiseResp.get(r)[e];
     		noisePerBase[e] = noiseReads/config.getGenome().getGenomeLength();  //Signal channel noise per base
+    		
+    		//monitor print updated noisePerBase
+    		System.out.println("training round: "+trainingRound+"\tnoise per base: "+noisePerBase[e]);
     	}
     }
     
-	
 	public void execute(boolean EM, boolean uniformBindingComponents) {
 		trainingRound++;
 		
@@ -185,6 +184,29 @@ public class BindingMixture {
 			}
 		}
 	}
+	
+    /**
+     * Print all components active at the current time to a file.
+     * TESTING ONLY 
+     */
+    public void printActiveComponentsToFile(){
+    	try {
+    		String filename = config.getOutputIntermediateDir()+File.separator+config.getOutBase()+"_t"+trainingRound+".components";
+			FileWriter fout = new FileWriter(filename);
+			fout.write("#chromosome\tdyad\tpi\tsumResp\tfuzziness\tau\tregion\n");
+			for(Region rr : activeComponents.keySet()){
+	    		List<List<BindingComponent>> comps = activeComponents.get(rr);
+	    		for(ExperimentCondition cond : manager.getConditions()){
+	    			for(BindingComponent comp : comps.get(cond.getIndex())){
+	    				fout.write(comp.toString()+"\t"+rr.getChrom()+":"+rr.getStart()+"-"+rr.getEnd()+"\n");			
+	    			}
+	    		}
+	    	}
+			fout.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+    }
 	
 	/**
 	 * BindingMixtureThread: run binding mixtures over a subset of regions
@@ -250,58 +272,28 @@ public class BindingMixture {
 		}
 	
 		private Pair<List<NoiseComponent>, List<List<BindingComponent>>> analyzeWindowEM(Region w) {
+			System.out.println("Region: "+w.getChrom()+":"+w.getStart()+"-"+w.getEnd());
+			Timer timer = new Timer();
 			BindingEM EM = new BindingEM(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
 			List<List<BindingComponent>> bindingComponents = null;
 			List<NoiseComponent> noiseComponents = null;
 			List<List<BindingComponent>> nonZeroComponents = new ArrayList<List<BindingComponent>>();
 			for(int e=0; e<manager.getNumConditions(); e++)
 				nonZeroComponents.add(new ArrayList<BindingComponent>());
+				
+			//monitor: count time
+			timer.start();
 			
 			//Load signal data
 			List<List<StrandedPair>> signals = loadSignalData(w);
 			if (signals==null)
 				return new Pair<List<NoiseComponent>, List<List<BindingComponent>>>(noiseComponents, nonZeroComponents);
 			
-			//monitor code: show selected signal strandedPair in region
-			System.out.println("signal data:/n"+"Region start: "+w.getStart()+"\nRegion end: "+w.getEnd());
-			System.out.println("StrandedPair in region:\n");
-			for(ExperimentCondition cond: manager.getConditions()) {
-				for(StrandedPair sp: signals.get(cond.getIndex())) {
-					System.out.println(sp);
-				}
-			}
-			
 			//Load control data
 			List<List<StrandedPair>> controls = loadControlData(w);
 			
-			//monitor code: show selected control strandedPair in region
-			System.out.println("control data:\n"+"Region start: "+w.getStart()+"\nRegion end: "+w.getEnd());
-			System.out.println("StrandedPair in region:\n");
-			for(ExperimentCondition cond: manager.getConditions()) {
-				for(StrandedPair sp: controls.get(cond.getIndex())) {
-					System.out.println(sp);
-				}
-			}
-						
 			//Initialize noise components
 			noiseComponents = initializeNoiseComponents(w, signals, controls);
-			
-			//monitor code: show noise components information
-			System.out.println("noise component:\n");
-			for(ExperimentCondition cond: manager.getConditions()) {
-				System.out.println(noiseComponents.get(cond.getIndex()));
-				System.out.print("\tnoise distrib:");
-				for(double[] i: noiseComponents.get(cond.getIndex()).distrib) {
-					System.out.print("\n");
-					for(double j: i) {
-						System.out.print("\t\t"+j+"\t");
-					}
-				}
-				System.out.println("\tfragment size distribution:");
-				for(int key: noiseComponents.get(cond.getIndex()).fragSizeFreq.keySet()) {
-					System.out.println("Fragment size: "+key+"\tFrequency: "+noiseComponents.get(cond.getIndex()).fragSizeFreq.get(key));
-				}
-			}
 			
 			//Initialize binding components
             if(uniformBindingComponents)
@@ -309,19 +301,14 @@ public class BindingMixture {
             else
             	bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, true);
             
-            //monitor code: show signal components information
-            System.out.println("signal components:\n");
-            for(ExperimentCondition cond:manager.getConditions()) {
-            	for(BindingComponent bc: bindingComponents.get(cond.getIndex())) {
-            		System.out.println(bc);
-            	}
-            }
-            
             //ATAC-seq prior
-            double[][] atacPrior = new double[999][];
-                      
+            double[][] atacPrior = null;
+            
+			//monitor: count time
+            timer.end("load");
+
             //EM learning: resulting binding components list will only contain non-zero components
-            nonZeroComponents = EM.train(signals, w, noiseComponents, bindingComponents, numBindingComponents, atacPrior, trainingRound);
+            nonZeroComponents = EM.train(signals, w, noiseComponents, bindingComponents, numBindingComponents, atacPrior, trainingRound, timer);
             
             return new Pair<List<NoiseComponent>, List<List<BindingComponent>>>(noiseComponents, nonZeroComponents);
 		}
@@ -620,7 +607,7 @@ public class BindingMixture {
 				}
 				for(BindingComponent b : components.get(e)){
 					b.uniformInit(emission);
-					b.setFuzziness(50);
+					b.setFuzziness(bindingManager.getBindingModel(manager.getIndexedCondition(e)).get(0).getIntialFuzziness());
 					b.setTau(tauInit);
 				}
 			}
@@ -680,6 +667,16 @@ public class BindingMixture {
         			currComp.uniformInit(emission);
     				components.get(e).add(currComp);
     			}
+	    		int numBindingSubtype = bindingManager.getBindingSubtypes(manager.getIndexedCondition(e)).size();
+	    		double[] tauInit = new double[numBindingSubtype];
+				for(int i=0; i<numBindingSubtype; i++) {
+					tauInit[i] = (double)1/(double)numBindingSubtype;
+				}
+				for(BindingComponent b : components.get(e)){
+					b.uniformInit(emission);
+					b.setFuzziness(bindingManager.getBindingModel(manager.getIndexedCondition(e)).get(0).getIntialFuzziness());
+					b.setTau(tauInit);
+				}
     		}
         	return components; 
         }//end of initializeComponents method
@@ -732,7 +729,7 @@ public class BindingMixture {
         	double[] counts = new double[currReg.getWidth()];
         	//Pseudocounts for distrib
         	for(int d=0; d<currReg.getWidth(); d++)
-        		counts[d] = 0;
+        		counts[d] = 1;
         	//Add int count weights
         	for(StrandedPair hit: ctrlHits) {
         		int index = hit.getMidpoint().getLocation() - currReg.getStart();
