@@ -37,7 +37,7 @@ public class BindingModel {
 		
 	protected static final double LOG2 = Math.log(2);
 	protected static final double ROOT2PI = Math.sqrt(2*Math.PI);
-	protected static int max = 200;
+	public static final int max = 100;
 	protected static double bgProb=Double.MIN_VALUE;
 	protected static double logBgProb=-1074;
 	
@@ -66,10 +66,11 @@ public class BindingModel {
 	
 	//Accessors
 	public double getIntialFuzziness() {return initialFuzziness;}
+	public static int getMaxInfluenceRange() {return max*2;}
 	
 	//Look up the probability corresponding to a distance
 	//Distance should be defined as (Read position - Peak position)
-	public static double probability(double variance, int distance) {
+	public static double probability(double variance, int distance) throws Exception {
 //		double z = distance/Math.sqrt(variance);
 //		if(z<-1.96 || z>1.96 || distance<min || distance>max ) {
 //			return(bgProb);
@@ -77,25 +78,40 @@ public class BindingModel {
 //			double prob = 1/(Math.sqrt(variance)*ROOT2PI) * Math.exp(-Math.pow(distance, 2)/(2*variance));
 //			return prob;
 //		}
+		
 		if(Math.abs(distance) > max) {
 			return 0;
-		} else {
+		} else if (variance > 0) {
 			double prob = 1/(Math.sqrt(variance)*ROOT2PI) * Math.exp(-Math.pow(distance, 2)/(2*variance));
 			return prob;
+		} else if (variance == 0 && distance == 0) {
+			return 1;
+		} else if (variance == 0 && distance > 0) {
+			return 0;
+		} else {
+			throw new Exception("Variance must >= 0!");
 		}
 	}
 	
-	public static double logProbability(double variance, int distance) {
+	public static double logProbability(double variance, int distance) throws Exception {
 //		double z = distance/Math.sqrt(variance);
 //		if(z<-1.96 || z>1.96 || distance<min || distance>max ){
 //		  return(logBgProb);
 //		}else{
 //		  return(Math.log(probability(variance, distance)));
 //		}	
-		if(Math.abs(distance) > max) {
-			return(Math.log(probability(variance, distance)));
-		} else {
-			return -Double.MAX_VALUE;
+		
+		try {
+			double prob = probability(variance, distance);
+			if(prob > 0) {
+				return Math.log(prob);
+			} else if (prob == 0) {
+				return -Double.MAX_VALUE;
+			} else {
+				throw new Exception("Dectected prob < 0 !");
+			}
+		} catch (Exception e) {
+			throw e;
 		}
 	}
 	
@@ -115,6 +131,7 @@ public class BindingModel {
 			for(ControlledExperiment rep: cond.getReplicates()) {
 				pairs.addAll(rep.getSignal().getPairsByMid(r));
 			}
+			
 			//Add strandedPair into frequency map
 			for (StrandedPair pair: pairs) {
 				int distance = p.cdr() - pair.getMidpoint().getLocation();
@@ -130,6 +147,9 @@ public class BindingModel {
 			sumWeight += pairFreqAroundInitialDyad.get(dis);
 		}
 		initialFuzziness /= sumWeight;
+		
+		//monitor
+		System.out.println("Initialize Fuzziness: "+initialFuzziness);
 	}
 	
 	public static void main(String[] args) {
