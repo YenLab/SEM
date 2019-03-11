@@ -64,6 +64,11 @@ public class BindingModel {
 		initializeFuzziness();		
 	};
 	
+	// Test constructor
+	public BindingModel() {
+		
+	}
+	
 	//Accessors
 	public double getIntialFuzziness() {return initialFuzziness;}
 	public static int getMaxInfluenceRange() {return max*2;}
@@ -78,18 +83,23 @@ public class BindingModel {
 //			double prob = 1/(Math.sqrt(variance)*ROOT2PI) * Math.exp(-Math.pow(distance, 2)/(2*variance));
 //			return prob;
 //		}
-		
+		double prob;
 		if(Math.abs(distance) > max) {
-			return 0;
+			prob = 0;
 		} else if (variance > 0) {
-			double prob = 1/(Math.sqrt(variance)*ROOT2PI) * Math.exp(-Math.pow(distance, 2)/(2*variance));
-			return prob;
+			prob = 1/(Math.sqrt(variance)*ROOT2PI) * Math.exp(-Math.pow(distance, 2)/(2*variance));
 		} else if (variance == 0 && distance == 0) {
-			return 1;
-		} else if (variance == 0 && distance > 0) {
-			return 0;
+			prob = 1;
+		} else if (variance == 0 && distance != 0) {
+			prob = 0;
 		} else {
 			throw new Exception("Variance must >= 0!");
+		}
+		
+		if(prob >= 0) {
+			return prob;
+		} else {
+			throw new Exception("Detected prob < 0!");
 		}
 	}
 	
@@ -105,10 +115,8 @@ public class BindingModel {
 			double prob = probability(variance, distance);
 			if(prob > 0) {
 				return Math.log(prob);
-			} else if (prob == 0) {
-				return -Double.MAX_VALUE;
 			} else {
-				throw new Exception("Dectected prob < 0 !");
+				return -Double.MAX_VALUE;
 			}
 		} catch (Exception e) {
 			throw e;
@@ -153,10 +161,11 @@ public class BindingModel {
 	}
 	
 	public static void main(String[] args) {
-		String folder = "D:\\Yen lab\\2017\\Analysis\\Code\\sem-test\\";
-		String dyadFile = "Dyad_H3Q85C_GSE97290_top1000.txt";
-		
-		
+		try {
+			System.out.println(new BindingModel().logProbability(-10,10));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 }
 

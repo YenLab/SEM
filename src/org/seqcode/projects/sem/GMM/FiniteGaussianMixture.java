@@ -29,9 +29,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 	protected double[] m_vars;
 	protected double[] m_minVars;
 	
-	protected Map<Integer, RealVector> clusterMu;
-	protected Map<Integer, RealMatrix> clusterSigma;
-	
+	protected static final double ROOT2PI = Math.sqrt(2*Math.PI);
 	protected static final int dimension = 1;
 	protected static final double MIN_VAR = 1E-10;
 	
@@ -55,10 +53,12 @@ public class FiniteGaussianMixture extends AbstractCluster{
 			d.forEach((k,v) -> size += v);
 		}
 		
-		//Generate dataset
+		//Generate sorted dataset
 		trainingData = new int[size];
 		int index=0;
-		for(int fz: mergeFragSizeFrequency.keySet()) {
+		int[] keys = new ArrayList<Integer>(mergeFragSizeFrequency.keySet()).stream().mapToInt(Integer::valueOf).toArray();
+		Arrays.sort(keys);
+		for(int fz: keys) {
 			for(int count=0; count<mergeFragSizeFrequency.get(fz); count++) {
 				trainingData[index] = fz;
 				index++;
@@ -118,18 +118,12 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		m_minVars = new double[mixNum];
 	}
 	
-	//Setters
-	
-	//Accessors
-	public Map<Integer, RealVector> getMu() {return clusterMu;}
-	public Map<Integer, RealMatrix> getSigma() {return clusterSigma;}
-	
 	/**
 	 * Fit finite Gaussian Mixture on trainingData
 	 */
 	@Override
 	public void excute() {	
-		int m_maxIterNum = 200;
+		int m_maxIterNum = 100;
 		double err = 0.00001;
 		
 		boolean loop = true;
@@ -138,11 +132,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		double currL = 0;
 		int unchanged = 0;
 		
-//		initParameters(trainingData);
-		
-		m_means = new double[] {100, 200, 300};
-		m_vars = new double[] {10, 10, 40};
-		weights = new double[] {0.3, 0.4, 0.3};
+		initParameters(trainingData);
 		
 		double[] next_means = new double[mixNum];
 		double[] next_weights = new double[mixNum];
@@ -151,7 +141,6 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		List<DataNode> cList = new ArrayList<DataNode>();
 		
 		while(loop) {
-			System.out.println("========================Round"+iterNum+"===================================");
 			Arrays.fill(next_weights, 0);
 			cList.clear();
 			for(int i=0; i<mixNum; i++) {
@@ -205,9 +194,6 @@ public class FiniteGaussianMixture extends AbstractCluster{
 			// Check termination			
 			m_means = next_means.clone();
 			m_vars = next_vars.clone();
-			System.out.println("next_weights: "+Arrays.toString(weights));		
-			System.out.println("next_means: "+Arrays.toString(m_means));
-			System.out.println("next_vars: "+Arrays.toString(m_vars));
 			iterNum++;
 			if(Math.abs(currL - lastL) < err * Math.abs(lastL)) {
 				unchanged++;
@@ -234,10 +220,12 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		// Put data into map
 		clusterMu = new HashMap<Integer, RealVector>();
 		clusterSigma = new HashMap<Integer, RealMatrix>();
+		clusterWeight = new HashMap<Integer, Double>();
 		
 		for(int j=0; j<mixNum; j++) {
 			clusterMu.put(j, MatrixUtils.createRealVector(new double[] {m_means[j]}));
 			clusterSigma.put(j, MatrixUtils.createRealMatrix(new double[][] { new double[] {m_vars[j]}}));
+			clusterWeight.put(j, weights[j]);
 		}
 	}
 
@@ -245,24 +233,24 @@ public class FiniteGaussianMixture extends AbstractCluster{
 	 * @param data
 	 */
 	private void initParameters(int[] data) {
-		// Initialize cluster means randomly
-		System.out.println(Arrays.toString(data));
-		List<DataNode> cList = new ArrayList<DataNode>();
+		// Initialize cluster according to cluster number (assign mean to percentile equally)
+		List<DataNode> cList = new ArrayList<DataNode>();	
 		for(int i=0; i<mixNum; i++) {
-				m_means[i] = data[(int)(Math.random()*size)];
+			m_means[i] = data[(int)Math.ceil((double)(i+1)/(double)(mixNum+1) * (double)data.length)];
 		}
 		
+		
 		// Assign data points to the closest cluster
-		int[] types = new int[size];
 		double[] counts = new double[mixNum];
 		for(int k=0; k<size; k++) {
 			DataNode dn = new DataNode(data[k]);
+			dn.index = k;
 			double min = Double.MAX_VALUE;
 			for(int i=0; i<mixNum; i++) {
-				double v=0;
-				v = Math.abs(data[k]-m_means[i]);
-				if(v<min && counts[i]<=size/3) {
-					min=v;
+				double distance=0;
+				distance = Math.abs(data[k]-m_means[i]);
+				if(distance<min) {
+					min=distance;
 					dn.cindex = i;
 				}
 			}
@@ -307,11 +295,11 @@ public class FiniteGaussianMixture extends AbstractCluster{
 	
 	public double getProbability(double x, int j) {
 		double p = 1;
-		if(Math.abs((x-m_means[j])/m_vars[j]) <= 1.96 ) {
-			p *= 1 / Math.sqrt(2 * Math.PI * m_vars[j]);
-			p *= Math.exp(-0.5 * Math.pow((x - m_means[j]), 2) / m_vars[j]);
-		} else {
+		double z = (x-m_means[j])/m_vars[j];
+		if( z < -1.96 || z > 1.96 ) {
 			p = 1e-20;
+		} else {
+			p *= 1/(Math.sqrt(m_vars[j])*ROOT2PI) * Math.exp(-Math.pow(x-m_means[j], 2)/(2*m_vars[j]));
 		}
 		return p;
 	}

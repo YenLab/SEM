@@ -91,6 +91,12 @@ public class NoiseComponent {
 		else if(i>=regionWidth){i=regionWidth;}
 		double distribProb = distrib[rep][i];
 		double fragSizeProb = fragSizeFreq.containsKey(size)? fragSizeFreq.get(size):0;
+		
+		//monitor 
+		if(Double.isNaN(distribProb*fragSizeProb)) {
+			System.out.println("NaN occurrs in noiseComponent score method\tmid: "+mid+"\tfragSize: "+size);
+		}
+		
 		return distribProb*fragSizeProb;
 	}
 	

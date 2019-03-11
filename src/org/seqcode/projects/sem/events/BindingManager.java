@@ -25,6 +25,7 @@ public class BindingManager {
 	protected EventsConfig config;
 	protected ExperimentManager manager;
 	protected List<BindingEvent> events;
+	protected Map<ExperimentCondition, List<BindingModel>> condBindingModels;
 	protected Map<ExperimentCondition, List<BindingEvent>> conditionEvents;
 	protected Map<ExperimentCondition, List<BindingSubtype>> bindingSubtypes;
 	protected Map<ExperimentCondition, Integer> numBindingType;
@@ -42,6 +43,8 @@ public class BindingManager {
 		alpha = new HashMap<ExperimentCondition, Double>();
 		numBindingType = new HashMap<ExperimentCondition, Integer>();
 		potentialBindingSubtypes = new HashMap<ExperimentCondition, List<BindingSubtype>>();
+		cachePDF = new HashMap<ExperimentCondition, Map<Integer, List<Double>>>();
+		maxInfluenceRange = new HashMap<ExperimentCondition, Integer>();
 		for(ExperimentCondition cond: manager.getConditions()) {
 			conditionEvents.put(cond,  new ArrayList<BindingEvent>());
 			bindingSubtypes.put(cond, new ArrayList<BindingSubtype>());
@@ -49,6 +52,7 @@ public class BindingManager {
 			alpha.put(cond, 0.0);
 			potentialBindingSubtypes.put(cond, new ArrayList<BindingSubtype>());
 			cachePDF.put(cond, new HashMap<Integer, List<Double>>());
+			maxInfluenceRange.put(cond, BindingModel.getMaxInfluenceRange());
 		}
 	}
 	
@@ -62,6 +66,7 @@ public class BindingManager {
 	public List<BindingSubtype> getPotentialBindingSubtypes(ExperimentCondition ec){return potentialBindingSubtypes.get(ec);}
 	public Integer getMaxInfluenceRange(ExperimentCondition ec) {return maxInfluenceRange.get(ec);}
 	public Map<Integer, List<Double>> getCachePDF(ExperimentCondition ec) {return cachePDF.get(ec);}
+	public List<BindingModel> getBindingModel(ExperimentCondition ec) {return condBindingModels.get(ec);}
 	
 	//Setters
 	public void setBindingEvents(List<BindingEvent> e){events =e;}
@@ -70,6 +75,7 @@ public class BindingManager {
 //	public void setAlignedEventPoints(ExperimentCondition ec, List<List<StrandedPoint>> points){alignedEventPoints.put(ec, points);}
 	public void addPotentialBindingSubtypes(ExperimentCondition ec, List<BindingSubtype> subtypes){potentialBindingSubtypes.get(ec).addAll(subtypes);}
 	public void clearPotentialBindingSubtypes(ExperimentCondition ec){ potentialBindingSubtypes.put(ec, new ArrayList<BindingSubtype>());}
+	public void setBindingModels(Map<ExperimentCondition, List<BindingModel>> condBMs) {condBindingModels = condBMs;}
 	public void setBindingSubtypes(ExperimentCondition ec, List<BindingSubtype> sub){
 		bindingSubtypes.put(ec, sub); 
 		numBindingType.put(ec, sub.size());

@@ -22,6 +22,7 @@ import org.seqcode.projects.sem.GMM.GMMFactory;
 import org.seqcode.projects.sem.framework.SEMConfig;
 import org.seqcode.projects.sem.framework.OutputFormatter;
 import org.seqcode.projects.sem.framework.PotentialRegionFilter;
+import org.seqcode.projects.sem.utilities.Timer;
 
 public class SEM {
 	
@@ -36,7 +37,7 @@ public class SEM {
 	protected OutputFormatter outFormatter;
 	protected Normalization normalizer;
 	protected AbstractCluster gmm;
-	protected Map<ControlledExperiment, List<BindingModel>> repBindingModels;
+	protected Map<ExperimentCondition, List<BindingModel>> condBindingModels;
 	protected Map<ExperimentCondition, List<BindingSubtype>> condModels;
 	protected Map<ExperimentCondition, List<HashMap<Integer, Integer>>> condFragSizeFrequency;
 	
@@ -77,18 +78,13 @@ public class SEM {
 			bindingManager.updateNumBindingTypes();
 		}
 		
-		//Insert bindingModel initialization here (To get the fuzziness of +1 nucleosome)
-		repBindingModels = new HashMap<ControlledExperiment, List<BindingModel>>();
+		//Insert bindingModel initialization here
+		condBindingModels = new HashMap<ExperimentCondition, List<BindingModel>>();
 		for(ExperimentCondition cond:manager.getConditions()) {
-			for(ControlledExperiment rep: cond.getReplicates()) {
-				repBindingModels.put(rep, new ArrayList<BindingModel>());
-				repBindingModels.get(rep).add(new BindingModel(semconfig.getInitialDyad(), manager,rep, gconfig));
-				
-				//monitor code: Check if BindingModel initialization works well
-				System.out.println("replicate: "+rep.getIndex()+" InitialFuzziness: "+repBindingModels.get(rep).get(0).getIntialFuzziness());
-				System.exit(1);
-			}
+			condBindingModels.put(cond, new ArrayList<BindingModel>());
+			condBindingModels.get(cond).add(new BindingModel(semconfig.getInitialDyad(), manager, cond, gconfig));
 		}
+		bindingManager.setBindingModels(condBindingModels);
 		
 		//Find potential binding regions
 		System.err.println("Finding potential binding regions.");
@@ -112,34 +108,39 @@ public class SEM {
 		boolean converged = false;
 		while (!converged) {
 		
-		System.err.println("\n============================== Round "+round+" =====================");
+			System.err.println("\n============================== Round "+round+" =====================");
 		
-		//Execute the SEM mixture model
-		if(round==0)
-			mixtureModel.execute(true, true); //EM
-		else
-			mixtureModel.execute(true, false); //EM
+			//Execute the SEM mixture model, now only EM
+			//TODO: how to add ML step?
+			if(round==0)
+				mixtureModel.execute(true, true); //EM
+			else
+				mixtureModel.execute(true, false); //EM
 		
-		//Update binding models in multiGPS, I think SEM doesn't need it
+			//Update binding models in multiGPS
+			//TODO: add statistical test for fuzziness distribution for SEM?
 		
-		//Update motifs in multiGPS, I think SEM doesn't need it
+			//Update motifs in multiGPS, I think SEM doesn't need it
 		
-		//Update noise models
-		mixtureModel.updateGlobalNoise();
+			//Update noise models
+			mixtureModel.updateGlobalNoise();
 		
-		//Print current components
-//		mixtureModel.printActiveComponentsToFile();
+			//Print current components
+			mixtureModel.printActiveComponentsToFile();
 		
-		round++;
+			round++;
 		
-		//Check for convergence
-		if(round>semconfig.getMaxModelUpdateRounds()) {
-			converged=true;
-		}else {
-			converged=true;
+			//Check for convergence
+			if(round>semconfig.getMaxModelUpdateRounds()) {
+				converged=true;
+			}else {
+				converged=false;
+			}
 		}
-		}
 		
+		//monitor: count time
+		Timer.summary();
+		System.out.println(new Timer());
 	}
 	
 	/**
@@ -170,7 +171,7 @@ public class SEM {
 				"Copyright (C) Shaun Mahony 2012-2016\n" +
 				"<http://mahonylab.org/software/multigps>\n" +
 				"\n" +
-				"MultiGPS comes with ABSOLUTELY NO WARRANTY.  This is free software, and you\n"+
+				"SEM comes with ABSOLUTELY NO WARRANTY.  This is free software, and you\n"+
 				"are welcome to redistribute it under certain conditions.  See the MIT license \n"+
 				"for details.\n"+
 				"\n OPTIONS:\n" +
@@ -198,7 +199,7 @@ public class SEM {
 				"\t--fixedscaling <multiply control counts by total tag count ratio and then by this factor (default: NCIS)>\n" +
 				"\t--scalewin <window size for scaling procedure (default=10000)>\n" +
 				"\t--plotscaling [flag to plot diagnostic information for the chosen scaling method]\n" +
-				" Running MultiGPS:\n" +
+				" Running SEM:\n" +
 				"\t--d <binding event read distribution file>\n" +
 				"\t--r <max. model update rounds, default=3>\n" +
 				"\t--nomodelupdate [flag to turn off binding model updates]\n" +

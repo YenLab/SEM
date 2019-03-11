@@ -41,8 +41,8 @@ public class SEMConfig {
 	protected String outName = "sem", outBase = "sem";
 	protected File outDir = null, interDir = null, imagesDir = null;
 	protected boolean printHelp = false;
-	protected double sigLogConf = -7; //???
-	protected double prLogConf = -6; //???
+	protected double sigLogConf = -10; //???
+	protected double prLogConf = -10; //???
 	protected int minModelUpdateRounds = 1; //Minimum number of EM training rounds
 	protected int maxModelUpdateRounds = 3; //Maximum number of EM training rounds (May increase @ Jianyu Yang)
 	protected int posPriorScaling = 10; //???
@@ -78,15 +78,15 @@ public class SEMConfig {
 	public final double LOG2 = Math.log(2);
 	public final int POTREG_BIN_STEP = 100; //Sliding window step in potential region scanner(?)
 	public final int MAXSECTION = 5000000;
-	public final int MAX_EM_ITER = 9;
+	public final int MAX_EM_ITER = 6;
 	public final double NOISE_EMISSION_MIN = 0.01; //Arbitrary floor on the emission probability of noise (must be non-zero to mop up noise reads)
     public final double NOISE_EMISSION_MAX = 0.95; //Arbitrary ceiling on the emission probability of noise
     public final int NOISE_DISTRIB_SMOOTHING_WIN = 50; //Smoothing window for the noise distribution used in the BindingMixture
 	public final int EM_ML_ITER = 2; // &
-	public final int EM_MU_UPDATE_WIN = 200; // &
-	public final int ALPHA_ANNEALING_ITER = 6; // &
-	public final int FUZZINESS_ANNEALING_ITER = 3; // & Update fuzziness every ? turns
-	public final int TAU_ANNEALING_ITER = 3; // & Update tau every ? turns
+	public final int EM_MU_UPDATE_WIN = 50; // &
+	public final int ALPHA_ANNEALING_ITER = 4; // &
+	public final int FUZZINESS_ANNEALING_ITER = 2; // & Update fuzziness every ? turns
+	public final int TAU_ANNEALING_ITER = 2; // & Update tau every ? turns
 	public final double SPARSE_PRIOR_SUBTYPE = 0.05; // &
 	public final boolean CALC_LL = true; // &
 	public final int POSPRIOR_ITER = 3; // &
@@ -157,12 +157,6 @@ public class SEMConfig {
 				minRefsForBMUpdate = Args.parseInteger(args,"minmodelupdaterefs",minRefsForBMUpdate);
 				//Parameter for Gaussian smoothing (std. dev.)
 				gauss_smooth = Args.parseDouble(args,"gausssmoothparam",gauss_smooth);
-				//Output path
-				DateFormat df = new SimpleDateFormat("yyyy-MM-dd-hh-mm-ss");  
-			    df.setTimeZone(TimeZone.getTimeZone("EST"));
-				outName = Args.parseString(args, "out", outName+"_"+df.format(new Date()));
-				outDir =  new File(outName); //Output directory
-				outBase = outDir.getName(); //Last part of name
 				//Background model parameters		
 				sigLogConf = Args.parseDouble(args,"highlogconf",sigLogConf);		
 				prLogConf = Args.parseDouble(args,"prlogconf",prLogConf);
@@ -187,6 +181,12 @@ public class SEMConfig {
 				numClusters = Args.parseInteger(args, "numClusters", -1);
 				//Initial dyad location file for fuzziness initialization
 				initialDyad = Args.parseString(args, "initialDyad", "");
+				//Output path
+				DateFormat df = new SimpleDateFormat("yyyy-MM-dd-hh-mm-ss");  
+			    df.setTimeZone(TimeZone.getTimeZone("EST"));
+				outName = Args.parseString(args, "out", outName+"_"+df.format(new Date()));
+				outDir =  new File(outName); //Output directory
+				outBase = outDir.getName(); //Last part of name
 				
 				if(ap.hasKey("plotregions"))
 					regionsToPlot = RegionFileUtilities.loadRegionsFromFile(Args.parseString(args, "plotregions", null), gen, -1);
@@ -320,7 +320,7 @@ public class SEMConfig {
 				"\t--threads <number of threads to use (default="+maxThreads+")>\n" +
 				"Experiment Design File:\n" +
 				"\t--design <file name>\n" +
-				"ChExMix Model:" +
+				"SEM Model:" +
 				"\t--model <filename>\n" +
 				"Miscellaneous:\n" +
 				"\t--initialDyad <File containing the dyad locations for fuzziness intialization>\n"+
