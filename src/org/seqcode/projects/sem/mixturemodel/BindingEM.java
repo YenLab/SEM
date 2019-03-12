@@ -717,7 +717,7 @@ public class BindingEM {
         							for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
         								maxSharedScore += rBind[d][k][i] * hitCounts[d][i] * BindingModel.logProbability(fuzzMax[d][k], maxSharedPos-hitPos[d][i]);
         							}
-        							//Is shared better?
+        							//Is shared better? get overlapping region if true
         							muJoinSharedBetter[d] = maxSharedScore > indepScore ? true : false;
         							maxMuStart = muJoinSharedBetter[d] ? Math.max(maxMuStart, muSumStarts[d][k]) : maxMuStart; 
         							minMuEnd = muJoinSharedBetter[d] ? Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]) : minMuEnd;
