@@ -68,6 +68,7 @@ public class BindingEM {
 	protected boolean 		plotEM=false;		// Plot the current region components
 	protected Region		plotSubRegion=null;	// Sub region to plot
 	protected double		numPotentialRegions;
+	protected double		probAgivenB, probAgivenNOTB;
 	protected int stateEquivCount = 0;
 	
 	public BindingEM(SEMConfig s, ExperimentManager eMan, BindingManager bMan, HashMap<ExperimentCondition, BackgroundCollection> condBacks, int numPotReg) {
@@ -77,7 +78,14 @@ public class BindingEM {
 		conditionBackgrounds = condBacks;
 		numConditions = manager.getNumConditions();
 		numPotentialRegions = (double)numPotReg;
-
+		
+		//Penalty probability applied on independent/shared conditions
+		//TODO: how to adjust it when using it on nucleosomes?
+		double N = numPotentialRegions;
+		double S = N * semconfig.getProbSharedBinding();
+		double L = (double)semconfig.getGenome().getGenomeLength();
+		probAgivenB = Math.log(semconfig.getProbSharedBinding())/Math.log(2);
+		probAgivenNOTB = Math.log((N-S)/(L-N))/Math.log(2);
 	}
 	
 	public List<List<BindingComponent>> train(List<List<StrandedPair>> signals,
@@ -319,7 +327,10 @@ public class BindingEM {
 		double[][][] muSums = new double[numConditions][numComp][];		//Results of mu maximization summations for individual components across genome
         int[][] muSumStarts = new int[numConditions][numComp]; //Start positions of muSum arrays (start of maximization window).
         int[][] muSumWidths = new int[numConditions][numComp]; //Effective widths of muSum arrays (width of maximization window).
-        int[][] muSumMaxPos = new int[numConditions][numComp]; //Positions of maxima in mu maximization summations
+        int[][] muMax = new int[numConditions][numComp]; //Positions of maxima in mu maximization summations
+        double[][] fuzzMax = new double[numConditions][numComp]; //Fuzziness of maxima in fuzziness maximization summations
+        double[][] muSum = new double[numConditions][numComp]; //Sum of hitPos*rBind*hitCounts for each binding component
+        double[][] fuzzSum = new double[numConditions][numComp]; //Sum of Variance*rBind*hitCounts for each binding component
         int[] muJoinClosestComps = new int[numConditions]; //Indices of nearest components in other conditions
         boolean[] muJoinSharedBetter = new boolean[numConditions]; //Indicator that sharing components across conditions is better than not
         int[][] newMu = new int[numConditions][numComponents];// mu update
@@ -433,7 +444,7 @@ public class BindingEM {
     			
             	//test: reduce computation
     			for(int j=0; j<numComp; j++) {
-    				if(pairIndexAroundMu.get(c).get(j).car()!=-1) {
+    				if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
     					for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
 //    						System.out.println("\t\t\tcompute fuzzProb");
         					double fuzzProb = BindingModel.probability(fuzz[c][j], mu[c][j]-hitPos[c][i]);
@@ -482,11 +493,11 @@ public class BindingEM {
     			rBind[c] = new double[numComp][numPairs];
     			rNoise[c] = new double[numPairs];
         		for(int j=0; j<numComp; j++) {
-        			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
-        				if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
+        			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
+        				for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
         					rBind[c][j][i] = h[c][j][i]*pi[c][j];
         					totalResp[c][i] += rBind[c][j][i];
-        				}
+        			}
         			}
         		}
         		for(int i=0; i<numPairs; i++) {
@@ -520,11 +531,9 @@ public class BindingEM {
         		
         		//test: reduce computation
         		for(int j=0; j<numComp; j++) {
-        			if(pairIndexAroundMu.get(c).get(j).car()!=-1) 
+        			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) 
         				for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
-        					if(pi[c][j]>0) {
         						rBind[c][j][i] /= totalResp[c][i];
-        					}
         				}
         		}
         	}
@@ -532,6 +541,18 @@ public class BindingEM {
 			//monitor: count time
         	timer.end("nResp");
         	timer.start();
+        	
+        	//Compute sum of responsibility
+        	for(int c=0; c<numConditions; c++) {
+        		sumResp[c] = new double[numComp];
+        		for(int j=0; j<numComp; j++) {
+        			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
+        				for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+        					sumResp[c][j] += rBind[c][j][i] * hitCounts[c][i];
+        				}
+        			}
+        		}
+        	}
         	
         	//monitor
 //        	System.out.println("\tM-step");
@@ -552,30 +573,35 @@ public class BindingEM {
         	for(int c=0; c<numConditions; c++) {
         		int numPairs = hitNum[c];
         		for(int j=0; j<numComp; j++) {
-        			if(pi[c][j]>0) {
+        			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
         				// Get the limit of new dyad locations
         				int start = Math.max(mu[c][j]-semconfig.EM_MU_UPDATE_WIN, regStart);
         				int end = Math.min(currRegion.getEnd(), mu[c][j]+semconfig.EM_MU_UPDATE_WIN);
-
+        				// Assign variables for pairwise comparison
+        				if(numConditions>1 && t>semconfig.ALPHA_ANNEALING_ITER) {
+        					muSumStarts[c][j] = start; muSumWidths[c][j] = end-start;
+        				}
         				// Score the current window
         				double currScore=0, maxScore=-Double.MAX_VALUE;
         				int maxPos = 0;
         				
-        				double sumTag = 0;
-        				double sumWeight = 0;
         				//test here
 //        				for(int i=0; i<numPairs; i++) {
-        				if (pairIndexAroundMu.get(c).get(j).car()!=-1)
-        					for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
-        						sumWeight += rBind[c][j][i] * hitCounts[c][i];
-        						sumTag += rBind[c][j][i] * hitCounts[c][i] * hitPos[c][i];
-        					}
-        				if(sumTag/sumWeight > end) {
-        					mu[c][j] = end;
-        				} else if(sumTag/sumWeight < start) {
-        					mu[c][j] = start;
+        				for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+        					muSum[c][j] += rBind[c][j][i] * hitCounts[c][i] * hitPos[c][i];
+        				}
+
+        				// Does maximize position exceed update window?
+        				double mu_max = muSum[c][j]/sumResp[c][j];
+        				if(mu_max > end) {
+        					muMax[c][j] = end;
+//        					mu[c][j] = end;
+        				} else if(mu_max < start) {
+        					muMax[c][j] = start;
+//        					mu[c][j] = start;
         				} else {
-        					mu[c][j] = (int)Math.rint(sumTag/sumWeight);
+        					muMax[c][j] = (int)Math.rint(mu_max);
+//        					mu[c][j] = (int)Math.rint(sumTag/sumWeight);
         				}
         				
 //        				for(int x=start; x<end; x++) {
@@ -600,7 +626,7 @@ public class BindingEM {
 //        					}
 //        				}
 //        				
-//        				muSumMaxPos[c][j] = maxPos;
+//        				muSumMax[c][j] = maxPos;
 //        				mu[c][j] = maxPos;
         			}
         		}
@@ -609,6 +635,100 @@ public class BindingEM {
         	
 			//monitor: count time
         	timer.end("mu");
+
+        	timer.start();
+        	
+        	//monitor
+//        	System.out.println("\t\tMaximize fuzziness");
+        	
+        	// Part2: Maximize fuzziness
+        	if(t/semconfig.FUZZINESS_ANNEALING_ITER==0) {
+        		for(int c=0; c<numConditions; c++) {
+        			for(int j=0; j<numComp; j++) {if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
+	        			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++)
+	        				fuzzSum[c][j] += (rBind[c][j][i] * hitCounts[c][i]) * Math.pow(hitPos[c][i]-mu[c][j], 2);
+	        			fuzzMax[c][j] = fuzzSum[c][j]/sumResp[c][j];
+//	        			fuzz[c][j] = fuzzSum[c][j]/sumResp[c][j];
+        			}
+        			}
+        		}
+        	}
+        	
+			//monitor: count time
+        	timer.end("fuzz");
+        	
+        	//Insert pairwise bindingcomponents comparison here
+        	//Due to I haven't found a way to compare fragment size distribution across different experiment condition
+        	//I only consider position and fuzziness here.
+        	
+        	//evaluate whether joining nearby components across conditions is more favorable
+        	
+        	//First calculate independent log likelihood score for each binding component
+        	double[][] indepScorePerBC = new double[numConditions][numComp];
+        	for(int c=0; c<numConditions; c++) {
+        		for(int j=0; j<numComp; j++) {
+        			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
+        				for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++)
+        					indepScorePerBC[c][j] += rBind[c][j][i] * hitCounts[c][i] * BindingModel.logProbability(fuzzMax[c][j], muMax[c][j]-hitPos[c][i]);
+        			}
+        		}
+        	}
+        	
+        	for(int c=0; c<numConditions; c++) {
+        		for(int j=0; j<numComp; j++) {
+        			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
+        				//a: find the closest components to j in each condition
+        				int closestComp=-1; int closestDist=Integer.MAX_VALUE;
+        				for(int d=0; d<numConditions; d++) {
+        					if(d!=c) {
+        						closestComp=-1; closestDist=Integer.MAX_VALUE;
+        						for(int k=0; k<numComp; k++) {
+        							if(pi[d][k]>0 && pairIndexAroundMu.get(d).get(k).car()!=-1) {
+        								int dist = Math.abs(mu[c][j]-mu[d][k]);
+        								if(dist<closestDist && dist<semconfig.EM_MU_UPDATE_WIN)
+        									closestDist = dist; closestComp = k;
+        							}
+        						}
+        						muJoinClosestComps[d] = closestComp;
+        					}
+        				}
+        				
+        				//b: evaluate each pair of conditions, asking if a shared event involving j and its closest component would be better than independent events
+        				int numSharedBetter = 0;
+        				int maxMuStart = muSumStarts[c][j];
+        				int minMuEnd = muSumStarts[c][j] + muSumWidths[c][j];
+        				for(int d=0; d<numConditions; d++) {
+        					if(d!=c) {
+        						int k = muJoinClosestComps[d];
+        						if(k==-1)
+        							muJoinSharedBetter[d] = false;
+        						else {
+        							//Case 1: two independent components
+        							double indepScore = indepScorePerBC[c][j] + probAgivenB +
+        												indepScorePerBC[d][k] + probAgivenB;
+        							//Case 2: single shared components
+        							double maxSharedScore = 0;
+        							int maxSharedPos = (int)Math.rint((muSum[c][j] + muSum[d][k])/(sumResp[c][j] + sumResp[d][k]));
+        							maxSharedPos = maxSharedPos>Math.max(maxMuStart, muSumStarts[d][k]) ? maxSharedPos : Math.max(maxMuStart, muSumStarts[d][k]);
+        							maxSharedPos = maxSharedPos<Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]) ? maxSharedPos : Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]);
+        							for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+        								maxSharedScore += rBind[c][j][i] * hitCounts[c][i] * BindingModel.logProbability(fuzzMax[c][j], maxSharedPos-hitPos[c][i]);
+        							}
+        							for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
+        								maxSharedScore += rBind[d][k][i] * hitCounts[d][i] * BindingModel.logProbability(fuzzMax[d][k], maxSharedPos-hitPos[d][i]);
+        							}
+        							//Is shared better?
+        							muJoinSharedBetter[d] = maxSharedScore > indepScore ? true : false;
+        							maxMuStart = muJoinSharedBetter[d] ? Math.max(maxMuStart, muSumStarts[d][k]) : maxMuStart; 
+        							minMuEnd = muJoinSharedBetter[d] ? Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]) : minMuEnd;
+        						}
+        					}
+        				}
+        			}
+        		}
+        	}
+        	
+        	
         	timer.start();
         	
         	//monitor
@@ -639,36 +759,6 @@ public class BindingEM {
 
 			//monitor: count time
         	timer.end("resolve");
-        	timer.start();
-        	
-        	//monitor
-//        	System.out.println("\t\tMaximize fuzziness");
-        	
-        	// Part2: Maximize fuzziness
-        	if(t/semconfig.FUZZINESS_ANNEALING_ITER==0) {
-        	for(int c=0; c<numConditions; c++) {
-        		int numPairs = hitNum[c];
-        		for(int j=0; j<numComp; j++) {if(pi[c][j]>0) {
-        			double posVar = 0;
-        			double sumWeight = 0;
-        			//test here
-        			if(pairIndexAroundMu.get(c).get(j).car()!=-1) {
-//    				for(int i=0; i<numPairs; i++) 
-        			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) 
-        				sumWeight += rBind[c][j][i] * hitCounts[c][i];
-//        			for(int i=0; i<numPairs; i++) 
-        			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++)
-        				posVar += (rBind[c][j][i] * hitCounts[c][i]) * Math.pow(hitPos[c][i]-mu[c][j], 2);
-        			posVar /= sumWeight;
-        			fuzz[c][j] = posVar;
-        			}
-        		}
-        		}
-        	}
-        	}
-        	
-			//monitor: count time
-        	timer.end("fuzz");
         	timer.start();
 
         	//monitor
