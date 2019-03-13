@@ -96,7 +96,7 @@ public class BindingEM {
 												double[][] atacPrior,
 												int trainingRound,
 												Timer timer
-												) {
+												) throws Exception {
 		components = comps;
 		this.noise = noise;
 		numComponents = numComp;
@@ -317,7 +317,7 @@ public class BindingEM {
      * Core EM iterations with sparse prior (component elimination) & multi-condition positional priors.
      * Assumes H function, pi, and responsibilities have all been initialized
      */
-	private void EM_MAP(Region currRegion) {
+	private void EM_MAP(Region currRegion) throws Exception {
 		
 		int numComp = numComponents;
 		double [][] totalResp = new double[numConditions][];
@@ -334,6 +334,7 @@ public class BindingEM {
         int[] muJoinClosestComps = new int[numConditions]; //Indices of nearest components in other conditions
         boolean[] muJoinSharedBetter = new boolean[numConditions]; //Indicator that sharing components across conditions is better than not
         int[][] newMu = new int[numConditions][numComponents];// mu update
+        double[][] newFuzz = new double[numConditions][numComponents]; // fuzziness update 
         
         // Initialize responsibilities
         for(int c=0; c<numConditions; c++) {
@@ -677,6 +678,7 @@ public class BindingEM {
         	for(int c=0; c<numConditions; c++) {
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
+        				if(numConditions>1 && t>semconfig.ALPHA_ANNEALING_ITER) {
         				//a: find the closest components to j in each condition
         				int closestComp=-1; int closestDist=Integer.MAX_VALUE;
         				for(int d=0; d<numConditions; d++) {
@@ -704,26 +706,189 @@ public class BindingEM {
         							muJoinSharedBetter[d] = false;
         						else {
         							//Case 1: two independent components
-        							double indepScore = indepScorePerBC[c][j] + probAgivenB +
-        												indepScorePerBC[d][k] + probAgivenB;
+        							double indepScore = indepScorePerBC[c][j] + probAgivenNOTB +
+        												indepScorePerBC[d][k] + probAgivenNOTB;
         							//Case 2: single shared components
+        							//Case 2.1: first get maximum shared position
         							double maxSharedScore = 0;
         							int maxSharedPos = (int)Math.rint((muSum[c][j] + muSum[d][k])/(sumResp[c][j] + sumResp[d][k]));
+        							double maxSharedFuzz = 0;
         							maxSharedPos = maxSharedPos>Math.max(maxMuStart, muSumStarts[d][k]) ? maxSharedPos : Math.max(maxMuStart, muSumStarts[d][k]);
         							maxSharedPos = maxSharedPos<Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]) ? maxSharedPos : Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]);
+        							//Case 2.2: then get maximum shared fuzziness
         							for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
-        								maxSharedScore += rBind[c][j][i] * hitCounts[c][i] * BindingModel.logProbability(fuzzMax[c][j], maxSharedPos-hitPos[c][i]);
+        								maxSharedFuzz += (rBind[c][j][i] * hitCounts[c][i]) * Math.pow(hitPos[c][i]-maxSharedPos, 2);
         							}
         							for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
-        								maxSharedScore += rBind[d][k][i] * hitCounts[d][i] * BindingModel.logProbability(fuzzMax[d][k], maxSharedPos-hitPos[d][i]);
+        								maxSharedFuzz += (rBind[d][k][i] * hitCounts[d][i]) * Math.pow(hitPos[d][i]-maxSharedPos, 2);
         							}
+        							maxSharedFuzz /= (sumResp[c][j] + sumResp[d][k]);
+        							//Case 2.3: then get log likelihood score
+        							for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+        								maxSharedScore += rBind[c][j][i] * hitCounts[c][i] * BindingModel.logProbability(maxSharedFuzz, maxSharedPos-hitPos[c][i]);
+        							}
+        							for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
+        								maxSharedScore += rBind[d][k][i] * hitCounts[d][i] * BindingModel.logProbability(maxSharedFuzz, maxSharedPos-hitPos[d][i]);
+        							}
+        							maxSharedScore += 2*probAgivenB;
         							//Is shared better? get overlapping region if true
         							muJoinSharedBetter[d] = maxSharedScore > indepScore ? true : false;
         							maxMuStart = muJoinSharedBetter[d] ? Math.max(maxMuStart, muSumStarts[d][k]) : maxMuStart; 
         							minMuEnd = muJoinSharedBetter[d] ? Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]) : minMuEnd;
+        							if(muJoinSharedBetter[d])
+        								numSharedBetter++;
+        							
+        							//update mu (Shortcut for numConditions==2)
+        							if(numConditions==2) {
+        								if(muJoinSharedBetter[d]) {
+        									newMu[c][j] = maxSharedPos;
+        									newFuzz[c][j] = maxSharedFuzz;
+        								}
+        								else {
+        									newMu[c][j] = muMax[c][j];
+        									newFuzz[c][j] = fuzzMax[c][j];
+        								}
+        							}
         						}
         					}
         				}
+        				
+        				//c: for all conditions that passed the pairwise test, evaluate if a single shared event is better than all independent
+        				if(numConditions>2) { //Shortcut for 2 conditions above
+        					//Case 1: sum of all independent components
+        					double allIndepScore = indepScorePerBC[c][j] + probAgivenNOTB;
+        					for(int d=0; d<numConditions; d++) {
+        						if(d!=c) {
+        							int k = muJoinClosestComps[d];
+        							if(k!=-1) {
+        								allIndepScore += indepScorePerBC[d][k] + probAgivenNOTB;
+        							}
+        						}
+        					}
+        					//Case 2: sum of shared component and non-shared
+        					//Case 2.1: first get the maximum shared position for shared better components
+        					int maxSomeSharedPos = 0;
+        					double someSharedMuSum = muSum[c][j];
+        					double someSharedSumResp = sumResp[c][j];
+        					for(int d=0; d<numConditions; d++) {
+        						if(d!=c) {
+        							int k = muJoinClosestComps[d];
+        							if(k!=-1 && muJoinSharedBetter[d]) {
+        								someSharedMuSum += muSum[d][k];
+        								someSharedSumResp += sumResp[d][k];
+        							}
+        						}
+        					}
+        					maxSomeSharedPos = (int)Math.rint(someSharedMuSum/someSharedSumResp);
+        					maxSomeSharedPos = maxSomeSharedPos<maxMuStart ? maxMuStart : maxSomeSharedPos;
+        					maxSomeSharedPos = maxSomeSharedPos>minMuEnd   ? minMuEnd   : maxSomeSharedPos;
+        					//Case 2.2: then get maximum shared fuzziness
+        					double maxSomeSharedFuzz = 0;
+        					for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+								maxSomeSharedFuzz += (rBind[c][j][i] * hitCounts[c][i]) * Math.pow(hitPos[c][i]-maxSomeSharedPos, 2);
+							}
+        					for(int d=0; d<numConditions; d++) {
+        						if(d!=c) {
+        							int k = muJoinClosestComps[d];
+        							if(k!=-1 && muJoinSharedBetter[d]) {
+        								for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
+        									maxSomeSharedFuzz += (rBind[d][k][i] * hitCounts[d][i]) * Math.pow(hitPos[d][i]-maxSomeSharedPos, 2);
+        								}
+        							}
+        						}
+        					}
+        					maxSomeSharedFuzz /= someSharedSumResp;							
+        					//Case 2.2: then compute log likelihood
+        					double maxSomeSharedScore = 0;
+        					for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+								maxSomeSharedScore += rBind[c][j][i] * hitCounts[c][i] * BindingModel.logProbability(maxSomeSharedFuzz, maxSomeSharedPos-hitPos[c][i]);
+        					}
+							maxSomeSharedScore += probAgivenB;
+        					for(int d=0; d<numConditions; d++) {
+        						if(d!=c) {
+        							int k = muJoinClosestComps[d];
+        							if(k!=-1) {
+        								if(muJoinSharedBetter[d]) {
+        									for(int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++)
+        										maxSomeSharedScore += rBind[d][k][i] * hitCounts[d][i] * BindingModel.logProbability(maxSomeSharedFuzz, maxSomeSharedPos-hitPos[d][i]);
+        									maxSomeSharedScore += probAgivenB;
+        								} else {
+        									maxSomeSharedScore += indepScorePerBC[d][k] += probAgivenNOTB;
+        								}
+        							}
+        						}
+        					}
+        					//Case 3: single shared position, regardless of what happened in the pairwise tests
+        					//shortcut if all conditions are shared better
+        					double maxAllSharedScore = 0; int maxAllSharedPos = 0;
+        					if(numSharedBetter==numConditions-1) {
+        						maxAllSharedScore = maxSomeSharedScore;
+        						maxAllSharedPos = maxSomeSharedPos;
+        					} else {
+        						//Case 3.1: first get the maximum shared position for all nearby components
+        						double allSharedMuSum = muSum[c][j];
+            					double allSharedSumResp = sumResp[c][j];
+            					for(int d=0; d<numConditions; d++) {
+            						if(d!=c) {
+            							int k = muJoinClosestComps[d];
+            							if(k!=-1) {
+            								allSharedMuSum += muSum[d][k];
+            								allSharedSumResp += sumResp[d][k];
+            							}
+            						}
+            					}
+            					maxAllSharedPos = (int)Math.rint(allSharedMuSum/allSharedSumResp);
+            					maxAllSharedPos = maxAllSharedPos<maxMuStart ? maxMuStart : maxAllSharedPos;
+            					maxAllSharedPos = maxAllSharedPos>minMuEnd   ? minMuEnd   : maxAllSharedPos;
+            					//Case 3.2: then get the maximum shared fuzziness 
+            					double maxAllSharedFuzz = 0;
+            					for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+    								maxAllSharedFuzz += (rBind[c][j][i] * hitCounts[c][i]) * Math.pow(hitPos[c][i]-maxAllSharedPos, 2);
+    							}
+            					for(int d=0; d<numConditions; d++) {
+            						if(d!=c) {
+            							int k = muJoinClosestComps[d];
+            							if(k!=-1) {
+            								for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
+            									maxSomeSharedFuzz += (rBind[d][k][i] * hitCounts[d][i]) * Math.pow(hitPos[d][i]-maxAllSharedPos, 2);
+            								}
+            							}
+            						}
+            					}
+            					maxAllSharedFuzz /= allSharedSumResp;	
+            					//Case 3.2: then log likelihood
+            					for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+    								maxAllSharedScore += rBind[c][j][i] * hitCounts[c][i] * BindingModel.logProbability(maxAllSharedFuzz, maxAllSharedPos-hitPos[c][i]);
+            					}
+    							maxAllSharedScore += probAgivenB;
+            					for(int d=0; d<numConditions; d++) {
+            						if(d!=c) {
+            							int k = muJoinClosestComps[d];
+            							if(k!=-1) {
+            								for(int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++)
+            									maxAllSharedScore += rBind[d][k][i] * hitCounts[d][i] * BindingModel.logProbability(maxAllSharedFuzz, maxAllSharedPos-hitPos[d][i]);
+            								maxAllSharedScore += probAgivenB;
+            							}
+            						}
+            					}
+            					
+            					//e: update mu
+    	    					if(maxAllSharedScore >=allIndepScore && maxAllSharedScore >=maxSomeSharedScore) {
+    	    						newMu[c][j] = maxAllSharedPos;
+    	    						newFuzz[c][j] = maxAllSharedFuzz;
+    	    					} else if(maxSomeSharedScore >=allIndepScore) {
+    	    						newMu[c][j] = maxSomeSharedPos;
+    	    						newFuzz[c][j] = maxSomeSharedFuzz;
+    	    					} else {
+    	    						newMu[c][j] = muMax[c][j];
+    	    						newFuzz[c][j] = fuzzMax[c][j];
+    	    					}
+        					}
+        				}
+        			}} else {
+        				//Ignore other conditions in first phase of training
+        				newMu[c][j] = muMax[c][j];
+        				newFuzz[c][j] = fuzzMax[c][j];
         			}
         		}
         	}

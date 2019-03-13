@@ -50,8 +50,8 @@ public class SEMConfig {
 	protected double alphaScalingFactor = 1.0; //Scaling the condition-specific alpha value by this factor
 	protected double fixedAlpha = 0.0; //Fixed alpha value if above 0
 	protected double betaScalingFactor = 0.05; //Scale the condition and component-specfic beta value by this factor (May change @ Jianyu Yang)
-	protected double motifMinROC = 0.70; //Motif prior is used only if ROC is greater than this.(???)
 	protected double extendWindow = 500; //Range extension around gff points
+	protected double prob_shared_binding = 0.9; //Prior probability that binding sites are shared between conditions
 	protected int bmAnalysisWindowMax = 2000; //???
 	protected int minComponentsForBMUpdate = 50;
 	protected int minRefsForBMUpdate = 25;
@@ -169,8 +169,6 @@ public class SEMConfig {
 				fixedAlpha = Args.parseDouble(args,"fixedalpha",fixedAlpha);
 				//Beta scaling factor
 				betaScalingFactor = Args.parseDouble(args,"betascale",betaScalingFactor);
-				//Motif prior is used only if the ROC is greater than this .
-				motifMinROC = Args.parseDouble(args, "minroc", motifMinROC);
 				//Number of base pair to extend around gff
 				extendWindow = Args.parseDouble(args, "extwin", extendWindow);
 				//Initial component spacing
@@ -231,8 +229,8 @@ public class SEMConfig {
 	public double getAlphaScalingFactor(){return alphaScalingFactor;}
 	public double getBetaScalingFactor(){return betaScalingFactor;}
 	public double getFixedAlpha(){return fixedAlpha;}
+	public double getProbSharedBinding() {return prob_shared_binding;}
 	public double getWindowExtension(){return extendWindow;}
-	public double getMotifMinROC(){return motifMinROC;}
 	public int getBMAnalysisWindowMax(){return bmAnalysisWindowMax;}
 	public int getAddFlankingComponentSpacing(){return addFlankingComponentSpacing;}
 	public boolean getAddFlankingComponents(){return addFlankingComponent;}
