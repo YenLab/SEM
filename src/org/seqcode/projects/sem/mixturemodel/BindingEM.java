@@ -22,6 +22,7 @@ import org.seqcode.projects.sem.events.BindingManager;
 import org.seqcode.projects.sem.events.BindingModel;
 import org.seqcode.projects.sem.events.BindingSubtype;
 import org.seqcode.projects.sem.utilities.Timer;
+import org.seqcode.projects.sem.utilities.EMStepPlotter;
 import org.seqcode.gseutils.Pair;
 import org.seqcode.math.stats.StatUtil;
 
@@ -98,14 +99,15 @@ public class BindingEM {
 												int numComp,
 												double[][] atacPrior,
 												int trainingRound,
-												Timer timer
+												Timer timer,
+												boolean plotEM
 												) throws Exception {
 		components = comps;
 		this.noise = noise;
 		numComponents = numComp;
 		this.atacPrior = atacPrior;
 		this.trainingRound = trainingRound;
-		this.plotSubRegion = plotSubRegion;
+		this.plotEM = plotEM;
 		this.timer = timer;
 //		numBindingSubtypes = new HashMap<ExperimentCondition, Integer>();
 		// Matrix initializations
@@ -127,7 +129,6 @@ public class BindingEM {
 		mu = new int[numConditions][numComponents];		// mu: positions of the binding components
 		fuzz = new double[numConditions][numComponents];	// &fuzz: fuzziness of the binding components
 		tau = new double[numConditions][numComponents][];				// &tau: fragment size subtype probabilities (indexed by subtype index)
-		plotEM = (plotSubRegion!=null && plotSubRegion.overlaps(w));
 		// Monitor state convergence using the following last variables
 		lastRBind = new double[numConditions][][];
 		lastSumResp = new double[numConditions][numComponents];
@@ -366,6 +367,12 @@ public class BindingEM {
         for(int c=0; c<numConditions; c++)
         	currAlpha[c] = 0;
         
+        //record the initial parameters if plotting
+        if(plotEM) {
+        	EMStepPlotter plot = new EMStepPlotter(currRegion, semconfig, hitPos, hitCounts, hitSize, trainingRound);
+        	EMStepPlotter.excute(mu, pi, fuzz, tau, 0, 0);
+        }
+        
     	//////////////////////////////////////////////////////////////////////////////////////////
         //Run EM while not converged
         // Note: iterations during which we eliminate a binding component don't count towards "t"
@@ -373,12 +380,6 @@ public class BindingEM {
         int t=0, iter=0;   
         
         while(t<semconfig.MAX_EM_ITER) {
-        	
-        	//monitor
-//        	System.out.println("In EM Region: "+currRegion.getChrom()+":"+currRegion.getStart()+"-"+currRegion.getEnd());
-//        	System.out.println("In EM reads number: "+hitPos[0].length);
-//        	System.out.println("\tE-step");
-        	
     		////////
     		//E-step
     		////////
@@ -386,9 +387,6 @@ public class BindingEM {
         	//I want to get the range of fragment midpoint coordinates that will be influenced by each BindingComponent
         	//It's a trick to improve the performance because when encountering quite long region, calculate each fragment
         	//for each BindingComponent will waste a lot of time.
-        	
-        	//monitor
-//        	System.out.println("\t\tMarking range");
         	
 			//monitor: count time
         	timer.start();
@@ -402,24 +400,6 @@ public class BindingEM {
         		for(int j=0; j<numComp; j++) {
         			// Get half 95% influence range for each nucleosome
         			int half_maxIR = (int)(Math.sqrt(fuzz[c][j]) * 1.96);
-//        			int start=-1; int end=numPairs-1;
-//        			boolean bigger=false; boolean smaller=false;
-//        			for(int i=0; i<numPairs; i++) {
-//        				if(!smaller) {
-//        					if(Math.abs(mu[c][j]-hitPos[c][i])<=half_maxIR) {
-//        						start = i;
-//        						smaller = true;
-//        					}
-//        				}
-//        				if(smaller && !bigger) {
-//        					if(Math.abs(hitPos[c][i]- mu[c][j])>half_maxIR) {
-//        						end = i-1;
-//        						bigger = true;
-//        					}
-//        				}
-//        			}
-//        			
-//        			System.out.println("start: "+start+"\tend: "+end);
         			
         			// Increase speed by binary search
         			int left_bound = mu[c][j] - half_maxIR;
@@ -856,19 +836,42 @@ public class BindingEM {
             						}
             					}
             					
+//            					//monitor
+//            					if(c==2 && j==16) {
+//            						System.out.println("probAgivenB: "+probAgivenB);
+//            						System.out.println("probAgivenNOTB: "+probAgivenNOTB);
+//            						
+//            						System.out.println("condition0: "+muJoinClosestComps[0]);
+//            						System.out.println("condition1: "+muJoinClosestComps[1]);
+//            						System.out.println("condition2: "+muJoinClosestComps[2]);
+//            						System.out.println("\tindepPosition: "+muMax[0][muJoinClosestComps[0]]+" "+muMax[1][muJoinClosestComps[1]]+" "+muMax[2][muJoinClosestComps[2]]+" ");
+//            						System.out.println("\t\tindepScore:" + allIndepScore);
+//            						System.out.println("\tsomShared component:");
+//            						System.out.println("\t\t"+muMax[2][16]);
+//            						for(int d=0; d<numConditions; d++) {
+//                						if(d!=c) {
+//                							int k = muJoinClosestComps[d];
+//                							if(k!=-1 && muJoinSharedBetter[d]) {
+//                								System.out.println("\t\t"+muMax[d][k]);
+//                							}
+//                						}
+//                					}            						
+//            						System.out.println("\tmaxSomeSharedPos: "+ maxSomeSharedPos);
+//            						System.out.println("\t\tmaxSomeSharedScore: "+ maxSomeSharedScore);
+//            						System.out.println("\tmaxAllSharedPos: "+maxAllSharedPos);
+//            						System.out.println("\t\tmaxAllSharedScore: "+ maxAllSharedScore);
+//            					}
+            					
             					//e: update mu
     	    					if(maxAllSharedScore >=allIndepScore && maxAllSharedScore >=maxSomeSharedScore) {
     	    						newMu[c][j] = maxAllSharedPos;
     	    						newFuzz[c][j] = maxAllSharedFuzz;
-//    	    						System.out.println("all shared");
     	    					} else if(maxSomeSharedScore >=allIndepScore) {
     	    						newMu[c][j] = maxSomeSharedPos;
     	    						newFuzz[c][j] = maxSomeSharedFuzz;
-//    	    						System.out.println("some shared");
     	    					} else {
     	    						newMu[c][j] = muMax[c][j];
     	    						newFuzz[c][j] = fuzzMax[c][j];
-//    	    						System.out.println("independent");
     	    					}
         					}
         				}
@@ -883,6 +886,8 @@ public class BindingEM {
         	
         	// update mu 
         	for(int c=0; c<numConditions; c++) {
+        		mu[c] = new int[numComp];
+        		fuzz[c] = new double[numComp];
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
         				mu[c][j] = newMu[c][j];
@@ -1070,6 +1075,8 @@ public class BindingEM {
 			//monitor: count time
         	timer.end("LL");
         	
+        	//
+        	
         	//Is current state equivalent to the last?
             if(((numConditions>1 && t>semconfig.POSPRIOR_ITER) || (numConditions==1 && t>semconfig.ALPHA_ANNEALING_ITER)) && 
             		lastEquivToCurr())
@@ -1081,6 +1088,11 @@ public class BindingEM {
     		if(!componentEliminated)
     			t++;
     		iter++;
+    		
+    		//Save parameters if plotEM
+    		if(plotEM) {
+    			EMStepPlotter.excute(mu, pi, fuzz, tau, iter, t);
+    		}
     		
     		//monitor code
 //    		long endtime = System.currentTimeMillis();
@@ -1112,6 +1124,7 @@ public class BindingEM {
         
         //monitor code: show binding component information after EM loop
 //        for(int c=0; c<numConditions; c++) {
+//        	System.out.println("Condition "+c);
 //        	for(int j=0; j<numComp; j++) {
 //        		if(pi[c][j]>0) {
 //        			System.out.println("\tBinding Component"+j);

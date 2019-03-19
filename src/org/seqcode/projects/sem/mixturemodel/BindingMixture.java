@@ -41,7 +41,7 @@ public class BindingMixture {
 	protected HashMap<Region, List<List<BindingComponent>>> activeComponents; //Components active after a round of execute()
 	protected HashMap<ExperimentCondition, BackgroundCollection> conditionBackgrounds = new HashMap<ExperimentCondition, BackgroundCollection>(); //Genomic Background models for each condition -- used to set alpha values in sparse prior
 	protected List<BindingEvent> bindingEvents;
-	protected List<Region> regionsToPlot;
+	protected Pair<String, Integer> plotDyad; //plot region which contains this dyad
 	protected int trainingRound = 0;
 	protected double noisePerBase[];		//Defines global noise
 	protected double relativeCtrlNoise[];	//Defines global noise
@@ -57,7 +57,7 @@ public class BindingMixture {
 		bindingManager = bMan;
 		potRegFilter = filter;
 		testRegions = filter.getPotentialRegions();
-		regionsToPlot = config.getRegionsToPlot();
+		plotDyad = bindingManager.getBindingModel(manager.getIndexedCondition(0)).get(0).getIntialDyadByIndex(0);
 		bindingEvents = new ArrayList<BindingEvent>();
 		BindingEvent.setExperimentManager(manager);
 		BindingEvent.setConfig(evconfig);
@@ -193,12 +193,12 @@ public class BindingMixture {
     	try {
     		String filename = config.getOutputIntermediateDir()+File.separator+config.getOutBase()+"_t"+trainingRound+".components";
 			FileWriter fout = new FileWriter(filename);
-			fout.write("#chromosome\tdyad\tpi\tsumResp\tfuzziness\tau\tregion\n");
+			fout.write("#region\tchromosome\tdyad\tpi\tsumResp\tfuzziness\ttau\n");
 			for(Region rr : activeComponents.keySet()){
 	    		List<List<BindingComponent>> comps = activeComponents.get(rr);
 	    		for(ExperimentCondition cond : manager.getConditions()){
 	    			for(BindingComponent comp : comps.get(cond.getIndex())){
-	    				fout.write(comp.toString()+"\t"+rr.getChrom()+":"+rr.getStart()+"-"+rr.getEnd()+"\n");			
+	    				fout.write(rr.getLocationString()+"\t"+cond.getName()+"\t"+comp.toString()+"\n");			
 	    			}
 	    		}
 	    	}
@@ -271,8 +271,8 @@ public class BindingMixture {
 			}
 		}
 	
-		private Pair<List<NoiseComponent>, List<List<BindingComponent>>> analyzeWindowEM(Region w) {
-			System.out.println("Region: "+w.getChrom()+":"+w.getStart()+"-"+w.getEnd());
+		private Pair<List<NoiseComponent>, List<List<BindingComponent>>> analyzeWindowEM(Region w) throws Exception {
+			System.err.println("Region: "+w.getChrom()+":"+w.getStart()+"-"+w.getEnd());
 			Timer timer = new Timer();
 			BindingEM EM = new BindingEM(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
 			List<List<BindingComponent>> bindingComponents = null;
@@ -281,6 +281,15 @@ public class BindingMixture {
 			for(int e=0; e<manager.getNumConditions(); e++)
 				nonZeroComponents.add(new ArrayList<BindingComponent>());
 				
+			//check if plot this region
+			boolean plotEM = false;
+			if(w.getChrom().equals(plotDyad.car()) && 
+					w.getStart() <= plotDyad.cdr() && 
+					w.getEnd() >= plotDyad.cdr()) {
+				plotEM = true;
+			}
+			System.err.println(plotEM);
+			
 			//monitor: count time
 			timer.start();
 			
@@ -299,7 +308,7 @@ public class BindingMixture {
             if(uniformBindingComponents)
             	bindingComponents = initializeBindingComponentsUniformly(w, noiseComponents);
             else
-            	bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, true);
+            	bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, false);
             
             //ATAC-seq prior
             double[][] atacPrior = null;
@@ -308,7 +317,7 @@ public class BindingMixture {
             timer.end("load");
 
             //EM learning: resulting binding components list will only contain non-zero components
-            nonZeroComponents = EM.train(signals, w, noiseComponents, bindingComponents, numBindingComponents, atacPrior, trainingRound, timer);
+            nonZeroComponents = EM.train(signals, w, noiseComponents, bindingComponents, numBindingComponents, atacPrior, trainingRound, timer, plotEM);
             
             return new Pair<List<NoiseComponent>, List<List<BindingComponent>>>(noiseComponents, nonZeroComponents);
 		}
@@ -319,7 +328,7 @@ public class BindingMixture {
 		 * @param w
 		 * @return Pair of component lists (noise components and binding components) indexed by condition
 		 */
-		private List<BindingEvent> analyzeWindowML(Region w){
+		private List<BindingEvent> analyzeWindowML(Region w) throws Exception {
 			BindingMLAssignment ML = new BindingMLAssignment(econfig, evconfig, config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
 			List<BindingComponent> bindingComponents = null;
 			List<NoiseComponent> noiseComponents = null;
