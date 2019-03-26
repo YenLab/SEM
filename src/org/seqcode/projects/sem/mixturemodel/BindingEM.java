@@ -12,6 +12,7 @@ import org.seqcode.deepseq.StrandedBaseCount;
 import org.seqcode.deepseq.StrandedPair;
 import org.seqcode.deepseq.events.BindingModelPerBase;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
+
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;
 import org.seqcode.deepseq.stats.BackgroundCollection;
@@ -27,6 +28,7 @@ import org.seqcode.gseutils.Pair;
 import org.seqcode.math.stats.StatUtil;
 
 public class BindingEM {
+	
 	protected ExperimentManager manager;
 	protected BindingManager bindingManager;
 	protected SEMConfig semconfig;
@@ -90,6 +92,7 @@ public class BindingEM {
 		double L = (double)semconfig.getGenome().getGenomeLength();
 		probAgivenB = Math.log(semconfig.getProbSharedBinding())/Math.log(2);
 		probAgivenNOTB = Math.log((N-S)/(L-N))/Math.log(2);
+		
 	}
 	
 	public List<List<BindingComponent>> train(List<List<StrandedPair>> signals,
@@ -291,7 +294,7 @@ public class BindingEM {
 		// End of data structure initialization
 		
 		//monitor: count time
-		timer.end("initialize");
+	 	timer.end("initialize");
 
 		/////////
 		// Run EM steps
@@ -428,15 +431,17 @@ public class BindingEM {
         	
 			//monitor: count time
         	timer.end("mark");
-        	timer.start();
         	
         	for(int c=0; c<numConditions; c++) {
         		int numPairs = hitNum[c];
         		ExperimentCondition cond = manager.getIndexedCondition(c);
         		
     			// Load binding fragment size PDF cache (indexed by type index)
-    			Map<Integer, List<Double>> fragSizePDF = bindingManager.getCachePDF(cond);
+    			double[][] fragSizePDF = bindingManager.getCachePDF(cond);
 
+    			//monitor: count time
+            	timer.start();
+    			
     			// Compute H and N function
     			double[][] hc = new double[numComp][numPairs];
     			double[] nc = new double[numPairs];
@@ -448,8 +453,8 @@ public class BindingEM {
     					for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
     						fuzzProb = BindingModel.probability(fuzz[c][j], mu[c][j]-hitPos[c][i]);
         					fragSizeProb = 0;
-        					for(int index: fragSizePDF.keySet()) {
-        						fragSizeProb += tau[c][j][index] * fragSizePDF.get(index).get(hitSize[c][i]);
+        					for(int index=0; index< fragSizePDF.length; index++) {
+        						fragSizeProb += tau[c][j][index] * fragSizePDF[index][hitSize[c][i]];
         					}
         					hc[j][i] = fuzzProb * fragSizeProb;
     					}
@@ -501,10 +506,10 @@ public class BindingEM {
         						rBind[c][j][i] /= totalResp[c][i];
         				}
         		}
+            	
+    			//monitor: count time
+            	timer.end("nResp");
         	}
-        	
-			//monitor: count time
-        	timer.end("nResp");
         	
         	timer.start();
         	
@@ -553,6 +558,9 @@ public class BindingEM {
         		}
         	}
         	
+        	timer.end("sResp");
+        	timer.start();
+
     		/////////////////////
     		//M-step: maximize mu (positions), fuzz (fuzziness), tau (fragment size subtype), pi (strength)
     		/////////////////////
@@ -635,6 +643,11 @@ public class BindingEM {
         		}
         	}
         	
+        	// Store pairwise comparison results to reduce duplicated computation
+        	Map<PairwiseKey, Boolean> pairwiseSharedBetter = new HashMap<PairwiseKey, Boolean>();
+        	Map<PairwiseKey, Integer> pairwiseSharedPos = new HashMap<PairwiseKey, Integer>();
+        	Map<PairwiseKey, Double> pairwiseSharedFuzz = new HashMap<PairwiseKey, Double>();    
+        	
         	for(int c=0; c<numConditions; c++) {
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
@@ -669,34 +682,52 @@ public class BindingEM {
         						if(k==-1)
         							muJoinSharedBetter[d] = false;
         						else {
-        							//Case 1: two independent components
-        							double indepScore = indepScorePerBC[c][j] + probAgivenNOTB +
-        												indepScorePerBC[d][k] + probAgivenNOTB;
-        							//Case 2: single shared components
-        							//Case 2.1: first get maximum shared position
-        							double maxSharedScore = 0;
-        							int maxSharedPos = (int)Math.rint((muSum[c][j] + muSum[d][k])/(sumResp[c][j] + sumResp[d][k]));
-        							double maxSharedFuzz = 0;
-        							maxSharedPos = maxSharedPos>Math.max(maxMuStart, muSumStarts[d][k]) ? maxSharedPos : Math.max(maxMuStart, muSumStarts[d][k]);
-        							maxSharedPos = maxSharedPos<Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]) ? maxSharedPos : Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]);
-        							//Case 2.2: then get maximum shared fuzziness
-        							for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
-        								maxSharedFuzz += resp[c][j][i] * Math.pow(hitPos[c][i]-maxSharedPos, 2);
+        							PairwiseKey key;
+        							if(c<d) {
+        								key = new PairwiseKey(c, j, d, k);
+        							} else {
+        								key = new PairwiseKey(d, k, c, j);
         							}
-        							for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
-        								maxSharedFuzz += resp[d][k][i] * Math.pow(hitPos[d][i]-maxSharedPos, 2);
+        							int maxSharedPos; double maxSharedFuzz;
+        							if(pairwiseSharedBetter.containsKey(key)) {
+        								//get shared position, fuzziness directly from stored map
+        								maxSharedPos = pairwiseSharedPos.get(key);
+        								maxSharedFuzz = pairwiseSharedFuzz.get(key);
+        								muJoinSharedBetter[d] = pairwiseSharedBetter.get(key);
+        							} else {
+	        							//Case 1: two independent components
+	        							double indepScore = indepScorePerBC[c][j] + probAgivenNOTB +
+	        												indepScorePerBC[d][k] + probAgivenNOTB;
+	        							//Case 2: single shared components
+	        							//Case 2.1: first get maximum shared position
+	        							double maxSharedScore = 0;
+	        							maxSharedPos = (int)Math.rint((muSum[c][j] + muSum[d][k])/(sumResp[c][j] + sumResp[d][k]));
+	        							maxSharedPos = maxSharedPos>Math.max(maxMuStart, muSumStarts[d][k]) ? maxSharedPos : Math.max(maxMuStart, muSumStarts[d][k]);
+	        							maxSharedPos = maxSharedPos<Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]) ? maxSharedPos : Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]);
+	        							//Case 2.2: then get maximum shared fuzziness
+	        							maxSharedFuzz = 0;
+	        							for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+	        								maxSharedFuzz += resp[c][j][i] * Math.pow(hitPos[c][i]-maxSharedPos, 2);
+	        							}
+	        							for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
+	        								maxSharedFuzz += resp[d][k][i] * Math.pow(hitPos[d][i]-maxSharedPos, 2);
+	        							}
+	        							maxSharedFuzz /= (sumResp[c][j] + sumResp[d][k]);
+	        							//Case 2.3: then get log likelihood score
+	        							for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+	        								maxSharedScore += resp[c][j][i] * BindingModel.logProbability(maxSharedFuzz, maxSharedPos-hitPos[c][i]);
+	        							}
+	        							for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
+	        								maxSharedScore += resp[d][k][i] * BindingModel.logProbability(maxSharedFuzz, maxSharedPos-hitPos[d][i]);
+	        							}
+	        							maxSharedScore += 2*probAgivenB;
+	        							//Is shared better? get overlapping region if true
+	        							muJoinSharedBetter[d] = maxSharedScore > indepScore ? true : false;
+	        							//store
+	        							pairwiseSharedPos.put(key, maxSharedPos);
+	        							pairwiseSharedFuzz.put(key, maxSharedFuzz);
+	        							pairwiseSharedBetter.put(key, muJoinSharedBetter[d]);
         							}
-        							maxSharedFuzz /= (sumResp[c][j] + sumResp[d][k]);
-        							//Case 2.3: then get log likelihood score
-        							for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
-        								maxSharedScore += resp[c][j][i] * BindingModel.logProbability(maxSharedFuzz, maxSharedPos-hitPos[c][i]);
-        							}
-        							for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
-        								maxSharedScore += resp[d][k][i] * BindingModel.logProbability(maxSharedFuzz, maxSharedPos-hitPos[d][i]);
-        							}
-        							maxSharedScore += 2*probAgivenB;
-        							//Is shared better? get overlapping region if true
-        							muJoinSharedBetter[d] = maxSharedScore > indepScore ? true : false;
         							maxMuStart = muJoinSharedBetter[d] ? Math.max(maxMuStart, muSumStarts[d][k]) : maxMuStart; 
         							minMuEnd = muJoinSharedBetter[d] ? Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]) : minMuEnd;
         							if(muJoinSharedBetter[d])
@@ -777,7 +808,7 @@ public class BindingEM {
         										maxSomeSharedScore += resp[d][k][i] * BindingModel.logProbability(maxSomeSharedFuzz, maxSomeSharedPos-hitPos[d][i]);
         									maxSomeSharedScore += probAgivenB;
         								} else {
-        									maxSomeSharedScore += indepScorePerBC[d][k] += probAgivenNOTB;
+        									maxSomeSharedScore += indepScorePerBC[d][k] + probAgivenNOTB;
         								}
         							}
         						}
@@ -835,32 +866,6 @@ public class BindingEM {
             							}
             						}
             					}
-            					
-//            					//monitor
-//            					if(c==2 && j==16) {
-//            						System.out.println("probAgivenB: "+probAgivenB);
-//            						System.out.println("probAgivenNOTB: "+probAgivenNOTB);
-//            						
-//            						System.out.println("condition0: "+muJoinClosestComps[0]);
-//            						System.out.println("condition1: "+muJoinClosestComps[1]);
-//            						System.out.println("condition2: "+muJoinClosestComps[2]);
-//            						System.out.println("\tindepPosition: "+muMax[0][muJoinClosestComps[0]]+" "+muMax[1][muJoinClosestComps[1]]+" "+muMax[2][muJoinClosestComps[2]]+" ");
-//            						System.out.println("\t\tindepScore:" + allIndepScore);
-//            						System.out.println("\tsomShared component:");
-//            						System.out.println("\t\t"+muMax[2][16]);
-//            						for(int d=0; d<numConditions; d++) {
-//                						if(d!=c) {
-//                							int k = muJoinClosestComps[d];
-//                							if(k!=-1 && muJoinSharedBetter[d]) {
-//                								System.out.println("\t\t"+muMax[d][k]);
-//                							}
-//                						}
-//                					}            						
-//            						System.out.println("\tmaxSomeSharedPos: "+ maxSomeSharedPos);
-//            						System.out.println("\t\tmaxSomeSharedScore: "+ maxSomeSharedScore);
-//            						System.out.println("\tmaxAllSharedPos: "+maxAllSharedPos);
-//            						System.out.println("\t\tmaxAllSharedScore: "+ maxAllSharedScore);
-//            					}
             					
             					//e: update mu
     	    					if(maxAllSharedScore >=allIndepScore && maxAllSharedScore >=maxSomeSharedScore) {
@@ -959,20 +964,18 @@ public class BindingEM {
         	for(int c=0; c<numConditions; c++) {
         		// Maximize pi
         		double[] sumR = new double[numComponents];
-//        		for(int j=0; j<numComp; j++) {
-//        			if(pi[c][j]>0) {
-//            			if(pairIndexAroundMu.get(c).get(j).car()!=-1) {
-//            				for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
-//            					sumR[j] += rBind[c][j][i] * hitCounts[c][i];
-//            				}
-//            			}
-//        			}
-//        		}
         		sumR = sumResp[c];
+        		boolean[] isEliminated = new boolean[numComponents];
         		int minIndex=0; double minVal=Double.MAX_VALUE;
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0) {
-        				if(sumR[j]<minVal) {minVal=sumR[j]; minIndex=j;}
+        				if(sumR[j]<minVal) {
+        					minVal=sumR[j]; 
+        					minIndex=j;
+        				}
+        				if(sumR[j]<currAlpha[c]) {
+        					isEliminated[j] = true;
+        				}
         			}
         		}
         		if(minVal>currAlpha[c]) {
@@ -984,16 +987,38 @@ public class BindingEM {
         				}
         			}
         		} else {
-        			// Eliminate worst binding component Q: why only the worst one?
+        			// Select eliminated binding components following two criteria:
+        			// 1. sumR < currAlpha		
+        			// 2. no components eliminated in reassigned responsibility range (set as initialize fuzziness 95% interval)
+        			int exclusionRange = bindingManager.getBindingModel(manager.getIndexedCondition(c)).get(0).getMaxInfluenceRange();
+        			boolean[] exclusionZone = new boolean[currRegion.getWidth()];
+        			for(int j=0; j<numComp; j++	) {
+        				if(isEliminated[j]) {
+        					if(!exclusionZone[mu[c][j]-currRegion.getStart()]) {
+        						int start = Math.max(0, mu[c][j]-currRegion.getStart()-exclusionRange/2);
+        						int end = Math.min(currRegion.getWidth()-1, mu[c][j]+currRegion.getStart()+exclusionRange/2);
+        						for(int z=start; z<=end; z++) {
+        							exclusionZone[z] = true;
+        						}
+        					} else {
+        						isEliminated[j] = false;
+        					}
+        				}
+        			}
+        			
+        			// Eliminate selected eliminated binding components
         			// Responsibilities will be redistributed in the E step
-        			pi[c][minIndex]=0.0; sumR[minIndex]=0.0;
-//        			for(int i=0; i<numPairs; i++)
-        			if(pairIndexAroundMu.get(c).get(minIndex).car()!=-1)
-        			for(int i=pairIndexAroundMu.get(c).get(minIndex).car(); i<=pairIndexAroundMu.get(c).get(minIndex).cdr(); i++)
-        				rBind[c][minIndex][i] = 0;
+        			for(int j=0; j<numComp; j++) {
+        				if(isEliminated[j]) {
+        					pi[c][j]=0.0; sumR[j]=0.0;
+        					if(pairIndexAroundMu.get(c).get(j).car()!=-1)
+        						for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++)
+        							rBind[c][j][i] = 0;
+        				}
+        			}
         			// Re-estimate pi values for non-eliminated components using the current responsibility assignments
         			for(int j=0; j<numComp; j++) {
-        				if(j!=minIndex)
+        				if(!isEliminated[j])
         					pi[c][j] = Math.max(0, sumR[j]); // Q: I think here should be sumR[j]-currAlpha[c].
         			}
         			componentEliminated = true;
@@ -1066,6 +1091,8 @@ public class BindingEM {
         			if(atacPrior!=null && semconfig.useAtacPrior())
         				for(int j=0; j<numComp; j++)
         					sum_pos_prior += atacPrior[c][mu[c][j]-currRegion.getStart()];
+        			
+        			LP += -(currAlpha[c] * sum_log_pi) + sum_pos_prior;
         		}
         		LAP = LL + LP;
         		
@@ -1207,6 +1234,45 @@ public class BindingEM {
 //    	System.out.println("\t\tfuzzBindEquivalent: "+fuzzBindEquivalent);
 //    	System.out.println("\t\ttauBindEquivalent: "+tauBindEquivalent);
 		return numCompEqual && compPosEqual && piBindEquivalent && fuzzBindEquivalent && tauBindEquivalent;
+    }
+    
+    private class PairwiseKey{
+    	int cond1;
+    	int index1;
+    	int cond2;
+    	int index2;
+    	public PairwiseKey(int c1, int i1, int c2, int i2) {
+    		cond1 = c1;
+    		index1 = i1;
+    		cond2 = c2;
+    		index2 = i2;
+    	}
+    	
+    	public int firstCond() {return cond1;}
+    	public int firstIndex() {return index1;}
+    	public int secondCond() {return cond2;}
+    	public int secondIndex() {return index2;}
+    	
+    	public int hashCode() {
+    		int code = 17;
+    		code = code*31 + cond1;
+    		code = code*31 + index1;
+    		code = code*31 + cond2;
+    		code = code*31 + index2;
+    		return code;
+    	}
+    	
+    	public boolean equals(Object o) {
+    		if(!(o instanceof PairwiseKey)) {
+    			return false;
+    		}
+    		PairwiseKey p = (PairwiseKey) o;
+    		return p.firstCond()==cond1 && p.firstIndex()==index1 && p.secondCond()==cond2 && p.secondIndex()==index2;
+    	}
+    	
+    	public String toString() {
+    		return cond1 + " " + index1 + " " + cond2 + " " + index2;
+    	}
     }
 }
 
