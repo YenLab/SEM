@@ -815,10 +815,11 @@ public class BindingEM {
         					}
         					//Case 3: single shared position, regardless of what happened in the pairwise tests
         					//shortcut if all conditions are shared better
-        					double maxAllSharedScore = 0; int maxAllSharedPos = 0;
+        					double maxAllSharedScore = 0; int maxAllSharedPos = 0; double maxAllSharedFuzz = 0;
         					if(numSharedBetter==numConditions-1) {
         						maxAllSharedScore = maxSomeSharedScore;
         						maxAllSharedPos = maxSomeSharedPos;
+        						maxAllSharedFuzz = maxSomeSharedFuzz;
         					} else {
         						//Case 3.1: first get the maximum shared position for all nearby components
         						double allSharedMuSum = muSum[c][j];
@@ -836,7 +837,6 @@ public class BindingEM {
             					maxAllSharedPos = maxAllSharedPos<maxMuStart ? maxMuStart : maxAllSharedPos;
             					maxAllSharedPos = maxAllSharedPos>minMuEnd   ? minMuEnd   : maxAllSharedPos;
             					//Case 3.2: then get the maximum shared fuzziness 
-            					double maxAllSharedFuzz = 0;
             					for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
     								maxAllSharedFuzz += resp[c][j][i] * Math.pow(hitPos[c][i]-maxAllSharedPos, 2);
     							}
@@ -866,19 +866,18 @@ public class BindingEM {
             							}
             						}
             					}
-            					
-            					//e: update mu
-    	    					if(maxAllSharedScore >=allIndepScore && maxAllSharedScore >=maxSomeSharedScore) {
-    	    						newMu[c][j] = maxAllSharedPos;
-    	    						newFuzz[c][j] = maxAllSharedFuzz;
-    	    					} else if(maxSomeSharedScore >=allIndepScore) {
-    	    						newMu[c][j] = maxSomeSharedPos;
-    	    						newFuzz[c][j] = maxSomeSharedFuzz;
-    	    					} else {
-    	    						newMu[c][j] = muMax[c][j];
-    	    						newFuzz[c][j] = fuzzMax[c][j];
-    	    					}
         					}
+        					//e: update mu
+	    					if(maxAllSharedScore >=allIndepScore && maxAllSharedScore >=maxSomeSharedScore) {
+	    						newMu[c][j] = maxAllSharedPos;
+	    						newFuzz[c][j] = maxAllSharedFuzz;
+	    					} else if(maxSomeSharedScore >=allIndepScore) {
+	    						newMu[c][j] = maxSomeSharedPos;
+	    						newFuzz[c][j] = maxSomeSharedFuzz;
+	    					} else {
+	    						newMu[c][j] = muMax[c][j];
+	    						newFuzz[c][j] = fuzzMax[c][j];
+	    					}
         				}
         			}else {
         				//Ignore other conditions in first phase of training
