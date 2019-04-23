@@ -102,7 +102,7 @@ public class BindingMLAssignment {
 									 Region w,
 									 List<NoiseComponent> noise,
 									 List<BindingComponent> comps,
-									 int numComp) {
+									 int numComp) throws Exception {
 		components = comps;
 		this.noise = noise;
 		numComponents = numComp;
@@ -149,7 +149,7 @@ public class BindingMLAssignment {
 			int c = cond.getIndex();
 			
 			// Load binding fragment size PDF cache
-			Map<Integer, List<Double>> fragSizePDF = bindingManager.getCachePDF(cond);
+			double[][] fragSizePDF = bindingManager.getCachePDF(cond);
 			
 			//Load reads (merge from all replicates) & Indexed by condition
 			List<StrandedPair> sigPairs = new ArrayList<StrandedPair>();
@@ -223,7 +223,7 @@ public class BindingMLAssignment {
 				mu[c][j] = components.get(j).getPosition();
 				fuzz[c][j] = components.get(j).getFuzziness();
 				tau[c][j] = components.get(j).getTau();
-				lastTau[c][j] = new double[fragSizePDF.keySet().size()];
+				lastTau[c][j] = new double[fragSizePDF.length];
 			}
 			
 			//Initialize responsibility functions
@@ -234,8 +234,8 @@ public class BindingMLAssignment {
 				for(int j=0; j<numComp; j++) {
 					double fuzzProb = BindingModel.probability(fuzz[c][j], mu[c][j]-sigHitPos[c][i]);
 					double fragSizeProb = 0;
-					for(int index: fragSizePDF.keySet()) {
-						fragSizeProb += tau[c][j][index] * fragSizePDF.get(index).get(sigHitSize[c][i]);
+					for(int index=0; index<fragSizePDF.length; index++) {
+						fragSizeProb += tau[c][j][index] * fragSizePDF[index][sigHitSize[c][i]];
 					}
 					hc[j][i] = fuzzProb * fragSizeProb;
 					thc[j][i] = fuzzProb * fragSizeProb;
@@ -312,7 +312,7 @@ public class BindingMLAssignment {
 	 * Core EM iterations with sparse prior (component elimination) & multi-condition positional priors.
 	 * Assumes H function, pi, and responsibilities have all been initialized
 	 */
-	private void ML(Region currRegion) {
+	private void ML(Region currRegion) throws Exception {
 		int numComp = numComponents;
 		double[][] totalRespSig = new double[numConditions][];
 		double[][] totalRespCtrl = new double[numConditions][];
@@ -341,15 +341,15 @@ public class BindingMLAssignment {
 			for(int c=0; c<numConditions; c++) {
 				int numPairs = sigHitNum[c];
 				// Load binding fragment size PDF cache
-				Map<Integer, List<Double>> fragSizePDF = bindingManager.getCachePDF(manager.getIndexedCondition(c));
+				double[][] fragSizePDF = bindingManager.getCachePDF(manager.getIndexedCondition(c));
 				//Recompute h function, given binding component positions (n function is constant because noise model doesn't move)
 				for(int i=0; i<numPairs; i++)
 					for(int j=0; j<numComp; j++) {
 						if(pi[c][j]>0) {
 							double fuzzProb = BindingModel.probability(fuzz[c][j], mu[c][j]-sigHitPos[c][i]);
 							double fragSizeProb = 0;
-							for(int index: fragSizePDF.keySet()) {
-								fragSizeProb += tau[c][j][index] * fragSizePDF.get(index).get(sigHitSize[c][i]);
+							for(int index=0; index<fragSizePDF.length; index++) {
+								fragSizeProb += tau[c][j][index] * fragSizePDF[index][sigHitSize[c][i]];
 							}
 							h[c][j][i] = fuzzProb * fragSizeProb;
 						}
@@ -457,7 +457,7 @@ public class BindingMLAssignment {
 			double[] nCtrl = new double[numPairs];
 			
 			// Load binding fragment size PDF cache
-			Map<Integer, List<Double>> fragSizePDF = bindingManager.getCachePDF(manager.getIndexedCondition(c));
+			double[][] fragSizePDF = bindingManager.getCachePDF(manager.getIndexedCondition(c));
 
 			
 			//Recompute h & n functions for control reads, given binding component positions
@@ -466,8 +466,8 @@ public class BindingMLAssignment {
 					if(pi[c][j]>0) {
 						double fuzzProb = BindingModel.probability(fuzz[c][j], mu[c][j]-ctrlHitPos[c][i]);
 						double fragSizeProb = 0;
-						for(int index: fragSizePDF.keySet()) {
-							fragSizeProb += tau[c][j][index] * fragSizePDF.get(index).get(ctrlHitSize[c][i]);
+						for(int index=0; index<fragSizePDF.length; index++) {
+							fragSizeProb += tau[c][j][index] * fragSizePDF[index][ctrlHitSize[c][i]];
 						}
 						hCtrl[j][i] = fuzzProb * fragSizeProb;
 					}
@@ -543,29 +543,22 @@ public class BindingMLAssignment {
     	boolean piBindEquivalent=true;
     	for(int c=0; c<numC; c++)
 			for(int j=0; j<pi[c].length; j++){if(pi[c][j]>0){
-				piBindEquivalent = piBindEquivalent && (Math.abs(pi[c][j]-lastPi[c][j])<config.EM_STATE_EQUIV_THRES);
+				piBindEquivalent = piBindEquivalent && (Math.abs(pi[c][j]-lastPi[c][j])<config.EM_STATE_EQUIV_PI_THRES);
 			}}
     	boolean fuzzBindEquivalent=true;
     	for(int c=0; c<numC; c++)
     		for(int j=0; j<pi[c].length; j++) {
     			if(pi[c][j]>0)
-    				fuzzBindEquivalent = fuzzBindEquivalent && (Math.abs(fuzz[c][j]-lastFuzz[c][j]) < config.EM_STATE_EQUIV_THRES);
+    				fuzzBindEquivalent = fuzzBindEquivalent && (Math.abs(fuzz[c][j]-lastFuzz[c][j]) < config.EM_STATE_EQUIV_FUZZ_THRES);
     		}
     	boolean tauBindEquivalent=true;
     	for(int c=0; c<numC; c++)
     		for(int j=0 ;j<pi[c].length; j++) {
     			if(pi[c][j]>0)
     				for(int t=0; t<tau[c][j].length; t++)
-    					tauBindEquivalent = tauBindEquivalent && (Math.abs(tau[c][j][t] - lastTau[c][j][t]) < config.EM_STATE_EQUIV_THRES);
+    					tauBindEquivalent = tauBindEquivalent && (Math.abs(tau[c][j][t] - lastTau[c][j][t]) < config.EM_STATE_EQUIV_TAU_THRES);
     		}
-    	boolean rBindEquivalent=true;
-    	for(int c=0; c<numC; c++)
-    		for(int j=0; j<pi[c].length; j++){if(pi[c][j]>0){
-    			for(int x=0; x<rBindSig[c][j].length; x++){
-    				rBindEquivalent = rBindEquivalent && (Math.abs(rBindSig[c][j][x]-lastRBind[c][j][x])<config.EM_STATE_EQUIV_THRES);
-    			}
-			}}
-		return numCompEqual && compPosEqual && piBindEquivalent && fuzzBindEquivalent && tauBindEquivalent && rBindEquivalent;
+		return numCompEqual && compPosEqual && piBindEquivalent && fuzzBindEquivalent && tauBindEquivalent;
     }
 }
 

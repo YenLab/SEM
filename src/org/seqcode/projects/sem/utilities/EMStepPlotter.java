@@ -70,12 +70,12 @@ public class EMStepPlotter {
 			String fileName = dir.getAbsolutePath()+File.separator+"EM_"+regStr+"_trainingRound"+trainingRound+"_dyadInfo.txt";
 			BufferedWriter bw = new BufferedWriter(new FileWriter(fileName, true));
 			bw.write("#"+plotRegion.getLocationString()+"\n");
-			bw.write("#Iter\tt\tmu\tpi\tfuzz");
+			bw.write("#Iter\tt\tcondition\tindex\tmu\tpi\tfuzz\n");
 			for(int c=0; c<mu.length; c++) {	
 				for(int j=0; j<mu[c].length; j++) {
 					if(pi[c][j]>0) {
-						bw.write(r+"\t"+t+"\t"+mu[c][j]+"\t"+pi[c][j]+"\t"+fuzz[c][j]+"\t"
-								+Arrays.toString(tau[c][j])+"\n");
+						bw.write(r+"\t"+t+"\t"+c+"\t"+j+"\t"+mu[c][j]+"\t"+pi[c][j]+"\t"+
+								fuzz[c][j]+"\t"+Arrays.toString(tau[c][j])+"\n");
 					}
 				}
 			}

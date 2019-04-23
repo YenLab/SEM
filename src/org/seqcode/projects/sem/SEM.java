@@ -83,6 +83,7 @@ public class SEM {
 		for(ExperimentCondition cond:manager.getConditions()) {
 			condBindingModels.put(cond, new ArrayList<BindingModel>());
 			condBindingModels.get(cond).add(new BindingModel(semconfig.getInitialDyad(), manager, cond, gconfig));
+			bindingManager.setMaxInfluenceRange(cond, condBindingModels.get(cond).get(0).getMaxInfluenceRange());
 		}
 		bindingManager.setBindingModels(condBindingModels);
 		
@@ -109,7 +110,7 @@ public class SEM {
 		while (!converged) {
 		
 			System.err.println("\n============================== Round "+round+" =====================");
-		
+			long start = System.currentTimeMillis();
 			//Execute the SEM mixture model, now only EM
 			//TODO: how to add ML step?
 			if(round==0)
@@ -127,20 +128,24 @@ public class SEM {
 		
 			//Print current components
 			mixtureModel.printActiveComponentsToFile();
-		
+			
+			long end = System.currentTimeMillis();
+			System.err.println("Round "+round+"\tOverall time: "+(end-start)/60000+"min");
 			round++;
 		
 			//Check for convergence
-			if(round>semconfig.getMaxModelUpdateRounds()) {
+			if(round>=semconfig.getMaxModelUpdateRounds()) {
 				converged=true;
 			}else {
 				converged=false;
 			}
+			
+			//monitor: count time
+			Timer.summary();
+			System.out.println(new Timer());
+			Timer.reset();
+			
 		}
-		
-		//monitor: count time
-		Timer.summary();
-		System.out.println(new Timer());
 	}
 	
 	/**

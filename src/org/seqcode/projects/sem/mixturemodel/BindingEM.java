@@ -594,7 +594,6 @@ public class BindingEM {
         				muMax[c][j] = Math.max(start, muMax[c][j]);
         			}
         		}
-
         	}
         	
 			//monitor: count time
@@ -1101,8 +1100,6 @@ public class BindingEM {
 			//monitor: count time
         	timer.end("LL");
         	
-        	//
-        	
         	//Is current state equivalent to the last?
             if(((numConditions>1 && t>semconfig.POSPRIOR_ITER) || (numConditions==1 && t>semconfig.ALPHA_ANNEALING_ITER)) && 
             		lastEquivToCurr())
@@ -1120,18 +1117,29 @@ public class BindingEM {
     			EMStepPlotter.excute(mu, pi, fuzz, tau, iter, t);
     		}
     		
-    		//monitor code
-//    		long endtime = System.currentTimeMillis();
-//    		if((endtime - starttime > 15000)) {
-//    			System.out.println("Stack Warning:");
-//    			System.out.println("Mu position: " + Arrays.toString(mu[0]));
-//    			System.out.println("Pi: " + Arrays.toString(pi[0]));
-//    		}
+    		//Are there any components sharing the same location from the same experiment condition?
+    		boolean componentOverlapping = false;
+    		for(int c=0; c<numConditions; c++) {
+    			List<Integer> compLoc = new ArrayList<Integer>();
+    			for(int j=0; j<numComp; j++) {
+    				if(pi[c][j]>0) {
+    				if(!compLoc.contains(mu[c][j])) {
+    					compLoc.add(mu[c][j]);
+    				} else {
+    					componentOverlapping = true;
+    					break;
+    				}
+    				}
+    			}
+    			if(componentOverlapping) {
+    				break;
+    			}
+    		}
     		
     		 ////////////
           	//Check Stopping condition TODO: I don't know whether it is right to use Math.abs
           	////////////   		
-            if (nonZeroComps>0 && ((numConditions>1 && t<=semconfig.POSPRIOR_ITER) || (numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER) || (semconfig.CALC_LL && Math.abs(LAP-lastLAP)>Math.abs(semconfig.EM_CONVERGENCE*lastLAP)) || stateEquivCount<semconfig.EM_STATE_EQUIV_ROUNDS)){
+            if (nonZeroComps>0 && (componentOverlapping || (numConditions>1 && t<=semconfig.POSPRIOR_ITER) || (numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER) || (semconfig.CALC_LL && Math.abs(LAP-lastLAP)>Math.abs(semconfig.EM_CONVERGENCE*lastLAP)) || stateEquivCount<semconfig.EM_STATE_EQUIV_ROUNDS)){
 //            	System.out.println("\tcriteria 1: "+(numConditions>1 && t<=semconfig.POSPRIOR_ITER));
 //            	System.out.println("\tcriteria 2: "+(numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER));
 //            	System.out.println("\tcriteria 3: "+(semconfig.CALC_LL && Math.abs(LAP-lastLAP)>semconfig.EM_CONVERGENCE*lastLAP));

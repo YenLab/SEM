@@ -78,21 +78,23 @@ public class SEMConfig {
 	public final double LOG2 = Math.log(2);
 	public final int POTREG_BIN_STEP = 100; //Sliding window step in potential region scanner(?)
 	public final int MAXSECTION = 5000000;
-	public final int MAX_EM_ITER = 6;
 	public final double NOISE_EMISSION_MIN = 0.01; //Arbitrary floor on the emission probability of noise (must be non-zero to mop up noise reads)
     public final double NOISE_EMISSION_MAX = 0.95; //Arbitrary ceiling on the emission probability of noise
     public final int NOISE_DISTRIB_SMOOTHING_WIN = 50; //Smoothing window for the noise distribution used in the BindingMixture
-	public final int EM_ML_ITER = 2; // &
 	public final int EM_MU_UPDATE_WIN = 50; // &
-	public final int ALPHA_ANNEALING_ITER = 4; // &
+	public final int MAX_EM_ITER = 100;
+	public final int EM_ML_ITER = 5; // &
+	public final int ALPHA_ANNEALING_ITER = 10; // &
+	public final int POSPRIOR_ITER = 15; // &
 	public final int FUZZINESS_ANNEALING_ITER = 2; // & Update fuzziness every ? turns
 	public final int TAU_ANNEALING_ITER = 2; // & Update tau every ? turns
 	public final double SPARSE_PRIOR_SUBTYPE = 0.05; // &
 	public final boolean CALC_LL = true; // &
-	public final int POSPRIOR_ITER = 3; // &
 	public final double EM_CONVERGENCE = 0.01; // &
-	public final int EM_STATE_EQUIV_ROUNDS = 1; // &
-	public final double EM_STATE_EQUIV_THRES = 0.01; // &
+	public final int EM_STATE_EQUIV_ROUNDS = 0; // &
+	public final double EM_STATE_EQUIV_PI_THRES = 0.01; // &
+	public final double EM_STATE_EQUIV_FUZZ_THRES = 0.1; // &
+	public final double EM_STATE_EQUIV_TAU_THRES = 0.05; // &
 	public final int INIT_COMPONENT_SPACING = 100; // &
 	
 	protected String[] args;

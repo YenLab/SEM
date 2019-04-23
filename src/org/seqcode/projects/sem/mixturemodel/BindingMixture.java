@@ -193,12 +193,16 @@ public class BindingMixture {
     	try {
     		String filename = config.getOutputIntermediateDir()+File.separator+config.getOutBase()+"_t"+trainingRound+".components";
 			FileWriter fout = new FileWriter(filename);
-			fout.write("#region\tchromosome\tdyad\tpi\tsumResp\tfuzziness\ttau\n");
+			fout.write("#region\tchromosome\tdyad\tpi\tsumResp\tfuzziness\ttau\tisPair\n");
 			for(Region rr : activeComponents.keySet()){
 	    		List<List<BindingComponent>> comps = activeComponents.get(rr);
 	    		for(ExperimentCondition cond : manager.getConditions()){
 	    			for(BindingComponent comp : comps.get(cond.getIndex())){
-	    				fout.write(rr.getLocationString()+"\t"+cond.getName()+"\t"+comp.toString()+"\n");			
+	    				fout.write(rr.getLocationString()+"\t"+cond.getName()+"\t"+comp.toString()+"\t");
+	    				for(Pair<Integer, Integer> index: comp.getCompareRestulsConvert().keySet()) {
+	    					fout.write(activeComponents.get(rr).get(index.car()).get(index.cdr()).toString());
+	    					fout.write("\t"+comp.getCompareRestulsConvert().get(index)+"\n");
+	    				}
 	    			}
 	    		}
 	    	}
@@ -274,7 +278,9 @@ public class BindingMixture {
 		private Pair<List<NoiseComponent>, List<List<BindingComponent>>> analyzeWindowEM(Region w) throws Exception {
 			System.err.println("Region: "+w.getChrom()+":"+w.getStart()+"-"+w.getEnd());
 			Timer timer = new Timer();
-			BindingEM EM = new BindingEM(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
+//			BindingEM EM = new BindingEM(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
+			BindingEM_Statistic EM = new BindingEM_Statistic(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
+//			BindingEM_test EM = new BindingEM_test(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
 			List<List<BindingComponent>> bindingComponents = null;
 			List<NoiseComponent> noiseComponents = null;
 			List<List<BindingComponent>> nonZeroComponents = new ArrayList<List<BindingComponent>>();
@@ -288,7 +294,6 @@ public class BindingMixture {
 					w.getEnd() >= plotDyad.cdr()) {
 				plotEM = true;
 			}
-			System.err.println(plotEM);
 			
 			//monitor: count time
 			timer.start();

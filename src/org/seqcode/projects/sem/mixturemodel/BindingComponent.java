@@ -1,8 +1,12 @@
 package org.seqcode.projects.sem.mixturemodel;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 import org.seqcode.genome.location.Point;
+import org.seqcode.gseutils.Pair;
 
 /**
  * BindingComponents are used in mixture models to represent potential binding events
@@ -22,6 +26,9 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	protected double[][]	readProfile;	// Read responsibility for each read (indexed by replicate & read index) 
 	protected int index = 0;
 	protected boolean isSubtype = false;
+	protected boolean isPair = false;
+	protected Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>> compareResults;			//paired nucleosome index in EM
+	protected Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>> compareResultsConvert;	//paired nucleosome index in activeComponents
 	
 	public BindingComponent(Point pos, int numReps) {
 		coord = pos;
@@ -37,9 +44,11 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	public int getIndex() {return index;}
 	public double[] getTau() {return tau;}
 	public boolean isSubtype() {return isSubtype;}
+	public boolean isPair() {return isPair;}
 	public boolean isNonZero() {return pi>0;}
-	
 	public double getResponsibility() {return sumResp;}
+	public Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>> getCompareResults() {return compareResults;}
+	public Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>> getCompareRestulsConvert() {return compareResultsConvert;}
 	
 	//Setters
 	public void setPi(double p) {pi = p;}
@@ -50,6 +59,27 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	public void setFuzziness(double f) {fuzziness=f;}
 	public void setTau(double[] t){tau=t; isSubtype=true;}
 	public void setSumResponsibility(double sumResp) { this.sumResp = sumResp;}
+	public void setCompareResults(Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>> cr) {
+		compareResults = cr;
+		if(compareResults.size()>0) {
+			isPair = true;
+		}
+	}
+	
+	public void convertIndex(List<Map<Integer, Integer>> indexConverter) {
+		compareResultsConvert = new HashMap<Pair<Integer, Integer>, Pair<Boolean, Boolean>>();
+		if(isPair) {
+			for(Pair<Integer, Integer> index: compareResults.keySet()) {
+				try {
+					int newIndex = indexConverter.get(index.car()).get(index.cdr());
+					compareResultsConvert.put(new Pair<Integer, Integer>(index.car(), newIndex), compareResults.get(index));
+				} catch (Exception e) {
+					System.out.println(index);
+					System.exit(1);
+				}
+			}
+		}
+	}
 	
 	public void uniformInit(double initValue){
 		pi=initValue;
@@ -68,6 +98,6 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	public String toString(){
 //		return "B\tcoor: "+coord.getLocationString()+"\tpi: "+String.format("%.3f",pi)+"\tsumResp: "+String.format("%.3f", sumResp)+
 //				"\tfuzziness: "+fuzziness+"\ttau: "+Arrays.toString(tau)+"\tindex: "+index;
-		return "chr"+coord.getChrom()+"\t"+position+"\t"+pi+"\t"+sumResp+"\t"+fuzziness+"\t"+Arrays.toString(tau);
+		return "chr"+coord.getChrom()+"\t"+position+"\t"+pi+"\t"+sumResp+"\t"+fuzziness+"\t"+Arrays.toString(tau)+"\t"+isPair;
 	}
 }

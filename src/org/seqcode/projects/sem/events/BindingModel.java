@@ -34,12 +34,15 @@ public class BindingModel {
 	protected double initialFuzziness;
 	protected List<Pair<String, Integer>> initialDyad;
 	protected Map<Integer, Double> pairFreqAroundInitialDyad;
+	
+	protected static boolean isCache = false;
+	protected static Double[][] probCache;	// Store probability for each distance under each fuzziness to reduce computation
 		
 	protected static final double LOG2 = Math.log(2);
 	protected static final double ROOT2PI = Math.sqrt(2*Math.PI);
-	public static final int max = 100;
-	protected static double bgProb=Double.MIN_VALUE;
-	protected static double logBgProb=-1074;
+	protected static final double bgProb=0;
+	protected static final double logBgProb=-Double.MAX_VALUE;
+	protected final int maxIR;	// 95% influence range computed by initialized fuzziness
 	
 	// Constructor: Read in dyad location of nucleosome to initialize fuzziness
 	public BindingModel(String dyadFile, ExperimentManager eman, ExperimentCondition ec, GenomeConfig gc) {
@@ -62,36 +65,32 @@ public class BindingModel {
 			e.printStackTrace();
 		}
 		initializeFuzziness();		
-	};
-	
-	// Test constructor
-	public BindingModel() {
 		
-	}
+		maxIR = (int)Math.rint(Math.sqrt(initialFuzziness) * 1.96) * 2;
+		
+		//monitor
+		System.out.println("Initialize Fuzziness: "+initialFuzziness);
+		System.out.println("Initialize maxIR: "+maxIR);
+	};
 	
 	//Accessors
 	public double getIntialFuzziness() {return initialFuzziness;}
-	public static int getMaxInfluenceRange() {return max*2;}
+	public int getMaxInfluenceRange() {return maxIR;}
+	public Pair<String, Integer> getIntialDyadByIndex(int index) {return initialDyad.get(index);}
 	
 	//Look up the probability corresponding to a distance
 	//Distance should be defined as (Read position - Peak position)
 	public static double probability(double variance, int distance) throws Exception {
-//		double z = distance/Math.sqrt(variance);
-//		if(z<-1.96 || z>1.96 || distance<min || distance>max ) {
-//			return(bgProb);
-//		} else {
-//			double prob = 1/(Math.sqrt(variance)*ROOT2PI) * Math.exp(-Math.pow(distance, 2)/(2*variance));
-//			return prob;
-//		}
 		double prob;
-		if(Math.abs(distance) > max) {
-			prob = 0;
-		} else if (variance > 0) {
+//		if(Math.abs(distance) > max) {
+//			prob = 0;
+//		} else 
+		if (variance > 0) {
 			prob = 1/(Math.sqrt(variance)*ROOT2PI) * Math.exp(-Math.pow(distance, 2)/(2*variance));
 		} else if (variance == 0 && distance == 0) {
 			prob = 1;
 		} else if (variance == 0 && distance != 0) {
-			prob = 0;
+			prob = bgProb;
 		} else {
 			throw new Exception("Variance must >= 0!");
 		}
@@ -103,23 +102,12 @@ public class BindingModel {
 		}
 	}
 	
-	public static double logProbability(double variance, int distance) throws Exception {
-//		double z = distance/Math.sqrt(variance);
-//		if(z<-1.96 || z>1.96 || distance<min || distance>max ){
-//		  return(logBgProb);
-//		}else{
-//		  return(Math.log(probability(variance, distance)));
-//		}	
-		
-		try {
-			double prob = probability(variance, distance);
-			if(prob > 0) {
-				return Math.log(prob);
-			} else {
-				return -Double.MAX_VALUE;
-			}
-		} catch (Exception e) {
-			throw e;
+	public static double logProbability(double variance, int distance) throws Exception {	
+		double prob = probability(variance, distance);
+		if(prob > 0) {
+			return Math.log(prob);
+		} else {
+			return logBgProb;
 		}
 	}
 	
@@ -154,15 +142,12 @@ public class BindingModel {
 			initialFuzziness += Math.pow(dis, 2) * pairFreqAroundInitialDyad.get(dis);
 			sumWeight += pairFreqAroundInitialDyad.get(dis);
 		}
-		initialFuzziness /= sumWeight;
-		
-		//monitor
-		System.out.println("Initialize Fuzziness: "+initialFuzziness);
+		initialFuzziness /= sumWeight;		
 	}
 	
 	public static void main(String[] args) {
 		try {
-			System.out.println(new BindingModel().logProbability(-10,10));
+			System.out.println(Math.log(1/(Math.sqrt(1000)*ROOT2PI) * Math.exp(-Math.pow(2000, 2)/(2*1000))));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
