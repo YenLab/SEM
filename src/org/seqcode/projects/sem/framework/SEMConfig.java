@@ -44,7 +44,7 @@ public class SEMConfig {
 	protected double sigLogConf = -10; //???
 	protected double prLogConf = -10; //???
 	protected int minModelUpdateRounds = 1; //Minimum number of EM training rounds
-	protected int maxModelUpdateRounds = 3; //Maximum number of EM training rounds (May increase @ Jianyu Yang)
+	protected int maxModelUpdateRounds = 30; //Maximum number of EM training rounds (May increase @ Jianyu Yang)
 	protected int posPriorScaling = 10; //???
 	protected int maxThreads = 1;
 	protected double alphaScalingFactor = 1.0; //Scaling the condition-specific alpha value by this factor

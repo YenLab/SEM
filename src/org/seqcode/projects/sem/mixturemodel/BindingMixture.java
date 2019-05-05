@@ -13,6 +13,7 @@ import org.seqcode.projects.sem.mixturemodel.NoiseComponent;
 import org.seqcode.projects.sem.events.*;
 import org.seqcode.projects.sem.framework.*;
 import org.seqcode.projects.sem.utilities.Timer;
+import org.seqcode.projects.sem.utilities.NucleosomePoissonBackgroundModel;
 import org.seqcode.deepseq.experiments.*;
 import org.seqcode.deepseq.stats.BackgroundCollection;
 import org.seqcode.deepseq.stats.PoissonBackgroundModel;
@@ -39,10 +40,12 @@ public class BindingMixture {
 	protected PotentialRegionFilter potRegFilter;
 	protected List<Region> testRegions;
 	protected HashMap<Region, List<List<BindingComponent>>> activeComponents; //Components active after a round of execute()
-	protected HashMap<ExperimentCondition, BackgroundCollection> conditionBackgrounds = new HashMap<ExperimentCondition, BackgroundCollection>(); //Genomic Background models for each condition -- used to set alpha values in sparse prior
+	protected HashMap<ExperimentCondition, NucleosomePoissonBackgroundModel> conditionBackgrounds = new HashMap<ExperimentCondition, NucleosomePoissonBackgroundModel>(); //Genomic Background models for each condition -- used to set alpha values in sparse prior
 	protected List<BindingEvent> bindingEvents;
 	protected Pair<String, Integer> plotDyad; //plot region which contains this dyad
 	protected int trainingRound = 0;
+	protected double alf;
+	protected boolean converged = false;
 	protected double noisePerBase[];		//Defines global noise
 	protected double relativeCtrlNoise[];	//Defines global noise
 	protected HashMap<Region, Double[]> noiseResp = new HashMap<Region, Double[]>(); //noise responsibilities after a round of execute(). Hashed by Region, indexed by condition
@@ -64,12 +67,11 @@ public class BindingMixture {
 		
 		activeComponents = new HashMap<Region, List<List<BindingComponent>>>();
 		for(ExperimentCondition cond: manager.getConditions()) {
-			conditionBackgrounds.put(cond, new BackgroundCollection());
 			System.out.println(config.getGenome().getGenomeLength()-potRegFilter.getPotRegionLengthTotal());
-			conditionBackgrounds.get(cond).addBackgroundModel(new PoissonBackgroundModel(-1, config.getSigLogConf(), cond.getTotalSignalPairCount()*(1-cond.getTotalSignalPairVsNoisePairFrac()), config.getGenome().getGenomeLength()-potRegFilter.getPotRegionLengthTotal(), econfig.getMappableGenomeProp(), bindingManager.getMaxInfluenceRange(cond), '.', 1, true));
-			double alf = config.getFixedAlpha()>0 ? config.getFixedAlpha() : (double)conditionBackgrounds.get(cond).getMaxThreshold('.');
+			conditionBackgrounds.put(cond, new NucleosomePoissonBackgroundModel(-1, config.getSigLogConf(), cond.getTotalSignalPairCount()*(1-cond.getTotalSignalPairVsNoisePairFrac()), config.getGenome().getGenomeLength()-potRegFilter.getPotRegionLengthTotal(), econfig.getMappableGenomeProp(), bindingManager.getMaxInfluenceRange(cond), '.', 1, true));
+			// ignore fixed alpha when determining threshold for each nucleosome
+			alf = (double)conditionBackgrounds.get(cond).calcCountThreshold(bindingManager.getMaxInfluenceRange(cond));
 			System.err.println("Alpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf);
-			
 		}
 		
 		noisePerBase = new double[manager.getNumConditions()];
@@ -78,6 +80,8 @@ public class BindingMixture {
 		
 		initializeGlobalNoise();
 	}
+	
+	public boolean isConverged() {return converged;}
 	
 	/**
      * Initialize the global noise parameters. Inferred either from:
@@ -137,6 +141,24 @@ public class BindingMixture {
     		System.out.println("training round: "+trainingRound+"\tnoise per base: "+noisePerBase[e]);
     	}
     }
+    
+    /**
+     * Update condition backgrounds for alpha
+     */
+    public void updateAlpha() {
+    	for(ExperimentCondition cond: manager.getConditions()) {
+    		int c = cond.getIndex();
+    		conditionBackgrounds.put(cond, new NucleosomePoissonBackgroundModel(-1, config.getSigLogConf(), noisePerBase[c]*config.getGenome().getGenomeLength(), 
+    				config.getGenome().getGenomeLength(), econfig.getMappableGenomeProp(), bindingManager.getMaxInfluenceRange(cond), '.', 1, true));
+			// ignore fixed alpha when determining threshold for each nucleosome
+			double new_alf = (double)conditionBackgrounds.get(cond).calcCountThreshold(bindingManager.getMaxInfluenceRange(cond));
+			if(Math.abs(new_alf-alf)/alf < 0.01)
+				converged = true;
+			alf = new_alf;
+			System.err.println("Alpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf);
+    	}
+    }
+    
     
 	public void execute(boolean EM, boolean uniformBindingComponents) {
 		trainingRound++;
@@ -200,9 +222,10 @@ public class BindingMixture {
 	    			for(BindingComponent comp : comps.get(cond.getIndex())){
 	    				fout.write(rr.getLocationString()+"\t"+cond.getName()+"\t"+comp.toString()+"\t");
 	    				for(Pair<Integer, Integer> index: comp.getCompareRestulsConvert().keySet()) {
-	    					fout.write(activeComponents.get(rr).get(index.car()).get(index.cdr()).toString());
-	    					fout.write("\t"+comp.getCompareRestulsConvert().get(index)+"\n");
+	    					fout.write(index.car()+"\t"+index.cdr());
+	    					fout.write("\t"+comp.getCompareRestulsConvert().get(index));
 	    				}
+	    				fout.write("\n");
 	    			}
 	    		}
 	    	}

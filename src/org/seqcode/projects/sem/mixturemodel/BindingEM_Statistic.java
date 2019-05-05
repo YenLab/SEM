@@ -42,6 +42,7 @@ import org.seqcode.projects.sem.utilities.Timer;
 import org.seqcode.projects.sem.utilities.EMStepPlotter;
 import org.seqcode.projects.sem.utilities.Statistics;
 import org.seqcode.projects.sem.utilities.GaleShapley;
+import org.seqcode.projects.sem.utilities.NucleosomePoissonBackgroundModel;
 import org.seqcode.gseutils.Pair;
 import org.seqcode.math.stats.StatUtil;
 
@@ -56,7 +57,7 @@ public class BindingEM_Statistic {
 	protected int numConditions;
 	protected int numSubtypes;
 	protected int trainingRound=0;
-	protected HashMap<ExperimentCondition, BackgroundCollection> conditionBackgrounds;
+	protected HashMap<ExperimentCondition, NucleosomePoissonBackgroundModel> conditionBackgrounds;
 //	protected HashMap<ExperimentCondition, Integer> numBindingSubtypes;
 	protected Timer timer;
 	
@@ -88,6 +89,7 @@ public class BindingEM_Statistic {
 	protected int[][]		lastMu;				// Last positions (monitor convergence)
 	protected double[][]	lastFuzz;			// &Last fuzziness (monitor convergence)
 	protected double[][][]	lastTau;				// &Last tau (monitor convergence)
+	protected int[][]		maxIR;				// Max influence range for each nucleosome
 	protected double 		lastLAP, LAP;		// log-likelihood monitoring
 	protected boolean 		plotEM=false;		// Plot the current region components
 	protected Region		plotSubRegion=null;	// Sub region to plot
@@ -96,22 +98,13 @@ public class BindingEM_Statistic {
 	protected int stateEquivCount = 0;
 	protected Map<Pair<Integer, Integer>, Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>>> compareStore;
 	
-	public BindingEM_Statistic(SEMConfig s, ExperimentManager eMan, BindingManager bMan, HashMap<ExperimentCondition, BackgroundCollection> condBacks, int numPotReg) {
+	public BindingEM_Statistic(SEMConfig s, ExperimentManager eMan, BindingManager bMan, HashMap<ExperimentCondition, NucleosomePoissonBackgroundModel> condBacks, int numPotReg) {
 		semconfig = s;
 		manager = eMan;
 		bindingManager = bMan;
 		conditionBackgrounds = condBacks;
 		numConditions = manager.getNumConditions();
-		numPotentialRegions = (double)numPotReg;
-		
-		//Penalty probability applied on independent/shared conditions
-		//TODO: how to adjust it when using it on nucleosomes?
-		double N = numPotentialRegions;
-		double S = N * semconfig.getProbSharedBinding();
-		double L = (double)semconfig.getGenome().getGenomeLength();
-		probAgivenB = Math.log(semconfig.getProbSharedBinding())/Math.log(2);
-		probAgivenNOTB = Math.log((N-S)/(L-N))/Math.log(2);
-		
+		numPotentialRegions = (double)numPotReg;		
 	}
 	
 	public List<List<BindingComponent>> train(List<List<StrandedPair>> signals,
@@ -151,6 +144,7 @@ public class BindingEM_Statistic {
 		mu = new int[numConditions][numComponents];		// mu: positions of the binding components
 		fuzz = new double[numConditions][numComponents];	// &fuzz: fuzziness of the binding components
 		tau = new double[numConditions][numComponents][];				// &tau: fragment size subtype probabilities (indexed by subtype index)
+		maxIR = new int[numConditions][numComponents];	// max influence range for each nucleosome
 		// Monitor state convergence using the following last variables
 		lastRBind = new double[numConditions][][];
 		lastSumResp = new double[numConditions][numComponents];
@@ -164,8 +158,8 @@ public class BindingEM_Statistic {
 			int c = cond.getIndex();
 			
 			// Set maximum alphas (TODO: Now we set 0 for SEM because we haven't found a good way to determine ahpha)
-			alphaMax[c] = semconfig.getFixedAlpha()>0 ? semconfig.getFixedAlpha() :
-					semconfig.getAlphaScalingFactor() * (double)conditionBackgrounds.get(cond).getMaxThreshold('.');
+//			alphaMax[c] = semconfig.getFixedAlpha()>0 ? semconfig.getFixedAlpha() :
+//					semconfig.getAlphaScalingFactor() * (double)conditionBackgrounds.get(cond).getMaxThreshold('.');
 			
 			//monitor: count time
 			timer.start();
@@ -219,7 +213,7 @@ public class BindingEM_Statistic {
 				}
 			}
 			
-			// if there are no pairs in this condition, add a pseudocount
+			// if there are no pairs in this condition, add a pseudo pair
 			if(pairs.size()==0) {
 				pairs.add(new StrandedPair(semconfig.getGenome(), semconfig.getGenome().getChromID(w.getChrom()), -11000, '+', 
 						semconfig.getGenome().getChromID(w.getChrom()), -10000, '-', 1));
@@ -344,6 +338,7 @@ public class BindingEM_Statistic {
 					try {
 					comp.setCompareResults(compareStore.get(new Pair<Integer, Integer>(c, j)));
 					} catch (Exception e) {
+						e.printStackTrace();
 						System.out.println(new Pair<Integer, Integer>(c, j));
 						System.out.println(sum_resp);
 						System.out.println(pi[c][j]);
@@ -418,9 +413,11 @@ public class BindingEM_Statistic {
         }
         
         // Alpha is annealed in. Alpha=0 during ML steps
-        double[] currAlpha = new double[numConditions];
+        double[][] currAlpha = new double[numConditions][numComponents];
+        double alphaCoefficient = 0;
         for(int c=0; c<numConditions; c++)
-        	currAlpha[c] = 0;
+        	for(int j=0; j<numComponents; j++)
+        		currAlpha[c][j] = 0;
         
         //record the initial parameters if plotting
         if(plotEM) {
@@ -447,14 +444,14 @@ public class BindingEM_Statistic {
         	timer.start();
         	
         	// Marking range for each bindingComponent
-        	// TODO: binary search to increase speed
         	List<Map<Integer, Pair<Integer, Integer>>> pairIndexAroundMu = new ArrayList<Map<Integer, Pair<Integer, Integer>>>(); 
         	for(int c=0; c<numConditions; c++) {
 
         		pairIndexAroundMu.add(new HashMap<Integer, Pair<Integer, Integer>>());
         		for(int j=0; j<numComp; j++) {
         			// Get half 95% influence range for each nucleosome
-        			int half_maxIR = (int)(Math.sqrt(fuzz[c][j]) * 1.96);
+        			maxIR[c][j] = (int)(Math.sqrt(fuzz[c][j]) * 1.96 * 2);
+        			int half_maxIR = maxIR[c][j] / 2;
         			
         			// Increase speed by binary search
         			int left_bound = mu[c][j] - half_maxIR;
@@ -478,6 +475,14 @@ public class BindingEM_Statistic {
         				start = -1;
         			}
         			pairIndexAroundMu.get(c).put(j, new Pair<Integer, Integer>(start, end));
+        		}
+        	}
+        	
+        	//compute current alpha for each component
+        	for(int c=0; c<numConditions; c++) {
+        		ExperimentCondition cond = manager.getIndexedCondition(c);
+        		for(int j=0; j<numComponents; j++) {
+        			currAlpha[c][j] = Math.max(conditionBackgrounds.get(cond).calcCountThreshold(maxIR[c][j]) * alphaCoefficient, 1);
         		}
         	}
         	
@@ -696,7 +701,7 @@ public class BindingEM_Statistic {
         		}
         	}
         	for(int c=0; c<numConditions; c++) {
-	        	for(int j=0; j<numComp; j++) {if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1 && sumResp[c][j]>currAlpha[c]) {
+	        	for(int j=0; j<numComp; j++) {if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1 && sumResp[c][j]>Math.max(currAlpha[c][j], 1)) {
 	        		for(int d=0; d<numConditions; d++) {
 	        			if(c!=d) {
 	        				Pair<Integer, Integer> key = new Pair<Integer, Integer>(c, d);
@@ -704,7 +709,7 @@ public class BindingEM_Statistic {
 	        				List<Integer> preferenceInter = new ArrayList<Integer>();
 	        				List<Integer> distStore = new ArrayList<Integer>();
 	        				for(int k=0; k<numComp; k++) {
-	        					if(pi[d][k]>0 && pairIndexAroundMu.get(d).get(k).car()!=-1 && sumResp[d][k]>currAlpha[d]) {
+	        					if(pi[d][k]>0 && pairIndexAroundMu.get(d).get(k).car()!=-1 && sumResp[d][k]>Math.max(currAlpha[d][k], 1)) {
 	        						int dist = Math.abs(mu[c][j]-mu[d][k]);
 	        						if(dist<semconfig.EM_MU_UPDATE_WIN) {
 	        							preferenceInter.add(k);
@@ -776,7 +781,7 @@ public class BindingEM_Statistic {
         	for(int c=0; c<numConditions; c++) {
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
-        				if(numConditions>1 && t>semconfig.ALPHA_ANNEALING_ITER && sumResp[c][j] > currAlpha[c]) {
+        				if(numConditions>1 && t>semconfig.ALPHA_ANNEALING_ITER && sumResp[c][j] > Math.max(currAlpha[c][j], 1)) {
         				//a: find the closest components to j in each condition
 //        				int closestComp=-1; int closestDist=Integer.MAX_VALUE;
 //        				for(int d=0; d<numConditions; d++) {
@@ -791,9 +796,9 @@ public class BindingEM_Statistic {
 //        								}
 //        							}
 //        						}
-//        						muJoinClosestComps[d] = closestComp;
+//        						muJoinClosestComp] = closestComp;
 //        					}
-//        				}
+//        				}s[d
         				
         				//a: get the paired nucleosome to j in each condition
         				for(int d=0; d<numConditions; d++) {
@@ -1004,19 +1009,16 @@ public class BindingEM_Statistic {
         		double[] sumR = new double[numComponents];
         		sumR = sumResp[c];
         		boolean[] isEliminated = new boolean[numComponents];
-        		int minIndex=0; double minVal=Double.MAX_VALUE;
+        		boolean ifEliminate = false;
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0) {
-        				if(sumR[j]<minVal) {
-        					minVal=sumR[j]; 
-        					minIndex=j;
-        				}
-        				if(sumR[j]<currAlpha[c]) {
+        				if(sumR[j]<currAlpha[c][j]) {
         					isEliminated[j] = true;
+        					ifEliminate = true;
         				}
         			}
         		}
-        		if(minVal>currAlpha[c]) {
+        		if(!ifEliminate) {
         			// No component will be eliminated, update pi[j]
         			for(int j=0; j<numComp; j++) {
         				if(pi[c][j]>0) {
@@ -1071,15 +1073,15 @@ public class BindingEM_Statistic {
         			if(totalPi>0)
         				pi[c][j] = pi[c][j]/(totalPi/(1-piNoise[c]));
         		}
-        		
-        		/////////////
-            	//Anneal alpha Q: Looks like annealling means reduce alpha each turn, I don't know why
-            	//////////////
-        		if (t >semconfig.EM_ML_ITER && t <= semconfig.ALPHA_ANNEALING_ITER)
-        			currAlpha[c] = alphaMax[c] * (t-semconfig.EM_ML_ITER)/(semconfig.ALPHA_ANNEALING_ITER-semconfig.EM_ML_ITER);
-        		else if(t > semconfig.ALPHA_ANNEALING_ITER)
-        			currAlpha[c] = alphaMax[c];
         	}
+        	
+    		/////////////
+        	//Anneal alpha Q: Looks like annealling means reduce alpha each turn, I don't know why
+        	//////////////
+    		if (t >semconfig.EM_ML_ITER && t <= semconfig.ALPHA_ANNEALING_ITER)
+    			alphaCoefficient = (double)(t-semconfig.EM_ML_ITER)/(double)(semconfig.ALPHA_ANNEALING_ITER-semconfig.EM_ML_ITER);
+    		else if(t > semconfig.ALPHA_ANNEALING_ITER)
+    			alphaCoefficient = 1;
         	
 			//monitor: count time
         	timer.end("pi");
@@ -1119,10 +1121,13 @@ public class BindingEM_Statistic {
         		double LP=0;
         		for(int c=0; c<numConditions; c++) {
         			// sum of log pi (Assumption1: Dirichlet prior on nucleosome occupancy)
-        			double sum_log_pi = 0;
+//        			double sum_log_pi = 0;
+        			double sum_alpha = 0;
         			for(int j=0; j<numComp; j++) {
-        				if(pi[c][j]>0.0)
-        					sum_log_pi += Math.log(pi[c][j])/semconfig.LOG2;
+        				if(pi[c][j]>0.0) {
+//        					sum_log_pi += Math.log(pi[c][j])/semconfig.LOG2;
+        					sum_alpha += currAlpha[c][j] * Math.log(pi[c][j])/semconfig.LOG2;
+        				}
         			}
         			// Position prior (Assumption3: Bernouli prior on nucleosome positions)
         			double sum_pos_prior = 0;
@@ -1130,7 +1135,7 @@ public class BindingEM_Statistic {
         				for(int j=0; j<numComp; j++)
         					sum_pos_prior += atacPrior[c][mu[c][j]-currRegion.getStart()];
         			
-        			LP += -(currAlpha[c] * sum_log_pi) + sum_pos_prior;
+        			LP += -sum_alpha + sum_pos_prior;
         		}
         		LAP = LL + LP;
         		

@@ -15,7 +15,7 @@ import org.seqcode.deepseq.StrandedPair;
 import org.seqcode.projects.sem.events.BindingManager;
 import org.seqcode.projects.sem.events.BindingModel;
 import org.seqcode.projects.sem.events.EventsConfig;
-import org.seqcode.projects.sem.utilities.NucleosomePoissonBackgroundModel;
+import org.seqcode.projects.sem.utilities.PotentialRegionPoissonBackgroundModel;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;
@@ -78,7 +78,7 @@ public class PotentialRegionFilter {
     		if(binWidth>maxBinWidth){maxBinWidth=binWidth;}
     			
     		//global threshold
-    		conditionBackgrounds.get(cond).addBackgroundModel(new NucleosomePoissonBackgroundModel(-1, config.getPRLogConf(), cond.getTotalSignalPairCount(), config.getGenome().getGenomeLength(), econfig.getMappableGenomeProp(), binWidth, '.', 1, true));
+    		conditionBackgrounds.get(cond).addBackgroundModel(new PotentialRegionPoissonBackgroundModel(-1, config.getPRLogConf(), cond.getTotalSignalPairCount(), config.getGenome().getGenomeLength(), econfig.getMappableGenomeProp(), binWidth, '.', 1, true));
     		//local windows won't work since we are testing per condition and we don't have a way to scale signal vs controls at the condition level (at least at this stage of execution)
     		
     		double thres = conditionBackgrounds.get(cond).getGenomicModelThreshold();

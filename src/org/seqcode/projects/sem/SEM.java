@@ -125,6 +125,8 @@ public class SEM {
 		
 			//Update noise models
 			mixtureModel.updateGlobalNoise();
+			
+			mixtureModel.updateAlpha();
 		
 			//Print current components
 			mixtureModel.printActiveComponentsToFile();
@@ -134,7 +136,7 @@ public class SEM {
 			round++;
 		
 			//Check for convergence
-			if(round>=semconfig.getMaxModelUpdateRounds()) {
+			if(round>=semconfig.getMaxModelUpdateRounds() || mixtureModel.isConverged()) {
 				converged=true;
 			}else {
 				converged=false;
