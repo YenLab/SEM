@@ -44,7 +44,7 @@ public class BindingMixture {
 	protected List<BindingEvent> bindingEvents;
 	protected Pair<String, Integer> plotDyad; //plot region which contains this dyad
 	protected int trainingRound = 0;
-	protected double alf;
+	protected HashMap<ExperimentCondition, Double> alf;
 	protected boolean converged = false;
 	protected double noisePerBase[];		//Defines global noise
 	protected double relativeCtrlNoise[];	//Defines global noise
@@ -66,12 +66,13 @@ public class BindingMixture {
 		BindingEvent.setConfig(evconfig);
 		
 		activeComponents = new HashMap<Region, List<List<BindingComponent>>>();
+		alf = new HashMap<ExperimentCondition, Double>();
 		for(ExperimentCondition cond: manager.getConditions()) {
 			System.out.println(config.getGenome().getGenomeLength()-potRegFilter.getPotRegionLengthTotal());
 			conditionBackgrounds.put(cond, new NucleosomePoissonBackgroundModel(-1, config.getSigLogConf(), cond.getTotalSignalPairCount()*(1-cond.getTotalSignalPairVsNoisePairFrac()), config.getGenome().getGenomeLength()-potRegFilter.getPotRegionLengthTotal(), econfig.getMappableGenomeProp(), bindingManager.getMaxInfluenceRange(cond), '.', 1, true));
 			// ignore fixed alpha when determining threshold for each nucleosome
-			alf = (double)conditionBackgrounds.get(cond).calcCountThreshold(bindingManager.getMaxInfluenceRange(cond));
-			System.err.println("Alpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf);
+			alf.put(cond, (double)conditionBackgrounds.get(cond).calcCountThreshold(bindingManager.getMaxInfluenceRange(cond)));
+			System.err.println("Alpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf.get(cond));
 		}
 		
 		noisePerBase = new double[manager.getNumConditions()];
@@ -152,10 +153,11 @@ public class BindingMixture {
     				config.getGenome().getGenomeLength(), econfig.getMappableGenomeProp(), bindingManager.getMaxInfluenceRange(cond), '.', 1, true));
 			// ignore fixed alpha when determining threshold for each nucleosome
 			double new_alf = (double)conditionBackgrounds.get(cond).calcCountThreshold(bindingManager.getMaxInfluenceRange(cond));
-			if(Math.abs(new_alf-alf)/alf < 0.01)
+			// TODO: when is converged?
+			if(Math.abs(new_alf-alf.get(cond))/alf.get(cond) < 0.01)
 				converged = true;
-			alf = new_alf;
-			System.err.println("Alpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf);
+			alf.put(cond, new_alf);
+			System.err.println("Alpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf.get(cond));
     	}
     }
     

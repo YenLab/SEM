@@ -335,16 +335,8 @@ public class BindingEM_Statistic {
                 }
 	            comp.setSumResponsibility(sum_resp);
 				if(pi[c][j]>0.0) {
-					try {
-					comp.setCompareResults(compareStore.get(new Pair<Integer, Integer>(c, j)));
-					} catch (Exception e) {
-						e.printStackTrace();
-						System.out.println(new Pair<Integer, Integer>(c, j));
-						System.out.println(sum_resp);
-						System.out.println(pi[c][j]);
-						System.out.println(alphaMax[c]);
-						System.exit(1);
-					}
+					if(numConditions > 1)
+						comp.setCompareResults(compareStore.get(new Pair<Integer, Integer>(c, j)));
 					currActiveComps.add(comp);
 					indexConverter.get(c).put(j, currActiveComps.size()-1);
 				}
@@ -777,7 +769,7 @@ public class BindingEM_Statistic {
         	compareStore = new HashMap<Pair<Integer, Integer>, Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>>>();
 
         	
-        	// pairwise comparison, skip all nucleosomes with sumResp <= 1
+        	// pairwise comparison, skip all nucleosomes with sumResp <= max(currAlpha, 1)
         	for(int c=0; c<numConditions; c++) {
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {

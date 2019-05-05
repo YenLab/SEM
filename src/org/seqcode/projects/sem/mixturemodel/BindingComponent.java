@@ -27,13 +27,16 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	protected int index = 0;
 	protected boolean isSubtype = false;
 	protected boolean isPair = false;
-	protected Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>> compareResults;			//paired nucleosome index in EM
+	protected Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>> compareResults;			//paired nucleosome index in EM (muSharedBetter, fuzzSharedBetter)
 	protected Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>> compareResultsConvert;	//paired nucleosome index in activeComponents
 	
 	public BindingComponent(Point pos, int numReps) {
 		coord = pos;
 		position  = coord.getLocation();
-		pi = 1;		
+		pi = 1;
+		
+		compareResults = new HashMap<Pair<Integer, Integer>, Pair<Boolean, Boolean>>();
+		compareResults = new HashMap<Pair<Integer, Integer>, Pair<Boolean, Boolean>>();
 	}
 	
 	//Accessors
