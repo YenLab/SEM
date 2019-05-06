@@ -16,6 +16,9 @@ import org.seqcode.projects.sem.events.BindingManager;
 import org.seqcode.projects.sem.events.BindingModel;
 import org.seqcode.projects.sem.events.EventsConfig;
 import org.seqcode.projects.sem.utilities.PotentialRegionPoissonBackgroundModel;
+
+import umontreal.ssj.util.Systeme;
+
 import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;
@@ -202,6 +205,9 @@ public class PotentialRegionFilter {
         	int expansion = (int)(winExt + maxBinWidth/2);
         	for (Region currentRegion : regions) {
             	Region lastPotential=null;
+                List<List<StrandedPair>> ipHits = new ArrayList<List<StrandedPair>>();
+                List<List<StrandedPair>> backHits = new ArrayList<List<StrandedPair>>();
+                List<List<StrandedPair>> ipHitsByRep = new ArrayList<List<StrandedPair>>();
                 //Split the job up into large chunks
                 for(int x=currentRegion.getStart(); x<=currentRegion.getEnd(); x+=config.MAXSECTION){
                     int y = (int) (x+config.MAXSECTION+(expansion)); //Leave a little overhang to handle enriched regions that may hit the border. Since lastPotential is defined above, a region on the boundary should get merged in.
@@ -209,9 +215,9 @@ public class PotentialRegionFilter {
                     Region currSubRegion = new Region(gen, currentRegion.getChrom(), x, y);
                     
                     List<Region> currPotRegions = new ArrayList<Region>();
-                    List<List<StrandedPair>> ipHits = new ArrayList<List<StrandedPair>>();
-                    List<List<StrandedPair>> backHits = new ArrayList<List<StrandedPair>>();
-                    List<List<StrandedPair>> ipHitsByRep = new ArrayList<List<StrandedPair>>();
+                    ipHits = new ArrayList<List<StrandedPair>>();
+                    backHits = new ArrayList<List<StrandedPair>>();
+                    ipHitsByRep = new ArrayList<List<StrandedPair>>();
                     
                     synchronized(manager){
 	                    //Initialize the read lists
@@ -272,10 +278,7 @@ public class PotentialRegionFilter {
                         	}
                         	if(regionPasses){
                         		Region currPotential = new Region(gen, currentRegion.getChrom(), Math.max(i-expansion, 1), Math.min((int)(i-1+expansion), currentRegion.getEnd()));
-                        		if(lastPotential!=null && 
-                        				currPotential.overlaps(lastPotential) &&
-                        				(x<=currentRegion.getEnd()-config.MAXSECTION ||
-                        				i<currSubRegion.getEnd()-(int)maxBinWidth-(int)binStep)){
+                        		if(lastPotential!=null && currPotential.overlaps(lastPotential)){
                         			lastPotential = lastPotential.expand(0, currPotential.getEnd()-lastPotential.getEnd());
                         		}else{
                         			//Add the last recorded region to the list
@@ -293,12 +296,19 @@ public class PotentialRegionFilter {
                         				}
                         			}lastPotential = currPotential;
                         		}
+                        	} else {
+                        		for(ExperimentCondition cond : manager.getConditions()){
+                        			double ipWinHits=ipHitCounts[cond.getIndex()][currBin];
+                        			System.out.println("Not pass window chr: "+currentRegion.getChrom()+"\tstarts: "+Math.max(i-expansion, 1)+"\tends:"+Math.min((int)(i-1+expansion), currentRegion.getEnd()));
+                        		}
                         	}
                             currBin++;
                         }
 					}
                     //Count all "signal" reads overlapping the regions in currPotRegions (including the lastPotential)
-                    if(lastPotential!=null && x<=currentRegion.getEnd()-config.MAXSECTION)
+                    //monitor
+                    System.err.println("\tlast potential: "+lastPotential.getStart()+" to "+lastPotential.getEnd());
+                    if(lastPotential!=null)
                     	currPotRegions.add(lastPotential);
                     currPotRegions = filterExcluded(currPotRegions);
                     countReadsInRegions(currPotRegions, ipHits, backHits, y==currentRegion.getEnd() ? y : y-expansion);
@@ -308,10 +318,15 @@ public class PotentialRegionFilter {
                 }
                 //Add the final recorded region to the list
                 //Warning: For SEM, it is possible that lastPotential region is quite large (e.g., millions of base pairs)
-                //So I need to add lastPotential in the loop to break it
-//                if(lastPotential!=null)
-//    				threadPotentials.add(lastPotential);
-//                threadPotentials = filterExcluded(threadPotentials);
+                //TODO: I add break step here to avoid a too large potential region
+                if(lastPotential!=null) {
+                	//break lastPotential
+					List<Region> parts = breakWindow(lastPotential, ipHits, config.getBMAnalysisWindowMax(), '.');
+					for(Region p: parts) {
+						threadPotentials.add(p);
+					}
+                }
+                threadPotentials = filterExcluded(threadPotentials);
             }
         	if(threadPotentials.size()>0){
         		synchronized(potentialRegions){
@@ -325,6 +340,8 @@ public class PotentialRegionFilter {
         //TODO: improve?
         protected List<Region> breakWindow(Region lastPotential, List<List<StrandedPair>> ipHits, int preferredWinLen, char str) {
 			List<Region> parts = new ArrayList<Region>();
+			//monitor
+			System.err.println("In breaking window");
 			makeHitLandscape(ipHits, lastPotential, maxBinWidth, binStep, str);
             float ipHitCounts[][] = landscape.clone();
             
@@ -389,13 +406,20 @@ public class PotentialRegionFilter {
         		List<StrandedPair> currHits = hits.get(cond.getIndex());
     			for(int i=0; i<=numBins; i++){landscape[cond.getIndex()][i]=0; starts[cond.getIndex()][i]=0; }
 	    		for(StrandedPair r : currHits){
-	    				int offset=inBounds(r.getMidpoint().getLocation()-currReg.getStart(),0,currReg.getWidth());
-	    				int binoff = inBounds((int)(offset/binStep), 0, numBins);
-	    				starts[cond.getIndex()][binoff]+=r.getWeight();
-	    				int binstart = inBounds((int)((double)(offset-halfWidth)/binStep), 0, numBins);
-	    				int binend = inBounds((int)((double)(offset+halfWidth)/binStep), 0, numBins);
-	    				for(int b=binstart; b<=binend; b++)
-	    					landscape[cond.getIndex()][b]+=r.getWeight();
+	    			int offset=inBounds(r.getMidpoint().getLocation()-currReg.getStart(),0,currReg.getWidth());
+	    			int binoff = inBounds((int)(offset/binStep), 0, numBins);
+	    			starts[cond.getIndex()][binoff]+=r.getWeight();
+	    			int binstart = inBounds((int)((double)(offset-halfWidth)/binStep), 0, numBins);
+	    			int binend = inBounds((int)((double)(offset+halfWidth)/binStep), 0, numBins);
+	    			for(int b=binstart; b<=binend; b++)
+	    				landscape[cond.getIndex()][b]+=r.getWeight();
+	    			
+	    			
+	    			//monitor
+//	    			if(r.getMidpoint().getLocation()==227585) {
+//	    				System.out.println("offset of 227585 is: " + offset);
+//	    				System.out.println("region of 227585 from " + currReg.getStart()+" to "+currReg.getEnd());
+//	    			}
 	    		}
            	}
     	}
@@ -447,6 +471,8 @@ public class PotentialRegionFilter {
 	        	            	}
 	        	            }
 	        	            if(!inPot) {
+	        	            	//monitor
+	        	            	System.out.println("nonpotential hit: "+hit.getMidpoint().getLocation()+hit.getWeight());
 	        	            	currNonPotWeightSig+=hit.getWeight();
 	        	            	//Add hit to frequency channel
         	            		double frequency = nonPotRegFragSizeFreqSigChannel.get(cond).containsKey(hit.getFragmentSize())? nonPotRegFragSizeFreqSigChannel.get(cond).get(hit.getFragmentSize()):0;
@@ -478,8 +504,9 @@ public class PotentialRegionFilter {
 	        	            		currPotWeightCtrl+=hit.getWeight(); inPot=true; break;
 	        	            	}
 	        	            }
-	        	            if(!inPot)
+	        	            if(!inPot) {
 	        	            	currNonPotWeightCtrl+=hit.getWeight();
+	        	            }
         				}
     				}
     			}
