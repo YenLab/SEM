@@ -44,7 +44,6 @@ public class BindingMixture {
 	protected List<BindingEvent> bindingEvents;
 	protected Pair<String, Integer> plotDyad; //plot region which contains this dyad
 	protected int trainingRound = 0;
-	protected HashMap<ExperimentCondition, Double> alf;
 	protected boolean converged = false;
 	protected double noisePerBase[];		//Defines global noise
 	protected double relativeCtrlNoise[];	//Defines global noise
@@ -66,13 +65,12 @@ public class BindingMixture {
 		BindingEvent.setConfig(evconfig);
 		
 		activeComponents = new HashMap<Region, List<List<BindingComponent>>>();
-		alf = new HashMap<ExperimentCondition, Double>();
 		for(ExperimentCondition cond: manager.getConditions()) {
 			System.out.println(config.getGenome().getGenomeLength()-potRegFilter.getPotRegionLengthTotal());
 			conditionBackgrounds.put(cond, new NucleosomePoissonBackgroundModel(-1, config.getSigLogConf(), cond.getTotalSignalPairCount()*(1-cond.getTotalSignalPairVsNoisePairFrac()), config.getGenome().getGenomeLength()-potRegFilter.getPotRegionLengthTotal(), econfig.getMappableGenomeProp(), bindingManager.getMaxInfluenceRange(cond), '.', 1, true));
 			// ignore fixed alpha when determining threshold for each nucleosome
-			alf.put(cond, (double)conditionBackgrounds.get(cond).calcCountThreshold(bindingManager.getMaxInfluenceRange(cond)));
-			System.err.println("Alpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf.get(cond));
+			double alf = (double)conditionBackgrounds.get(cond).calcCountThreshold(bindingManager.getMaxInfluenceRange(cond));
+			System.err.println("Alpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf);
 		}
 		
 		noisePerBase = new double[manager.getNumConditions()];
@@ -126,6 +124,7 @@ public class BindingMixture {
      * Update the global noise parameters, using both non-potential region counts and assigned noise responsibilities
      */
     public void updateGlobalNoise(){
+    	converged = true;
     	for(int e=0; e<manager.getNumConditions(); e++){
     		ExperimentCondition cond = manager.getIndexedCondition(e);
     		
@@ -136,7 +135,11 @@ public class BindingMixture {
     		
     		for(Region r : noiseResp.keySet())
     			noiseReads+=noiseResp.get(r)[e];
-    		noisePerBase[e] = noiseReads/config.getGenome().getGenomeLength();  //Signal channel noise per base
+    		double newNoisePerBase = noiseReads/config.getGenome().getGenomeLength();
+    		//TODO: now whether model is converged is judged here
+    		if(Math.abs(newNoisePerBase-noisePerBase[e])/noisePerBase[e] >= 0.01)
+    			converged = false;
+    		noisePerBase[e] = newNoisePerBase;  //Signal channel noise per base
     		
     		//monitor print updated noisePerBase
     		System.out.println("training round: "+trainingRound+"\tnoise per base: "+noisePerBase[e]);
@@ -151,13 +154,8 @@ public class BindingMixture {
     		int c = cond.getIndex();
     		conditionBackgrounds.put(cond, new NucleosomePoissonBackgroundModel(-1, config.getSigLogConf(), noisePerBase[c]*config.getGenome().getGenomeLength(), 
     				config.getGenome().getGenomeLength(), econfig.getMappableGenomeProp(), bindingManager.getMaxInfluenceRange(cond), '.', 1, true));
-			// ignore fixed alpha when determining threshold for each nucleosome
-			double new_alf = (double)conditionBackgrounds.get(cond).calcCountThreshold(bindingManager.getMaxInfluenceRange(cond));
-			// TODO: when is converged?
-			if(Math.abs(new_alf-alf.get(cond))/alf.get(cond) < 0.01)
-				converged = true;
-			alf.put(cond, new_alf);
-			System.err.println("Alpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf.get(cond));
+			double alf = (double)conditionBackgrounds.get(cond).calcCountThreshold(bindingManager.getMaxInfluenceRange(cond));
+			System.err.println("Alpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf);
     	}
     }
     
@@ -211,10 +209,10 @@ public class BindingMixture {
 	
     /**
      * Print all components active at the current time to a file.
-     * TESTING ONLY 
      */
     public void printActiveComponentsToFile(){
     	try {
+    		int totalActiveNuc = 0;
     		String filename = config.getOutputIntermediateDir()+File.separator+config.getOutBase()+"_t"+trainingRound+".components";
 			FileWriter fout = new FileWriter(filename);
 			fout.write("#region\tchromosome\tdyad\tpi\tsumResp\tfuzziness\ttau\tisPair\n");
@@ -222,9 +220,10 @@ public class BindingMixture {
 	    		List<List<BindingComponent>> comps = activeComponents.get(rr);
 	    		for(ExperimentCondition cond : manager.getConditions()){
 	    			for(BindingComponent comp : comps.get(cond.getIndex())){
+	    				totalActiveNuc += 1;
 	    				fout.write(rr.getLocationString()+"\t"+cond.getName()+"\t"+comp.toString()+"\t");
 	    				for(Pair<Integer, Integer> index: comp.getCompareRestulsConvert().keySet()) {
-	    					fout.write(index.car()+"\t"+index.cdr());
+	    					fout.write(manager.getIndexedCondition(index.car()).getName()+"\t"+index.cdr());
 	    					fout.write("\t"+comp.getCompareRestulsConvert().get(index));
 	    				}
 	    				fout.write("\n");
@@ -232,9 +231,37 @@ public class BindingMixture {
 	    		}
 	    	}
 			fout.close();
+			System.err.println("Total active nucleosome number: "+totalActiveNuc);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+    }
+    
+    /**
+     * Print nucleosome comparison information to a file (now only for two conditions)
+     */
+    public void printNucleosomeComparisonToFile() {
+    	try {
+    		for(ExperimentCondition cond: manager.getConditions()) {
+	    		String filename = config.getOutputIntermediateDir() + File.separator + config.getOutBase() + "_" + cond.getName() + "_compare.info";
+	    		BufferedWriter fout = new BufferedWriter(new FileWriter(filename));
+	    		//writer header information
+	    		fout.write("#nucleosome comparison result info of "+cond.getName());
+	    		for(Region rr: activeComponents.keySet()) {
+	    			List<List<BindingComponent>> comps = activeComponents.get(rr);
+	    			for(BindingComponent comp: comps.get(cond.getIndex())) {
+	    				fout.write(rr.getLocationString()+"\t"+manager.getIndexedCondition(cond.getIndex()).getName()+"\t"+comp.toString()+"\t");
+	    				for(Pair<Integer, Integer> index: comp.getCompareRestulsConvert().keySet()) {
+	    					fout.write(manager.getIndexedCondition(index.car()).getName()+"\t"+comps.get(index.car()).get(index.cdr()).toString());
+	    					fout.write("\t"+comp.getCompareRestulsConvert().get(index));
+	    				}
+	    				fout.write("\n");
+	    			}
+	    		}
+    		}
+    	} catch (IOException e) {
+    		e.printStackTrace();
+    	}
     }
 	
 	/**
@@ -301,11 +328,17 @@ public class BindingMixture {
 		}
 	
 		private Pair<List<NoiseComponent>, List<List<BindingComponent>>> analyzeWindowEM(Region w) throws Exception {
-			System.err.println("Region: "+w.getChrom()+":"+w.getStart()+"-"+w.getEnd());
+//			System.err.println("Region: "+w.getChrom()+":"+w.getStart()+"-"+w.getEnd());
 			Timer timer = new Timer();
-//			BindingEM EM = new BindingEM(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
-			BindingEM_Statistic EM = new BindingEM_Statistic(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
-//			BindingEM_test EM = new BindingEM_test(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
+			
+			// Determine which BindingEM method will be used
+			BindingEM_interface EM;
+			if(!config.ifTest()) {
+//				BindingEM EM = new BindingEM(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
+				EM = new BindingEM_Statistic(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
+			} else {
+				EM = new BindingEM_test(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
+			}
 			List<List<BindingComponent>> bindingComponents = null;
 			List<NoiseComponent> noiseComponents = null;
 			List<List<BindingComponent>> nonZeroComponents = new ArrayList<List<BindingComponent>>();
