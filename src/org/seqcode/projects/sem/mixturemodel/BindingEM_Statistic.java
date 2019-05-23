@@ -46,7 +46,7 @@ import org.seqcode.projects.sem.utilities.NucleosomePoissonBackgroundModel;
 import org.seqcode.gseutils.Pair;
 import org.seqcode.math.stats.StatUtil;
 
-public class BindingEM_Statistic {
+public class BindingEM_Statistic implements BindingEM_interface {
 	
 	protected ExperimentManager manager;
 	protected BindingManager bindingManager;
@@ -1022,13 +1022,12 @@ public class BindingEM_Statistic {
         			// Select eliminated binding components following two criteria:
         			// 1. sumR < currAlpha		
         			// 2. no components eliminated in reassigned responsibility range (set as initialize fuzziness 95% interval)
-        			int exclusionRange = bindingManager.getBindingModel(manager.getIndexedCondition(c)).get(0).getMaxInfluenceRange();
         			boolean[] exclusionZone = new boolean[currRegion.getWidth()];
         			for(int j=0; j<numComp; j++	) {
         				if(isEliminated[j]) {
         					if(!exclusionZone[mu[c][j]-currRegion.getStart()]) {
-        						int start = Math.max(0, mu[c][j]-currRegion.getStart()-exclusionRange/2);
-        						int end = Math.min(currRegion.getWidth()-1, mu[c][j]+currRegion.getStart()+exclusionRange/2);
+        						int start = Math.max(0, mu[c][j]-currRegion.getStart()-maxIR[c][j]/2);
+        						int end = Math.min(currRegion.getWidth()-1, mu[c][j]-currRegion.getStart()+maxIR[c][j]/2);
         						for(int z=start; z<=end; z++) {
         							exclusionZone[z] = true;
         						}
