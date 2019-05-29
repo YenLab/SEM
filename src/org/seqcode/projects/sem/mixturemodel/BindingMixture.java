@@ -14,14 +14,13 @@ import org.seqcode.projects.sem.events.*;
 import org.seqcode.projects.sem.framework.*;
 import org.seqcode.projects.sem.utilities.Timer;
 import org.seqcode.projects.sem.utilities.NucleosomePoissonBackgroundModel;
+import org.seqcode.projects.sem.utilities.EMmode;
 import org.seqcode.deepseq.experiments.*;
 import org.seqcode.deepseq.stats.BackgroundCollection;
 import org.seqcode.deepseq.stats.PoissonBackgroundModel;
 import org.seqcode.genome.*;
 import org.seqcode.genome.location.*;
 import org.seqcode.gsebricks.verbs.location.ChromosomeGenerator;
-import org.seqcode.deepseq.stats.BackgroundCollection;
-import org.seqcode.deepseq.stats.PoissonBackgroundModel;
 
 /**
  * BindingMixture: defines a mixture model over binding events.
@@ -80,6 +79,7 @@ public class BindingMixture {
 		initializeGlobalNoise();
 	}
 	
+	// Is the model converged?
 	public boolean isConverged() {return converged;}
 	
 	/**
@@ -160,7 +160,7 @@ public class BindingMixture {
     }
     
     
-	public void execute(boolean EM, boolean uniformBindingComponents) {
+	public void execute(boolean EM, boolean uniformBindingComponents, EMmode mode) {
 		trainingRound++;
 		
 		//Have to split the test regions up by chromosome in order to maintain compatibility with experiment file cache loading
@@ -186,7 +186,7 @@ public class BindingMixture {
 		        }
 		
 		        for (i = 0 ; i < threads.length; i++) {
-		            Thread t = new Thread(new BindingMixtureThread(threadRegions[i], EM, uniformBindingComponents));
+		            Thread t = new Thread(new BindingMixtureThread(threadRegions[i], EM, uniformBindingComponents, mode));
 		            t.start();
 		            threads[i] = t;
 		        }
@@ -210,10 +210,16 @@ public class BindingMixture {
     /**
      * Print all components active at the current time to a file.
      */
-    public void printActiveComponentsToFile(){
+    public void printActiveComponentsToFile(EMmode mode){
     	try {
     		int totalActiveNuc = 0;
-    		String filename = config.getOutputIntermediateDir()+File.separator+config.getOutBase()+"_t"+trainingRound+".components";
+    		String filename = "";
+    		if(mode.equals(EMmode.NORMAL))
+    			filename = config.getOutputIntermediateDir()+File.separator+config.getOutBase()+"_t"+trainingRound+".components";
+    		else if(mode.equals(EMmode.ALTERNATIVE))
+    			filename = config.getOutputIntermediateDir()+File.separator+config.getOutBase()+"_alternative.components";
+    		else if(mode.equals(EMmode.CONSENSUS))
+    			filename = config.getOutputIntermediateDir()+File.separator+config.getOutBase()+"_consensus.components";
 			FileWriter fout = new FileWriter(filename);
 			fout.write("#region\tchromosome\tdyad\tpi\tsumResp\tfuzziness\ttau\tisPair\n");
 			for(Region rr : activeComponents.keySet()){
@@ -274,11 +280,13 @@ public class BindingMixture {
 		private int numBindingComponents = 1; 
 		private boolean runEM = true;
 		private boolean uniformBindingComponents = false;
+		private EMmode mode = EMmode.NORMAL;	// function index: 0:EM, 1:alternative(30bp exclusion range), 2:consensus(147bp exclusion)
 		
-		public BindingMixtureThread(Collection<Region> regs, boolean EM, boolean uniformBindingComponents) {
+		public BindingMixtureThread(Collection<Region> regs, boolean EM, boolean uniformBindingComponents, EMmode mode) {
 			regions = regs;
 			this.uniformBindingComponents = uniformBindingComponents;
 			runEM = EM;
+			this.mode = mode;
 		}
 		
 		//Run the binding mixture over each test region
@@ -368,10 +376,10 @@ public class BindingMixture {
 			noiseComponents = initializeNoiseComponents(w, signals, controls);
 			
 			//Initialize binding components
-            if(uniformBindingComponents)
-            	bindingComponents = initializeBindingComponentsUniformly(w, noiseComponents);
-            else
-            	bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, false);
+        	if(uniformBindingComponents)
+        		bindingComponents = initializeBindingComponentsUniformly(w, noiseComponents);
+        	else
+        		bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, false);
             
             //ATAC-seq prior
             double[][] atacPrior = null;
@@ -380,7 +388,7 @@ public class BindingMixture {
             timer.end("load");
 
             //EM learning: resulting binding components list will only contain non-zero components
-            nonZeroComponents = EM.train(signals, w, noiseComponents, bindingComponents, numBindingComponents, atacPrior, trainingRound, timer, plotEM);
+            nonZeroComponents = EM.train(signals, w, noiseComponents, bindingComponents, numBindingComponents, atacPrior, trainingRound, mode, timer, plotEM);
             
             return new Pair<List<NoiseComponent>, List<List<BindingComponent>>>(noiseComponents, nonZeroComponents);
 		}
@@ -749,6 +757,120 @@ public class BindingMixture {
 					b.setFuzziness(bindingManager.getBindingModel(manager.getIndexedCondition(e)).get(0).getIntialFuzziness());
 					b.setTau(tauInit);
 				}
+    		}
+        	return components; 
+        }//end of initializeComponents method
+		
+		/**
+         * Initializes the components from all active components in all conditions: 
+         * 		Uses all active component locations from the last round of training in each condition,
+         * 		i.e. not just the conditions in which those active components were active. Also adds in 
+         * 		extra components flanking the active locations in case the binding distribution update
+         * 		has made more joint events separable. If no components exist, a rescue component is added. 
+         *
+         * @param currReg
+         */
+        private List<List<BindingComponent>> initializeBindingComponentsWithExclusion(Region currReg, List<NoiseComponent> noise, EMmode mode){
+        	//Sort active components by responsibilities
+			Comparator<BindingComponent> bcCompare = new Comparator<BindingComponent>() {
+				@Override
+				public int compare(BindingComponent s1, BindingComponent s2) {
+					if(s1==null && s2==null)
+						return 0;
+					if(s1==null)
+						return -1;
+					if(s2==null)
+						return 1;
+					if(s1.getResponsibility()<s2.getResponsibility())
+						return -1;
+					if(s1.getResponsibility()>s2.getResponsibility())
+						return 1;
+					return 0;
+				}
+			};
+			for(int e=0; e<manager.getNumConditions(); e++)
+				Collections.sort(activeComponents.get(currReg).get(e), bcCompare);
+        	
+        	//Initialize component positions with active locations
+        	List<Integer> componentPositions = new ArrayList<Integer>();
+        	for(int e=0; e<manager.getNumConditions(); e++)
+        		for(BindingComponent comp : activeComponents.get(currReg).get(e)){
+        			if(!componentPositions.contains(comp.getPosition()) && comp.getPosition()>=currReg.getStart() && comp.getPosition()<currReg.getEnd()) {
+        				componentPositions.add(comp.getPosition());
+        			}
+        		}
+        	
+        	//If no components exist in region, add one to the center to allow rescues
+        	if(numBindingComponents==0){
+        		componentPositions.add(currReg.getMidpoint().getLocation());
+        		numBindingComponents++;
+        	}
+        	
+        	//TODO: Test to find consensus nucleosome location
+        	//Use max influence range to exclude those overlapping nucleosome with low responsibility
+        	boolean[][] componentActive = new boolean[manager.getNumConditions()][componentPositions.size()];
+        	for(int e=0; e<manager.getNumConditions(); e++) {
+        		boolean[] exclusionZone = new boolean[currReg.getWidth()];       		
+        		for(BindingComponent comp: activeComponents.get(currReg).get(e)) {
+        			//Use exclusion zone to exclude those nucleosomes who are too close to other nucleosomes
+        			int exclusion = 0;
+        			if(mode.equals(EMmode.ALTERNATIVE))
+        				exclusion = config.getAlternativeExclusionZone();
+        			else if(mode.equals(EMmode.CONSENSUS))
+        				exclusion = config.getConsensusExclusionZone();
+    				int start = Math.max(0 , comp.getPosition()-currReg.getStart()-exclusion/2);
+    				int end = Math.min(currReg.getWidth()-1, comp.getPosition()-currReg.getStart()+exclusion/2);
+    				boolean isOverlap = false;
+    				for(int i=start; i<=end; i++) {
+    					if(exclusionZone[i])
+    						isOverlap = true;
+    				}
+        			if(!isOverlap) {
+        				for(int z=start; z<end; z++) {
+        					exclusionZone[z] = true;
+        				}
+        				componentActive[e][componentPositions.indexOf(comp.getPosition())] = true;
+        			} else {
+        				componentActive[e][componentPositions.indexOf(comp.getPosition())] = false;
+        			}
+        		}
+        	}
+
+        	numBindingComponents = componentPositions.size();
+        	
+        	//Make new components with these locations
+        	List<List<BindingComponent>> components = new ArrayList<List<BindingComponent>>();
+        	for(int e=0; e<manager.getNumConditions(); e++)
+        		components.add(new ArrayList<BindingComponent>());
+        	
+        	//Set up the components
+        	for(int e=0; e<manager.getNumConditions(); e++){
+        		double numActiveC=0;
+        		for(boolean isActive: componentActive[e])
+        			if(isActive)
+        				numActiveC++;
+        		int index=0;
+        		double emission = (1-noise.get(e).getPi())/numActiveC;
+	    		int numBindingSubtype = bindingManager.getBindingSubtypes(manager.getIndexedCondition(e)).size();
+	    		double[] tauInit = new double[numBindingSubtype];
+				for(int i=0; i<numBindingSubtype; i++) {
+					tauInit[i] = (double)1/(double)numBindingSubtype;
+				}
+	    		for(Integer i : componentPositions){
+	    			Point pos = new Point(config.getGenome(), currReg.getChrom(), i);
+	    			BindingComponent currComp = new BindingComponent(pos, manager.getReplicates().size());
+	    			currComp.setIndex(index);
+	    			index++;
+	    			
+    				//Initialize normalized mixing probabilities (subtracting the noise emission probability)
+	    			if(componentActive[e][componentPositions.indexOf(i)])
+	    				currComp.uniformInit(emission);
+	    			else
+	    				currComp.uniformInit(0);
+        			currComp.setFuzziness(bindingManager.getBindingModel(manager.getIndexedCondition(e)).get(0).getIntialFuzziness());
+        			currComp.setTau(tauInit);
+    				components.get(e).add(currComp);
+    			}
     		}
         	return components; 
         }//end of initializeComponents method

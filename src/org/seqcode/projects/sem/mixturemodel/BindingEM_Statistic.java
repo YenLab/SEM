@@ -43,6 +43,7 @@ import org.seqcode.projects.sem.utilities.EMStepPlotter;
 import org.seqcode.projects.sem.utilities.Statistics;
 import org.seqcode.projects.sem.utilities.GaleShapley;
 import org.seqcode.projects.sem.utilities.NucleosomePoissonBackgroundModel;
+import org.seqcode.projects.sem.utilities.EMmode;
 import org.seqcode.gseutils.Pair;
 import org.seqcode.math.stats.StatUtil;
 
@@ -60,6 +61,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
 	protected HashMap<ExperimentCondition, NucleosomePoissonBackgroundModel> conditionBackgrounds;
 //	protected HashMap<ExperimentCondition, Integer> numBindingSubtypes;
 	protected Timer timer;
+	protected EMmode mode;
 	
 	// EM VARIABLES
 	// H function and responsibility have to account for all reads in region now, as they will be updated
@@ -105,6 +107,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
 		conditionBackgrounds = condBacks;
 		numConditions = manager.getNumConditions();
 		numPotentialRegions = (double)numPotReg;		
+		mode = EMmode.NORMAL;
 	}
 	
 	public List<List<BindingComponent>> train(List<List<StrandedPair>> signals,
@@ -114,6 +117,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
 												int numComp,
 												double[][] atacPrior,
 												int trainingRound,
+												EMmode mode,
 												Timer timer,
 												boolean plotEM
 												) throws Exception {
@@ -124,6 +128,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
 		this.trainingRound = trainingRound;
 		this.plotEM = plotEM;
 		this.timer = timer;
+		this.mode = mode;
 //		numBindingSubtypes = new HashMap<ExperimentCondition, Integer>();
 		// Matrix initializations
 		hitCounts = new double[numConditions][];		// Hit weights
@@ -732,36 +737,11 @@ public class BindingEM_Statistic implements BindingEM_interface {
 	        			Pair<Integer, Integer> womenKey	= new Pair<Integer, Integer>(d, c);
 	        			GaleShapley<Integer> gs = new GaleShapley<Integer>(preference.get(menKey), preference.get(womenKey));
 	        			gs.match();
-	        			
-	        			//monitor
-//	        			System.out.println("Pair info: ");
-//	        			for(Pair<Integer, Integer> p: gs.getPairs()) {
-//	        				Pair<Integer, Integer> muPair = new Pair<Integer, Integer>(mu[c][p.car()], mu[d][p.cdr()]);
-//	        				System.out.println("\t"+muPair);
-//	        			}
-//	        			System.out.println("Anchor specific info: ");
-//	        			for(int j: gs.getMenSpecific()) {
-//	        				System.out.println("\t"+mu[c][j]);
-//	        			}
-//	        			System.out.println("Boat specific info: ");
-//	        			for(int k: gs.getWoMenSpecific()) {
-//	        				System.out.println("\t"+mu[d][k]);
-//	        			}
 	        			//save GaleShapley class
 	        			gsMap.put(new Pair<Integer, Integer>(c, d), gs);
 	        		}
 	        	}
         	}
-        	//4. Consolidate all pairwise information to generate groups
-//        	int[][] groupInfo = new int[numComp][numConditions];
-//        	for(int d=0; d<numConditions; d++) {
-//        		if(d!=ac) {
-//        			Pair<Integer, Integer> key = new Pair<Integer, Integer>(ac, d);
-//        			for(Pair<Integer, Integer> pair: gsMap.get(key).getPairs()) {
-//        				groupInfo[pair.car()][d] = pair.cdr();
-//        			}
-//        		}
-//        	}
         	
         	// Store pairwise comparison results to reduce duplicated computation
         	Map<PairwiseKey, Boolean> pairwiseMuSharedBetter = new HashMap<PairwiseKey, Boolean>();
@@ -774,23 +754,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
         				if(numConditions>1 && t>semconfig.ALPHA_ANNEALING_ITER && sumResp[c][j] > Math.max(currAlpha[c][j], 1)) {
-        				//a: find the closest components to j in each condition
-//        				int closestComp=-1; int closestDist=Integer.MAX_VALUE;
-//        				for(int d=0; d<numConditions; d++) {
-//        					if(d!=c) {
-//        						closestComp=-1; closestDist=Integer.MAX_VALUE;
-//        						for(int k=0; k<numComp; k++) {
-//        							if(pi[d][k]>0 && pairIndexAroundMu.get(d).get(k).car()!=-1 && sumResp[d][k] >= currAlpha[d]) {
-//        								int dist = Math.abs(mu[c][j]-mu[d][k]);
-//        								if(dist<closestDist && dist<semconfig.EM_MU_UPDATE_WIN) {
-//        									closestDist = dist; 
-//        									closestComp = k;
-//        								}
-//        							}
-//        						}
-//        						muJoinClosestComp] = closestComp;
-//        					}
-//        				}s[d
         				
         				//a: get the paired nucleosome to j in each condition
         				for(int d=0; d<numConditions; d++) {
@@ -1054,6 +1017,44 @@ public class BindingEM_Statistic implements BindingEM_interface {
         			}
         			componentEliminated = true;
         		}
+        		
+        		// 	if there is no component eliminated because of resp < currAlpha, use exclusion zone to exclude nucleosome
+        		// 	note: I don't want exclusion zone and alpha eliminate nucleosome at the same round because I want to make sure before
+        		// any component is eliminated due to exclusion zone, all responsibilities have been assigned to components
+        		if(t>=semconfig.ALPHA_ANNEALING_ITER && !ifEliminate && !mode.equals(EMmode.NORMAL)) {
+            		boolean[] exclusionZone = new boolean[currRegion.getWidth()];
+        			int exclusion = mode.equals(EMmode.ALTERNATIVE)? semconfig.getAlternativeExclusionZone() : semconfig.getConsensusExclusionZone();
+        			//sort component according to their pi then get the excluded nucleosome with the lowest pi
+        			ArrayIndexComparator comparator = new ArrayIndexComparator(pi[c]);
+        			Integer[] indexes = comparator.createIndexArray();
+        			Arrays.sort(indexes, comparator);
+        			int minExIndex = -1;
+        			for(int j : indexes) {
+        				if(pi[c][j]>0) {
+        					int start = Math.max(0, mu[c][j]-currRegion.getStart()-exclusion/2);
+        					int end = Math.min(currRegion.getWidth()-1, mu[c][j]-currRegion.getStart()+exclusion/2);
+        					boolean isOverlap = false;
+        					for(int i=start; i<=end; i++) {
+        						if(exclusionZone[i])
+        							isOverlap = true;
+        					}
+        					if(!isOverlap) {
+        						for(int z=start; z<end; z++)
+        							exclusionZone[z] = true;
+        					} else {
+        						minExIndex = j;
+        					}
+        				}
+        			}
+        			// Eliminate the nucleosome in exclusion zone with the lowest pi
+        			if(minExIndex!=-1) {
+        				pi[c][minExIndex]=0.0; sumR[minExIndex]=0.0;
+    					if(pairIndexAroundMu.get(c).get(minExIndex).car()!=-1)
+    						for(int i=pairIndexAroundMu.get(c).get(minExIndex).car(); i<=pairIndexAroundMu.get(c).get(minExIndex).cdr(); i++)
+    							rBind[c][minExIndex][i] = 0;
+            			componentEliminated = true;
+        			}
+        		}
         		// Normalize pi (accounting for piNoise)
         		double totalPi = 0;
         		for(int j=0; j<numComp; j++) {
@@ -1079,7 +1080,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
         	timer.start();
         	
         	// Non-zero components count
-        	
         	int nonZeroComps = 0;
         	for(int c=0; c<numConditions; c++)
         		for(int j=0; j<numComp; j++)
@@ -1175,7 +1175,8 @@ public class BindingEM_Statistic implements BindingEM_interface {
     		 ////////////
           	//Check Stopping condition TODO: I don't know whether it is right to use Math.abs
           	////////////   		
-            if (nonZeroComps>0 && (componentEliminated || componentOverlapping || (numConditions>1 && t<=semconfig.POSPRIOR_ITER) || (numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER) || (semconfig.CALC_LL && Math.abs(LAP-lastLAP)>Math.abs(semconfig.EM_CONVERGENCE*lastLAP)) || stateEquivCount<semconfig.EM_STATE_EQUIV_ROUNDS)){
+            if (nonZeroComps>0 && (componentEliminated || componentOverlapping || (numConditions>1 && t<=semconfig.POSPRIOR_ITER) || (numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER) 
+            		|| (semconfig.CALC_LL && Math.abs(LAP-lastLAP)>Math.abs(semconfig.EM_CONVERGENCE*lastLAP)) || (stateEquivCount<semconfig.EM_STATE_EQUIV_ROUNDS))){
             	if(t==semconfig.MAX_EM_ITER) {
 	            	System.out.println("\tcriteria 1: "+(numConditions>1 && t<=semconfig.POSPRIOR_ITER));
 	            	System.out.println("\tcriteria 2: "+(numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER));
@@ -1322,6 +1323,33 @@ public class BindingEM_Statistic implements BindingEM_interface {
     	public String toString() {
     		return cond1 + " " + index1 + " " + cond2 + " " + index2;
     	}
+    }
+}
+
+class ArrayIndexComparator implements Comparator<Integer>
+{
+    private final double[] array;
+
+    public ArrayIndexComparator(double[] array)
+    {
+        this.array = array;
+    }
+
+    public Integer[] createIndexArray()
+    {
+        Integer[] indexes = new Integer[array.length];
+        for (int i = 0; i < array.length; i++)
+        {
+            indexes[i] = i; // Autoboxing
+        }
+        return indexes;
+    }
+
+    @Override
+    public int compare(Integer index1, Integer index2)
+    {
+         // Autounbox from Integer to int to use as array indexes
+        return -Double.compare(array[index1], array[index2]);
     }
 }
 
