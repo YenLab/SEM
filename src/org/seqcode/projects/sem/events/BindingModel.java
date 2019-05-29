@@ -142,7 +142,11 @@ public class BindingModel {
 			initialFuzziness += Math.pow(dis, 2) * pairFreqAroundInitialDyad.get(dis);
 			sumWeight += pairFreqAroundInitialDyad.get(dis);
 		}
-		initialFuzziness /= sumWeight;		
+		initialFuzziness /= sumWeight;	
+		if(Double.isNaN(initialFuzziness)) {
+			System.err.println("NaN initialized fuzziness detected, set 100 as initial fuzziness");
+			initialFuzziness = 100;
+		}
 	}
 	
 	public static void main(String[] args) {
