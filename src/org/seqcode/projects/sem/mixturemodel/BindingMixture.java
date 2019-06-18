@@ -379,7 +379,7 @@ public class BindingMixture {
         	if(uniformBindingComponents)
         		bindingComponents = initializeBindingComponentsUniformly(w, noiseComponents);
         	else
-        		bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, false);
+        		bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, config.getAddFlankingComponents());
             
             //ATAC-seq prior
             double[][] atacPrior = null;
@@ -664,8 +664,12 @@ public class BindingMixture {
 			int componentSpacing =  config.INIT_COMPONENT_SPACING;
 			if(componentSpacing >= currReg.getWidth())
 				System.err.println("Error:  region width less than component spacing in "+currReg.getLocationString());
-
-			numBindingComponents = currReg.getWidth()/componentSpacing;
+			
+			//TODO: I think here should be +1 because if there is an overhang, this region can hold +1 components.
+			if(currReg.getWidth()%componentSpacing!=0) 
+				numBindingComponents = currReg.getWidth()/componentSpacing + 1;
+			else
+				numBindingComponents = currReg.getWidth()/componentSpacing;
 
 			//Set up the components
 			for(int e=0; e<manager.getNumConditions(); e++){
