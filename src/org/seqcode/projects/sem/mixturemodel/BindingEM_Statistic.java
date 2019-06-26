@@ -911,37 +911,42 @@ public class BindingEM_Statistic implements BindingEM_interface {
         	for(ExperimentCondition cond: manager.getConditions()) {
         		int c = cond.getIndex();
         		int numSubtypes = bindingManager.getBindingSubtypes(cond).size();
+				List<BindingSubtype> bindingSubtypes = bindingManager.getBindingSubtypes(cond);
         		for(int j=0; j<numComp; j++) {if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
         			tau[c][j] = new double[numSubtypes];
         			double probSum = 0;
+        			
         			// Compute tau probability of each fragment size subtype for each component
         			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
         				double[] subProb = new double[bindingManager.getBindingSubtypes(cond).size()];
         				double subProbSum = 0;
-        				for(BindingSubtype b: bindingManager.getBindingSubtypes(cond)) {
+        				
+        				for(BindingSubtype b: bindingSubtypes) {
         					subProb[b.getIndex()] = b.probability(hitSize[c][i]);
         					subProbSum += subProb[b.getIndex()];
         				}
-        				for(BindingSubtype b: bindingManager.getBindingSubtypes(cond)) {
+        				
+        				for(BindingSubtype b: bindingSubtypes) {
         					subProb[b.getIndex()] /= subProbSum;
         					tau[c][j][b.getIndex()] += subProb[b.getIndex()] * resp[c][j][i];
         				}
         			}
+        			
         			// Normalize tau for each component
-        			for(BindingSubtype b: bindingManager.getBindingSubtypes(cond)) 
+        			for(BindingSubtype b: bindingSubtypes) 
         				tau[c][j][b.getIndex()] /= sumResp[c][j];
         			// Eliminate subtype with not enough ratio of tags (Assumption2: each nucleosome should not be associated with too many subtypes)
-        			for(BindingSubtype b: bindingManager.getBindingSubtypes(cond)) {
+        			for(BindingSubtype b: bindingSubtypes) {
         				if(tau[c][j][b.getIndex()] < semconfig.SPARSE_PRIOR_SUBTYPE)
         					tau[c][j][b.getIndex()] = 0;
         			}
         			// Re-normalize tau for each component after eliminating low ratio subtypes
         			probSum = 0;
-        			for(BindingSubtype b: bindingManager.getBindingSubtypes(cond)) {
+        			for(BindingSubtype b: bindingSubtypes) {
        					probSum += tau[c][j][b.getIndex()];
 
         			}
-        			for(BindingSubtype b: bindingManager.getBindingSubtypes(cond)) 
+        			for(BindingSubtype b: bindingSubtypes) 
         				tau[c][j][b.getIndex()] /= probSum;
         		}
         		}
@@ -1324,34 +1329,36 @@ public class BindingEM_Statistic implements BindingEM_interface {
     		return cond1 + " " + index1 + " " + cond2 + " " + index2;
     	}
     }
-}
-
-class ArrayIndexComparator implements Comparator<Integer>
-{
-    private final double[] array;
-
-    public ArrayIndexComparator(double[] array)
+    
+    private class ArrayIndexComparator implements Comparator<Integer>
     {
-        this.array = array;
-    }
+        private final double[] array;
 
-    public Integer[] createIndexArray()
-    {
-        Integer[] indexes = new Integer[array.length];
-        for (int i = 0; i < array.length; i++)
+        public ArrayIndexComparator(double[] array)
         {
-            indexes[i] = i; // Autoboxing
+            this.array = array;
         }
-        return indexes;
-    }
 
-    @Override
-    public int compare(Integer index1, Integer index2)
-    {
-         // Autounbox from Integer to int to use as array indexes
-        return -Double.compare(array[index1], array[index2]);
+        public Integer[] createIndexArray()
+        {
+            Integer[] indexes = new Integer[array.length];
+            for (int i = 0; i < array.length; i++)
+            {
+                indexes[i] = i; // Autoboxing
+            }
+            return indexes;
+        }
+
+        @Override
+        public int compare(Integer index1, Integer index2)
+        {
+             // Autounbox from Integer to int to use as array indexes
+            return -Double.compare(array[index1], array[index2]);
+        }
     }
 }
+
+
 
 
 
