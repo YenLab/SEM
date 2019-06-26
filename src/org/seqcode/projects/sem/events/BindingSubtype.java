@@ -1,5 +1,7 @@
 package org.seqcode.projects.sem.events;
 
+import java.util.*;
+
 import org.apache.commons.math3.linear.RealVector;
 
 import org.seqcode.gseutils.Pair;
@@ -20,8 +22,20 @@ public class BindingSubtype {
 	protected double mean;
 	protected double var;
 	protected double weight;
+	protected double[] probStore = new double[1001];
 	protected int index; 
 	protected double min=0, max=1000;
+
+	public BindingSubtype(double mean, double variance, double weight) {
+		this.mean = mean;
+		this.var = variance;
+		this.weight = weight;
+		
+		// Pre-compute the probability of each fragment size to reduce time
+		for(int i=0; i<=1000; i++) {
+			probStore[i] = computeProbability(i);
+		}
+	}
 	
 	public BindingSubtype(ExperimentCondition cond, RealVector fragSizeDisPara, int index) {
 		condition = cond;
@@ -34,6 +48,11 @@ public class BindingSubtype {
 		// Initialize 95 confidence interval
 		min = mean - 1.96 * Math.sqrt(var);
 		max = mean + 1.96 * Math.sqrt(var);
+		
+		// Pre-compute the probability of each fragment size to reduce time
+		for(int i=0; i<=1000; i++) {
+			probStore[i] = computeProbability(i);
+		}
 	}
 	
 	//Accessors
@@ -43,6 +62,18 @@ public class BindingSubtype {
 	public int getIndex() {return index;}
 	
 	public double probability(int fragSize) {
+		if(fragSize <= 1000)
+			return probStore[fragSize];
+		else
+			return computeProbability(fragSize);
+	}
+	
+	public double logProbability(int fragSize) {
+		return Math.log(probability(fragSize));
+	}
+	
+	public double computeProbability(int fragSize) {
+		
 		double prob;
 		if(fragSize<min || fragSize>max) {
 			prob = 1e-20;
@@ -57,4 +88,24 @@ public class BindingSubtype {
 	public String toString() {
 		return new String("mean: "+Double.toString(mean)+"\nvar: "+Double.toString(var)+"\nweight: "+Double.toString(weight));
 	}
+	
+	public static void main(String[] args) {
+		BindingSubtype bs = new BindingSubtype(200, 400, 1);
+		double start = System.currentTimeMillis();
+		for(int i=0; i<1000000; i++) {
+			int length = i%1000;
+			bs.probability(length);
+		}
+		double end = System.currentTimeMillis();
+		System.out.println("time 1: " + (end-start));
+		
+		start = System.currentTimeMillis();
+		for(int i=0; i<1000000; i++) {
+			int length = i%1000;
+			bs.computeProbability(length);
+		}
+		end = System.currentTimeMillis();
+		System.out.println("time 2: "+(end-start));
+	}
+	
 }
