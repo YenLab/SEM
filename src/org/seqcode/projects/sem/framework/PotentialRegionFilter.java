@@ -296,18 +296,11 @@ public class PotentialRegionFilter {
                         				}
                         			}lastPotential = currPotential;
                         		}
-                        	} else {
-                        		for(ExperimentCondition cond : manager.getConditions()){
-                        			double ipWinHits=ipHitCounts[cond.getIndex()][currBin];
-                        			System.out.println("Not pass window chr: "+currentRegion.getChrom()+"\tstarts: "+Math.max(i-expansion, 1)+"\tends:"+Math.min((int)(i-1+expansion), currentRegion.getEnd()));
-                        		}
                         	}
                             currBin++;
                         }
 					}
                     //Count all "signal" reads overlapping the regions in currPotRegions (including the lastPotential)
-                    //monitor
-                    System.err.println("\tlast potential: "+lastPotential.getStart()+" to "+lastPotential.getEnd());
                     if(lastPotential!=null)
                     	currPotRegions.add(lastPotential);
                     currPotRegions = filterExcluded(currPotRegions);
@@ -340,8 +333,6 @@ public class PotentialRegionFilter {
         //TODO: improve?
         protected List<Region> breakWindow(Region lastPotential, List<List<StrandedPair>> ipHits, int preferredWinLen, char str) {
 			List<Region> parts = new ArrayList<Region>();
-			//monitor
-			System.err.println("In breaking window");
 			makeHitLandscape(ipHits, lastPotential, maxBinWidth, binStep, str);
             float ipHitCounts[][] = landscape.clone();
             
@@ -413,13 +404,6 @@ public class PotentialRegionFilter {
 	    			int binend = inBounds((int)((double)(offset+halfWidth)/binStep), 0, numBins);
 	    			for(int b=binstart; b<=binend; b++)
 	    				landscape[cond.getIndex()][b]+=r.getWeight();
-	    			
-	    			
-	    			//monitor
-//	    			if(r.getMidpoint().getLocation()==227585) {
-//	    				System.out.println("offset of 227585 is: " + offset);
-//	    				System.out.println("region of 227585 from " + currReg.getStart()+" to "+currReg.getEnd());
-//	    			}
 	    		}
            	}
     	}
@@ -471,12 +455,18 @@ public class PotentialRegionFilter {
 	        	            	}
 	        	            }
 	        	            if(!inPot) {
-	        	            	//monitor
-	        	            	System.out.println("nonpotential hit: "+hit.getMidpoint().getLocation()+hit.getWeight());
 	        	            	currNonPotWeightSig+=hit.getWeight();
 	        	            	//Add hit to frequency channel
-        	            		double frequency = nonPotRegFragSizeFreqSigChannel.get(cond).containsKey(hit.getFragmentSize())? nonPotRegFragSizeFreqSigChannel.get(cond).get(hit.getFragmentSize()):0;
+	        	            	try {
+	        	            		double frequency = nonPotRegFragSizeFreqSigChannel.get(cond).containsKey(hit.getFragmentSize())? nonPotRegFragSizeFreqSigChannel.get(cond).get(hit.getFragmentSize()):0;
         	            		nonPotRegFragSizeFreqSigChannel.get(cond).put(hit.getFragmentSize(), frequency+hit.getWeight());
+	        	            	} catch (Exception e) {
+	        	            		e.printStackTrace();
+	        	            		System.out.println(cond.getName());
+	        	            		System.out.println(hit.getFragmentSize());
+	        	            		System.out.println(hit.toString());
+	        	            		System.exit(1);
+	        	            	}
 	        	            }
         				}
     				}
