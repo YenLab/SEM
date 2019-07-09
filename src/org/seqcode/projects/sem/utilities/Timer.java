@@ -110,10 +110,12 @@ public class Timer {
 		EM_MAP = 0;
 		E_step = 0;
 		M_step = 0;
+		
+		extra = 0;
 	}
 	
-	public String toString() {
-		return "Load pairs: "+load_pairs/1000+"s"+"\n"+
+	public static void showTime() {
+		System.out.println( "Load pairs: "+load_pairs/1000+"s"+"\n"+
 				"Initalize data: "+initialize_data/1000+"s"+"\n" +
 				"E step: "+E_step/1000+"s"+"\n"+
 				"\tMark range: "+mark_range/1000+"s"+"\n"+
@@ -129,6 +131,6 @@ public class Timer {
 				"\tMaximize tau: "+maximize_tau/1000+"s"+"\n"+
 				"\tMaximize pi: "+maximize_pi/1000+"s"+"\n"+
 				"\tCompute LL: "+compute_LL/1000+"s"+"\n"+
-				"\textra: "+extra/1000+"s"+"\n";
+				"\textra: "+extra/1000+"s"+"\n");
 	}
 }

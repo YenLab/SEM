@@ -41,10 +41,10 @@ public class SEMConfig {
 	protected String outName = "sem", outBase = "sem";
 	protected File outDir = null, interDir = null, imagesDir = null;
 	protected boolean printHelp = false;
-	protected double sigLogConf = -10; //???
+	protected double sigLogConf = -15; //???
 	protected double prLogConf = -10; //???
 	protected int minModelUpdateRounds = 1; //Minimum number of EM training rounds
-	protected int maxModelUpdateRounds = 30; //Maximum number of EM training rounds (May increase @ Jianyu Yang)
+	protected int maxModelUpdateRounds = 15; //Maximum number of EM training rounds (May increase @ Jianyu Yang)
 	protected int posPriorScaling = 10; //???
 	protected int maxThreads = 1;
 	protected double alphaScalingFactor = 1.0; //Scaling the condition-specific alpha value by this factor
@@ -71,8 +71,12 @@ public class SEMConfig {
 	protected boolean shareSubtypes=true; //Share subtypes across experiments
 	protected boolean useAtacPrior=true;
 	protected boolean MLSharedComponentConfiguration = true; //For ML assignment: use a component configuration shared across all conditions or have condition-specific configs.
+	protected int alternativeExclusion = 30; // & Exclusion zone used to determine alternative nucleosome
+	protected int consensusExclusion = 147; // & Exclusion zone used to determine consensus nucleosome
 	protected int numClusters = -1; // & Number of clusters for GMM (if numCluster==-1 will use InfiniteGMM class to determine cluster number automatically)
 	protected String initialDyad = "";	// & File containing the dyad locations for fuzziness initialization (format:chr	coordinate)
+	protected int test = 0; // Determine whether to use BindingEM_test instead of BindingEM_Statistic
+	
 		
 	//Constants
 	public final double LOG2 = Math.log(2);
@@ -181,6 +185,13 @@ public class SEMConfig {
 				numClusters = Args.parseInteger(args, "numClusters", -1);
 				//Initial dyad location file for fuzziness initialization
 				initialDyad = Args.parseString(args, "initialDyad", "");
+				//Run SEM using BindingEM_test.java instead of BindingEM_Statistic ?
+				test = Args.parseInteger(args, "test", 0);
+				if(test>0)
+					System.err.println("SEM is in test mode" + test + ".............");
+				//Fixed exclusion zone
+				alternativeExclusion = Args.parseInteger(args, "alternativeExclusion", 30);
+				consensusExclusion = Args.parseInteger(args, "consensusExclusion", 147);
 				//Output path
 				DateFormat df = new SimpleDateFormat("yyyy-MM-dd-hh-mm-ss");  
 			    df.setTimeZone(TimeZone.getTimeZone("EST"));
@@ -256,7 +267,10 @@ public class SEMConfig {
 	public boolean useAtacPrior() {return useAtacPrior;}
 	public boolean getMLSharedComponentConfiguration(){return MLSharedComponentConfiguration;}
 	public int getNumClusters() {return numClusters;}
+	public int getAlternativeExclusionZone() {return alternativeExclusion;}
+	public int getConsensusExclusionZone() {return consensusExclusion;}
 	public String getInitialDyad() {return initialDyad;}
+	public int getTestMode() {return test;}
 	
 	/**
 	 * Make output directories used by SEM

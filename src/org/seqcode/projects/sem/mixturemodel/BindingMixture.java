@@ -252,7 +252,7 @@ public class BindingMixture {
 	    		String filename = config.getOutputIntermediateDir() + File.separator + config.getOutBase() + "_" + cond.getName() + "_compare.info";
 	    		BufferedWriter fout = new BufferedWriter(new FileWriter(filename));
 	    		//writer header information
-	    		fout.write("#nucleosome comparison result info of "+cond.getName());
+	    		fout.write("#nucleosome comparison result info of "+cond.getName()+"\n");
 	    		for(Region rr: activeComponents.keySet()) {
 	    			List<List<BindingComponent>> comps = activeComponents.get(rr);
 	    			for(BindingComponent comp: comps.get(cond.getIndex())) {
@@ -264,6 +264,7 @@ public class BindingMixture {
 	    				fout.write("\n");
 	    			}
 	    		}
+	    		fout.close();
     		}
     	} catch (IOException e) {
     		e.printStackTrace();
@@ -341,11 +342,13 @@ public class BindingMixture {
 			
 			// Determine which BindingEM method will be used
 			BindingEM_interface EM;
-			if(!config.ifTest()) {
+			if(config.getTestMode()==0) {
 //				BindingEM EM = new BindingEM(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
 				EM = new BindingEM_Statistic(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
+			} else if(config.getTestMode()==1) {
+				EM = new BindingEM_Test(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
 			} else {
-				EM = new BindingEM_test(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
+				EM = new BindingEM_Test2(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
 			}
 			List<List<BindingComponent>> bindingComponents = null;
 			List<NoiseComponent> noiseComponents = null;

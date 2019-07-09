@@ -22,6 +22,7 @@ import org.seqcode.projects.sem.GMM.GMMFactory;
 import org.seqcode.projects.sem.framework.SEMConfig;
 import org.seqcode.projects.sem.framework.OutputFormatter;
 import org.seqcode.projects.sem.framework.PotentialRegionFilter;
+import org.seqcode.projects.sem.utilities.EMmode;
 import org.seqcode.projects.sem.utilities.Timer;
 
 public class SEM {
@@ -114,9 +115,9 @@ public class SEM {
 			//Execute the SEM mixture model, now only EM
 			//TODO: how to add ML step?
 			if(round==0)
-				mixtureModel.execute(true, true); //EM
+				mixtureModel.execute(true, true, EMmode.NORMAL); //EM
 			else
-				mixtureModel.execute(true, false); //EM
+				mixtureModel.execute(true, false, EMmode.NORMAL); //EM
 		
 			//Update binding models in multiGPS
 			//TODO: add statistical test for fuzziness distribution for SEM?
@@ -129,7 +130,7 @@ public class SEM {
 			mixtureModel.updateAlpha();
 		
 			//Print current components
-			mixtureModel.printActiveComponentsToFile();
+			mixtureModel.printActiveComponentsToFile(EMmode.NORMAL);
 			
 			long end = System.currentTimeMillis();
 			System.err.println("Round "+round+"\tOverall time: "+(end-start)/60000+"min");
@@ -144,16 +145,34 @@ public class SEM {
 			
 			//monitor: count time
 			Timer.summary();
-			System.out.println(new Timer());
+			Timer.showTime();
 			Timer.reset();
 			
 		}
+		// find alternative and consensus nucleosomes after EM mode has converged
+		// alternative nucleosome calling
+		System.err.println("\n============================== Finding alternative nucleosome =====================");
+		mixtureModel.execute(true, false, EMmode.ALTERNATIVE);
+		// print consensus components
+		mixtureModel.printActiveComponentsToFile(EMmode.ALTERNATIVE);
+		Timer.summary();
+		Timer.showTime();
+		Timer.reset();
+		// find consensus nucleosome after model has converged
+		System.err.println("\n============================== Finding consensus nucleosome =====================");
+		mixtureModel.execute(true, false, EMmode.CONSENSUS);
+		// print consensus components
+		mixtureModel.printActiveComponentsToFile(EMmode.CONSENSUS);
+		mixtureModel.printNucleosomeComparisonToFile();
+		Timer.summary();
+		Timer.showTime();
 	}
 	
 	/**
 	 * Main driver method for SEM
 	 */
 	public static void main(String[] args) {
+		System.out.println("PARAMETERS: " + Arrays.toString(args));
 		GenomeConfig gcon = new GenomeConfig(args);
 		ExptConfig econ = new ExptConfig(gcon.getGenome(), args);
 		EventsConfig evconfig = new EventsConfig(gcon, args);

@@ -821,7 +821,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
         							}
         							
         							//save pairwise comparison results if pair
-        							if(muSharedBetter[d] || fuzzSharedBetter[d])
+        							if(muSharedBetter[d])
         								compareStore.get(storeKey).put(new Pair<Integer, Integer>(d, k), new Pair<Boolean, Boolean>(muSharedBetter[d], fuzzSharedBetter[d]));
         							
         							maxMuStart = muSharedBetter[d] ? Math.max(maxMuStart, muSumStarts[d][k]) : maxMuStart; 
