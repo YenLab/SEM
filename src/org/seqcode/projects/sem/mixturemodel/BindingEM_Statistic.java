@@ -860,12 +860,10 @@ public class BindingEM_Statistic implements BindingEM_interface {
     					for(int d=0; d<numConditions; d++) {
     						if(d!=c) {
     							int k = muJoinClosestComps[d];
-    							if(k!=-1 && fuzzSharedBetter[d]) {
-    								if(muSharedBetter[d]) {
-    									for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
-    										sharedFuzzSum += resp[d][k][i] * Math.pow(hitPos[d][i]-maxSharedMu, 2);
-    									}
-    								} 
+    							if(k!=-1 && fuzzSharedBetter[d] && muSharedBetter[d]) {
+    								for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
+    									sharedFuzzSum += resp[d][k][i] * Math.pow(hitPos[d][i]-maxSharedMu, 2);
+    								}
     								//TODO: I remove this else branch because if two nucleosomes don't share position, they won't share fuzziness
 //    								else {
 //    									for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
