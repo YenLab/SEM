@@ -476,12 +476,12 @@ public class BindingEM_Statistic implements BindingEM_interface {
         	}
         	
         	//compute current alpha for each component
-        	for(int c=0; c<numConditions; c++) {
-        		ExperimentCondition cond = manager.getIndexedCondition(c);
-        		for(int j=0; j<numComponents; j++) {
-        			currAlpha[c][j] = Math.max(conditionBackgrounds.get(cond).calcCountThreshold(maxIR[c][j]) * alphaCoefficient, 1);
-        		}
-        	}
+	        	for(int c=0; c<numConditions; c++) {
+	        		ExperimentCondition cond = manager.getIndexedCondition(c);
+	        		for(int j=0; j<numComponents; j++) {
+	        			currAlpha[c][j] = semconfig.getFixedAlpha()<0 ? Math.max(conditionBackgrounds.get(cond).calcCountThreshold(maxIR[c][j]) * alphaCoefficient, 1):semconfig.getFixedAlpha();
+	        		}
+	        	}
         	
 			//monitor: count time
         	timer.end("mark");
@@ -972,7 +972,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		boolean ifEliminate = false;
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0) {
-        				if(sumR[j]<currAlpha[c][j]) {
+        				if(sumR[j]<=currAlpha[c][j]) {
         					isEliminated[j] = true;
         					ifEliminate = true;
         				}

@@ -41,14 +41,14 @@ public class SEMConfig {
 	protected String outName = "sem", outBase = "sem";
 	protected File outDir = null, interDir = null, imagesDir = null;
 	protected boolean printHelp = false;
-	protected double sigLogConf = -15; //???
+	protected double sigLogConf = -5; //???
 	protected double prLogConf = -10; //???
 	protected int minModelUpdateRounds = 1; //Minimum number of EM training rounds
 	protected int maxModelUpdateRounds = 15; //Maximum number of EM training rounds (May increase @ Jianyu Yang)
 	protected int posPriorScaling = 10; //???
 	protected int maxThreads = 1;
 	protected double alphaScalingFactor = 1.0; //Scaling the condition-specific alpha value by this factor
-	protected double fixedAlpha = 0.0; //Fixed alpha value if above 0
+	protected double fixedAlpha = -1.0; //Fixed alpha value if >= 0 else automatic mode (use 1 to find potential regions then automatically adjust alpha each EM round)
 	protected double betaScalingFactor = 0.05; //Scale the condition and component-specfic beta value by this factor (May change @ Jianyu Yang)
 	protected double extendWindow = 500; //Range extension around gff points
 	protected double prob_shared_binding = 0.9; //Prior probability that binding sites are shared between conditions

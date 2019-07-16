@@ -69,7 +69,10 @@ public class BindingMixture {
 			conditionBackgrounds.put(cond, new NucleosomePoissonBackgroundModel(-1, config.getSigLogConf(), cond.getTotalSignalPairCount()*(1-cond.getTotalSignalPairVsNoisePairFrac()), config.getGenome().getGenomeLength()-potRegFilter.getPotRegionLengthTotal(), econfig.getMappableGenomeProp(), bindingManager.getMaxInfluenceRange(cond), '.', 1, true));
 			// ignore fixed alpha when determining threshold for each nucleosome
 			double alf = (double)conditionBackgrounds.get(cond).calcCountThreshold(bindingManager.getMaxInfluenceRange(cond));
-			System.err.println("Alpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf);
+			if(config.getFixedAlpha()<0)
+				System.err.println("DynamicAlpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf);
+			else
+				System.err.println("FixedAlpha "+cond.getName()+"\t"+config.getFixedAlpha());
 		}
 		
 		noisePerBase = new double[manager.getNumConditions()];
@@ -155,7 +158,10 @@ public class BindingMixture {
     		conditionBackgrounds.put(cond, new NucleosomePoissonBackgroundModel(-1, config.getSigLogConf(), noisePerBase[c]*config.getGenome().getGenomeLength(), 
     				config.getGenome().getGenomeLength(), econfig.getMappableGenomeProp(), bindingManager.getMaxInfluenceRange(cond), '.', 1, true));
 			double alf = (double)conditionBackgrounds.get(cond).calcCountThreshold(bindingManager.getMaxInfluenceRange(cond));
-			System.err.println("Alpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf);
+			if(config.getFixedAlpha()<0) 
+				System.err.println("DynamicAlpha "+cond.getName()+"\tRange="+bindingManager.getMaxInfluenceRange(cond)+"\t"+alf);
+			else
+				System.err.println("FixedAlpha "+cond.getName()+"\t"+config.getFixedAlpha());
     	}
     }
     

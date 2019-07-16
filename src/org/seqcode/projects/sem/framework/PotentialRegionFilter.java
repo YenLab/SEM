@@ -261,20 +261,34 @@ public class PotentialRegionFilter {
                         		double ipWinHits=ipHitCounts[cond.getIndex()][currBin];
                         		//First Test: is the read count above the genome-wide thresholds?
                         		//If there is a fixed alpha, we should use that as the only threshold
-                        		if(config.getFixedAlpha()>0) {
-                        			if(ipWinHits>config.getFixedAlpha()){
-                        				regionPasses=true;
-                        				break;
-                        			}
-                        		}else if(conditionBackgrounds.get(cond).passesGenomicThreshold((int)ipWinHits, str)){
-                        			//Second Test: refresh all thresholds & test again
-                        			conditionBackgrounds.get(cond).updateModels(currSubRegion, i-x, ipBinnedStarts[cond.getIndex()], backBinnedStarts==null ? null : backBinnedStarts[cond.getIndex()], binStep);
-                        			if(conditionBackgrounds.get(cond).passesAllThresholds((int)ipWinHits, str)){
-                        				//If the region passes the thresholds for one condition, it's a potential
-                        				regionPasses=true;
-                        				break;
-		                            }
-		                        }
+//                        		if(config.getFixedAlpha()>0) {
+//                        			if(ipWinHits>config.getFixedAlpha()){
+//                        				regionPasses=true;
+//                        				break;
+//                        			}
+//                        		}else if(conditionBackgrounds.get(cond).passesGenomicThreshold((int)ipWinHits, str)){
+//                        			//Second Test: refresh all thresholds & test again
+//                        			conditionBackgrounds.get(cond).updateModels(currSubRegion, i-x, ipBinnedStarts[cond.getIndex()], backBinnedStarts==null ? null : backBinnedStarts[cond.getIndex()], binStep);
+//                        			if(conditionBackgrounds.get(cond).passesAllThresholds((int)ipWinHits, str)){
+//                        				//If the region passes the thresholds for one condition, it's a potential
+//                        				regionPasses=true;
+//                        				break;
+//		                            }
+//		                        }
+                        		// Test: is the read count above the alpha threshold
+                        		// if fixedAlpha is set (>=0), potential region needs counts above fixedAlpha, else needs counts above 1
+                        		if(config.getFixedAlpha()>=0) {
+	                        		if(ipWinHits>config.getFixedAlpha()) {
+	                        			regionPasses = true;
+	                        			break;
+	                        		}
+                        		}
+	                        	else {
+	                        		if(ipWinHits>1) {	// if doesn't set fixedalpha, select region having at least 2 fragments as potential region
+	                        			regionPasses = true;
+	                        			break;
+	                        		}
+	                        	}
                         	}
                         	if(regionPasses){
                         		Region currPotential = new Region(gen, currentRegion.getChrom(), Math.max(i-expansion, 1), Math.min((int)(i-1+expansion), currentRegion.getEnd()));
