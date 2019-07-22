@@ -58,7 +58,8 @@ public class BindingMixture {
 		bindingManager = bMan;
 		potRegFilter = filter;
 		testRegions = filter.getPotentialRegions();
-		plotDyad = bindingManager.getBindingModel(manager.getIndexedCondition(0)).get(0).getIntialDyadByIndex(0);
+//		plotDyad = bindingManager.getBindingModel(manager.getIndexedCondition(0)).get(0).getIntialDyadByIndex(0);
+		plotDyad = new Pair<String, Integer>("I", 1191);
 		bindingEvents = new ArrayList<BindingEvent>();
 		BindingEvent.setExperimentManager(manager);
 		BindingEvent.setConfig(evconfig);

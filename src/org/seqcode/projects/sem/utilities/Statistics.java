@@ -147,13 +147,15 @@ public class Statistics {
 	}
 	
 	public static double weightedVar(double[] arr, double[] weight) {
-		double sumWeight = sum(weight);
 		double weightedMean = weightedMean(arr, weight);
 		double sum = 0;
+		double V1 = 0; double V2 = 0;
 		for(int i=0; i<arr.length; i++) {
 			sum += weight[i] * Math.pow(arr[i]-weightedMean, 2);
+			V1 += weight[i];
+			V2 += Math.pow(weight[i], 2);
 		}
-		return sum/(sumWeight-1);
+		return sum/(V1 - (V2/V1));
 	}
 	
 	public static double[] copyFromIntArray(int[] source) {

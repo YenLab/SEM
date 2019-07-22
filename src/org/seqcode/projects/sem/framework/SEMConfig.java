@@ -72,7 +72,7 @@ public class SEMConfig {
 	protected boolean useAtacPrior=true;
 	protected boolean MLSharedComponentConfiguration = true; //For ML assignment: use a component configuration shared across all conditions or have condition-specific configs.
 	protected int alternativeExclusion = 30; // & Exclusion zone used to determine alternative nucleosome
-	protected int consensusExclusion = 147; // & Exclusion zone used to determine consensus nucleosome
+	protected int consensusExclusion = 127; // & Exclusion zone used to determine consensus nucleosome
 	protected int numClusters = -1; // & Number of clusters for GMM (if numCluster==-1 will use InfiniteGMM class to determine cluster number automatically)
 	protected String initialDyad = "";	// & File containing the dyad locations for fuzziness initialization (format:chr	coordinate)
 	protected int test = 0; // Determine whether to use BindingEM_test instead of BindingEM_Statistic

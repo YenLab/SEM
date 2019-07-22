@@ -659,9 +659,13 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		for(int c=0; c<numConditions; c++) {
         			fuzzSum[c] = new double[numComp];
         			for(int j=0; j<numComp; j++) {if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
-	        			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++)
+        				double V1 = 0; double V2 = 0;
+	        			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
 	        				fuzzSum[c][j] += resp[c][j][i] * Math.pow(hitPos[c][i]-muMax[c][j], 2);
-	        			fuzzMax[c][j] = fuzzSum[c][j]/sumResp[c][j];
+	        				V1 += resp[c][j][i];
+	        				V2 += Math.pow(resp[c][j][i], 2);
+	        			}
+	        			fuzzMax[c][j] = fuzzSum[c][j]/(V1 - (V2/V1));
         			}
         			}
         		}
@@ -853,9 +857,12 @@ public class BindingEM_Statistic implements BindingEM_interface {
         				//get shared fuzziness based nucleosomes marked by fuzzSharedBetter
         				double maxSharedFuzz;    
         				double sharedFuzzSum = 0;
-        				double sharedFuzzSumResp = sumResp[c][j];
+//        				double sharedFuzzSumResp = sumResp[c][j];
+        				double V1 = 0; double V2 = 0;
         				for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
 							sharedFuzzSum += resp[c][j][i] * Math.pow(hitPos[c][i]-maxSharedMu, 2);
+							V1 += resp[c][j][i];
+							V2 += Math.pow(resp[c][j][i], 2);
 						}
     					for(int d=0; d<numConditions; d++) {
     						if(d!=c) {
@@ -863,6 +870,8 @@ public class BindingEM_Statistic implements BindingEM_interface {
     							if(k!=-1 && fuzzSharedBetter[d] && muSharedBetter[d]) {
     								for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
     									sharedFuzzSum += resp[d][k][i] * Math.pow(hitPos[d][i]-maxSharedMu, 2);
+    									V1 += resp[d][k][i];
+    									V2 += Math.pow(resp[d][k][i], 2);
     								}
     								//TODO: I remove this else branch because if two nucleosomes don't share position, they won't share fuzziness
 //    								else {
@@ -870,11 +879,11 @@ public class BindingEM_Statistic implements BindingEM_interface {
 //    										sharedFuzzSum += resp[d][k][i] * Math.pow(hitPos[d][i]-muMax[d][k], 2);
 //    									}
 //    								}
-    								sharedFuzzSumResp += sumResp[d][k];
+//    								sharedFuzzSumResp += sumResp[d][k];
     							}
     						}
     					}
-    					maxSharedFuzz = sharedFuzzSum / sharedFuzzSumResp;	
+    					maxSharedFuzz = sharedFuzzSum / (V1 - (V2/V1));	
         				//update mu
     					newMu[c][j] = maxSharedMu;
     					newFuzz[c][j] = maxSharedFuzz;
