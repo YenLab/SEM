@@ -92,7 +92,7 @@ public class BindingModel {
 		} else if (variance == 0 && distance != 0) {
 			prob = bgProb;
 		} else {
-			throw new Exception("Variance must >= 0!");
+			throw new Exception("Detected variance " + variance + "Variance must >= 0!");
 		}
 		
 		if(prob >= 0) {

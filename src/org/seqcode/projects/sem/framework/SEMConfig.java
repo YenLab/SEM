@@ -41,6 +41,8 @@ public class SEMConfig {
 	protected String outName = "sem", outBase = "sem";
 	protected File outDir = null, interDir = null, imagesDir = null;
 	protected boolean printHelp = false;
+	protected double fThreshold = 1e-7;
+	protected double tThreshold = 1e-7;
 	protected double sigLogConf = -5; //???
 	protected double prLogConf = -10; //???
 	protected int minModelUpdateRounds = 1; //Minimum number of EM training rounds
@@ -163,6 +165,9 @@ public class SEMConfig {
 				minRefsForBMUpdate = Args.parseInteger(args,"minmodelupdaterefs",minRefsForBMUpdate);
 				//Parameter for Gaussian smoothing (std. dev.)
 				gauss_smooth = Args.parseDouble(args,"gausssmoothparam",gauss_smooth);
+				//Threshold used for statistic test (f test/ t test)
+				fThreshold = Args.parseDouble(args, "fThreshold", fThreshold);
+				tThreshold = Args.parseDouble(args, "tThreshold", tThreshold);
 				//Background model parameters		
 				sigLogConf = Args.parseDouble(args,"highlogconf",sigLogConf);		
 				prLogConf = Args.parseDouble(args,"prlogconf",prLogConf);
@@ -173,6 +178,10 @@ public class SEMConfig {
 				alphaScalingFactor = Args.parseDouble(args,"alphascale",alphaScalingFactor);
 				//Fixed alpha value
 				fixedAlpha = Args.parseDouble(args,"fixedalpha",fixedAlpha);
+				// fixedAlpha should be at least >=1 to avoid nucleosomes with only one fragment support
+				// which will have a 0 fuzziness
+//				if(fixedAlpha >= 0)
+//					fixedAlpha = Math.max(fixedAlpha, 1);
 				//Beta scaling factor
 				betaScalingFactor = Args.parseDouble(args,"betascale",betaScalingFactor);
 				//Number of base pair to extend around gff
@@ -236,6 +245,8 @@ public class SEMConfig {
 	//Accessors
 	public Genome getGenome(){return gen;}
 	public boolean helpWanted(){return printHelp;}
+	public double getFThreshold() {return fThreshold;}
+	public double getTThreshold() {return tThreshold;}
 	public double getSigLogConf(){return sigLogConf;}
 	public double getPRLogConf(){return prLogConf;}
 	public int getMaxThreads(){return maxThreads;}

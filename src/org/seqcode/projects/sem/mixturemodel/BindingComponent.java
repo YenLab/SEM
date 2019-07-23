@@ -23,22 +23,23 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	protected int maxIR;			// Max influence range of this binding component (95 percent interval determined by fuzziness)
 	protected double[] tau;			// Fragment size subtype probabilities (indexed by subtype index) per replicate
 	protected double pi;			// Emission probability
-	protected double sumResp = 0;	// Sum of read responsibilities
-	protected double[][]	readProfile;	// Read responsibility for each read (indexed by replicate & read index) 
+	protected double sumResp;		// Sum of read responsibilities
+	protected double pValue;		// p value of bindingComponent responsibility with respect to noise (only active when fixedAlpha<0)
+	protected double[][] readProfile;	// Read responsibility for each read (indexed by replicate & read index) 
 	protected int index = 0;
 	protected int subtypeIndex = 0;	// Index of subtype with highest probability
 	protected boolean isSubtype = false;
 	protected boolean isPair = false;
-	protected Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>> compareResults;			//paired nucleosome index in EM (muSharedBetter, fuzzSharedBetter)
-	protected Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>> compareResultsConvert;	//paired nucleosome index in activeComponents
+	protected Map<Pair<Integer, Integer>, Pair<double[], boolean[]>> compareResults;			//paired nucleosome index in EM (muSharedBetter, fuzzSharedBetter)
+	protected Map<Pair<Integer, Integer>, Pair<double[], boolean[]>> compareResultsConvert;	//paired nucleosome index in activeComponents
 	
 	public BindingComponent(Point pos, int numReps) {
 		coord = pos;
 		position  = coord.getLocation();
 		pi = 1;
 		
-		compareResults = new HashMap<Pair<Integer, Integer>, Pair<Boolean, Boolean>>();
-		compareResults = new HashMap<Pair<Integer, Integer>, Pair<Boolean, Boolean>>();
+		compareResults = new HashMap<Pair<Integer, Integer>, Pair<double[], boolean[]>>();
+		compareResults = new HashMap<Pair<Integer, Integer>, Pair<double[], boolean[]>>();
 	}
 	
 	//Accessors
@@ -54,8 +55,9 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	public boolean isPair() {return isPair;}
 	public boolean isNonZero() {return pi>0;}
 	public double getResponsibility() {return sumResp;}
-	public Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>> getCompareResults() {return compareResults;}
-	public Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>> getCompareRestulsConvert() {return compareResultsConvert;}
+	public double getPValue() {return pValue;}
+	public Map<Pair<Integer, Integer>, Pair<double[], boolean[]>> getCompareResults() {return compareResults;}
+	public Map<Pair<Integer, Integer>, Pair<double[], boolean[]>> getCompareRestulsConvert() {return compareResultsConvert;}
 	
 	//Setters
 	public void setPi(double p) {pi = p;}
@@ -82,21 +84,24 @@ public class BindingComponent implements Comparable<BindingComponent>{
 		subtypeIndex = maxIndex;
 	}
 	public void setSumResponsibility(double sumResp) { this.sumResp = sumResp;}
-	public void setCompareResults(Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>> cr) {
+	public void setPValue(double p) {pValue = p;}
+	public void setCompareResults(Map<Pair<Integer, Integer>, Pair<double[], boolean[]>> cr) {
 		compareResults = cr;
 		if(compareResults.size()>0) {
 			isPair = true;
 		}
 	}
 	
+	// Convert index of paired nucleosome to new index used in activeComponents to make sure we can find paired nucleosome in activeComponents 
 	public void convertIndex(List<Map<Integer, Integer>> indexConverter) {
-		compareResultsConvert = new HashMap<Pair<Integer, Integer>, Pair<Boolean, Boolean>>();
+		compareResultsConvert = new HashMap<Pair<Integer, Integer>, Pair<double[], boolean[]>>();
 		if(isPair) {
 			for(Pair<Integer, Integer> index: compareResults.keySet()) {
 				try {
 					int newIndex = indexConverter.get(index.car()).get(index.cdr());
 					compareResultsConvert.put(new Pair<Integer, Integer>(index.car(), newIndex), compareResults.get(index));
 				} catch (Exception e) {
+					e.printStackTrace();
 					System.out.println(index);
 					System.exit(1);
 				}

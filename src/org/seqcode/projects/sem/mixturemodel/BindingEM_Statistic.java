@@ -21,18 +21,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Comparator;
 import java.util.stream.Stream;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
-import org.seqcode.deepseq.StrandedBaseCount;
 import org.seqcode.deepseq.StrandedPair;
-import org.seqcode.deepseq.events.BindingModelPerBase;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
 
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;
-import org.seqcode.deepseq.stats.BackgroundCollection;
-import org.seqcode.genome.Genome;
 import org.seqcode.genome.location.Region;
 import org.seqcode.projects.sem.framework.SEMConfig;
 import org.seqcode.projects.sem.events.BindingManager;
@@ -45,7 +42,6 @@ import org.seqcode.projects.sem.utilities.GaleShapley;
 import org.seqcode.projects.sem.utilities.NucleosomePoissonBackgroundModel;
 import org.seqcode.projects.sem.utilities.EMmode;
 import org.seqcode.gseutils.Pair;
-import org.seqcode.math.stats.StatUtil;
 
 public class BindingEM_Statistic implements BindingEM_interface {
 	
@@ -78,6 +74,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
 	protected double[][]	rNoise;				// Noise component responsibilities
 	protected double[][][]	resp;				// Responsibility each bindingComponent to each fragments
 	protected double[][]	sumResp;			// Sum of responsibility each bindingComponent
+	protected double[][]	pValue;				// p value of each components if alpha is determined by poisson background
 	protected double[][]	pi;					// pi: emission probabilities for binding components
 	protected double[]		piNoise;			// piNoise: emission probabilities for noise components (fixed)
 	protected int[][]		mu;					// mu: positions of the binding components (indexed by condition & binding component index)
@@ -98,7 +95,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
 	protected double		numPotentialRegions;
 	protected double		probAgivenB, probAgivenNOTB;
 	protected int stateEquivCount = 0;
-	protected Map<Pair<Integer, Integer>, Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>>> compareStore;
+	protected Map<Pair<Integer, Integer>, Map<Pair<Integer, Integer>, Pair<double[], boolean[]>>> compareStore;
 	
 	public BindingEM_Statistic(SEMConfig s, ExperimentManager eMan, BindingManager bMan, HashMap<ExperimentCondition, NucleosomePoissonBackgroundModel> condBacks, int numPotReg) {
 		semconfig = s;
@@ -143,6 +140,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
 		rNoise = new double[numConditions][];			// Noise component responsibilities
 		resp = new double[numConditions][][];
 		sumResp = new double[numConditions][];			// Sum of responsibilities each bindingComponent
+		pValue = new double[numConditions][];			// p value of each components if alpha is determined by poisson background
 		pi = new double[numConditions][numComponents];	// pi: emission probabilities for binding components
 		piNoise = new double[numConditions];			// pi: emission probabilities for noise components (fixed)
 		alphaMax = new double[numConditions];			// Maximum alpha
@@ -339,6 +337,8 @@ public class BindingEM_Statistic implements BindingEM_interface {
                     sum_resp += hitCounts[c][i]*rBind[c][j][i];
                 }
 	            comp.setSumResponsibility(sum_resp);
+	            if(semconfig.getFixedAlpha()<0)
+	            	comp.setPValue(pValue[c][j]);
 				if(pi[c][j]>0.0) {
 					if(numConditions > 1)
 						comp.setCompareResults(compareStore.get(new Pair<Integer, Integer>(c, j)));
@@ -409,11 +409,11 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		totalResp[c][i] = 0;
         }
         
-        // Alpha is annealed in. Alpha=0 during ML steps
+        // Alpha and p value initialization
         double[][] currAlpha = new double[numConditions][numComponents];
         double alphaCoefficient = 0;
         for(int c=0; c<numConditions; c++)
-        	for(int j=0; j<numComponents; j++)
+        	for(int j=0; j<numComponents; j++) 
         		currAlpha[c][j] = 0;
         
         //record the initial parameters if plotting
@@ -476,12 +476,11 @@ public class BindingEM_Statistic implements BindingEM_interface {
         	}
         	
         	//compute current alpha for each component
-	        	for(int c=0; c<numConditions; c++) {
-	        		ExperimentCondition cond = manager.getIndexedCondition(c);
-	        		for(int j=0; j<numComponents; j++) {
-	        			currAlpha[c][j] = semconfig.getFixedAlpha()<0 ? Math.max(conditionBackgrounds.get(cond).calcCountThreshold(maxIR[c][j]) * alphaCoefficient, 1):semconfig.getFixedAlpha();
-	        		}
-	        	}
+	        for(int c=0; c<numConditions; c++) {
+	        	ExperimentCondition cond = manager.getIndexedCondition(c);
+	        	for(int j=0; j<numComponents; j++) 
+	       			currAlpha[c][j] = semconfig.getFixedAlpha()<0 ? Math.max(conditionBackgrounds.get(cond).calcCountThreshold(maxIR[c][j]) * alphaCoefficient, 1):semconfig.getFixedAlpha();
+	       	}
         	
 			//monitor: count time
         	timer.end("mark");
@@ -557,7 +556,8 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) 
         				for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
-        						rBind[c][j][i] /= totalResp[c][i];
+        					rBind[c][j][i] /= totalResp[c][i];
+        					rBind[c][j][i] = new BigDecimal(String.valueOf(rBind[c][j][i])).setScale(2, RoundingMode.HALF_UP).doubleValue();
         				}
         		}
             	
@@ -598,8 +598,10 @@ public class BindingEM_Statistic implements BindingEM_interface {
         	
         	timer.start();
         	
-        	//Compute sum of responsibility
+        	//Compute sum of responsibility and compute p value
         	for(int c=0; c<numConditions; c++) {
+        		ExperimentCondition cond = manager.getIndexedCondition(c);
+        		pValue[c] = new double[numComp];
         		sumResp[c] = new double[numComp];
         		resp[c] = new double[numComp][hitNum[c]];
         		for(int j=0; j<numComp; j++) {
@@ -608,6 +610,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
         					resp[c][j][i] = rBind[c][j][i] * hitCounts[c][i];
         					sumResp[c][j] += resp[c][j][i];
         				}
+        				pValue[c][j] = conditionBackgrounds.get(cond).calcPValue(maxIR[c][j], sumResp[c][j]);
         			}
         		}
         	}
@@ -665,7 +668,21 @@ public class BindingEM_Statistic implements BindingEM_interface {
 	        				V1 += resp[c][j][i];
 	        				V2 += Math.pow(resp[c][j][i], 2);
 	        			}
-	        			fuzzMax[c][j] = fuzzSum[c][j]/(V1 - (V2/V1));
+	        			//set fuzzMax = 0  if V1^2 == V2
+	        			if((Math.pow(V1, 2) - V2) == 0) 
+	        				fuzzMax[c][j] = 0;
+	        			else
+	        				fuzzMax[c][j] = (V1*fuzzSum[c][j])/(Math.pow(V1, 2) - V2);
+	        			fuzzMax[c][j] = new BigDecimal(String.valueOf(fuzzMax[c][j])).setScale(2, RoundingMode.HALF_UP).doubleValue();
+	        			if(fuzzMax[c][j]<0) {
+	        				System.out.println("V1:" + V1);
+	        				System.out.println("V1^2:" + Math.pow(V1, 2));
+	        				System.out.println("V2:" + V2);
+	        				System.out.println("V2/V1:" + (V2/V1));
+	        				System.out.println("scale: "+(V1-(V2/V1)));
+		        			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) 
+		        				System.out.println(resp[c][j][i]);
+	        			}
         			}
         			}
         		}
@@ -748,11 +765,9 @@ public class BindingEM_Statistic implements BindingEM_interface {
         	}
         	
         	// Store pairwise comparison results to reduce duplicated computation
-        	Map<PairwiseKey, Boolean> pairwiseMuSharedBetter = new HashMap<PairwiseKey, Boolean>();
-        	Map<PairwiseKey, Boolean> pairwiseFuzzSharedBetter = new HashMap<PairwiseKey, Boolean>();
-        	compareStore = new HashMap<Pair<Integer, Integer>, Map<Pair<Integer, Integer>, Pair<Boolean, Boolean>>>();
+        	Map<PairwiseKey, Pair<double[], boolean[]>> pairwiseComparisonResults = new HashMap<PairwiseKey, Pair<double[], boolean[]>>();
+        	compareStore = new HashMap<Pair<Integer, Integer>, Map<Pair<Integer, Integer>, Pair<double[], boolean[]>>>();
 
-        	
         	// pairwise comparison, skip all nucleosomes with sumResp <= max(currAlpha, 1)
         	for(int c=0; c<numConditions; c++) {
         		for(int j=0; j<numComp; j++) {
@@ -774,7 +789,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
         				
         				//b: evaluate each pair of conditions, asking if a shared event involving j and its closest component would be better than independent events
         				Pair<Integer, Integer> storeKey = new Pair<Integer, Integer>(c, j);
-						compareStore.put(storeKey, new HashMap<Pair<Integer, Integer>, Pair<Boolean, Boolean>>());
+						compareStore.put(storeKey, new HashMap<Pair<Integer, Integer>, Pair<double[], boolean[]>>());
         				int numMuSharedBetter = 0;
         				int numFuzzSharedBetter = 0;
         				int maxMuStart = muSumStarts[c][j];
@@ -794,10 +809,11 @@ public class BindingEM_Statistic implements BindingEM_interface {
         								key = new PairwiseKey(d, k, c, j);
         							}
         							int maxSharedPos; double maxSharedFuzz;
-        							if(pairwiseMuSharedBetter.containsKey(key)) {
+        							double[] confidence; boolean[] sharedBetter; 
+        							if(pairwiseComparisonResults.containsKey(key)) {
         								//get shared position, fuzziness directly from stored map
-        								muSharedBetter[d] = pairwiseMuSharedBetter.get(key);
-        								fuzzSharedBetter[d] = pairwiseFuzzSharedBetter.get(key);
+        								confidence = pairwiseComparisonResults.get(key).car();
+        								sharedBetter = pairwiseComparisonResults.get(key).cdr();
         							} else {
         								//Invoke comparison method in Statistics.java
         								//1. prepare array for comparison
@@ -816,17 +832,19 @@ public class BindingEM_Statistic implements BindingEM_interface {
         									}
         								}
 
-        								//2. get booleans
-        								boolean[] comparisonResult = Statistics.comparison(hitPos1, hitPos2, resp1, resp2);
+        								//2. get comparison results
+        								Pair<double[], boolean[]> comparisonResults = Statistics.comparison(hitPos1, hitPos2, resp1, resp2);
+        								confidence = comparisonResults.car();
+        								sharedBetter = comparisonResults.cdr();
         		        				
-        								muSharedBetter[d] = comparisonResult[0];
-        								fuzzSharedBetter[d] = comparisonResult[1];
-	        						
         							}
         							
-        							//save pairwise comparison results if pair
-        							if(muSharedBetter[d])
-        								compareStore.get(storeKey).put(new Pair<Integer, Integer>(d, k), new Pair<Boolean, Boolean>(muSharedBetter[d], fuzzSharedBetter[d]));
+        							//get mu and fuzz share information
+    								muSharedBetter[d] = sharedBetter[0];
+    								fuzzSharedBetter[d] = sharedBetter[1];
+        							
+        							//save pairwise comparison results
+        							compareStore.get(storeKey).put(new Pair<Integer, Integer>(d, k), new Pair<double[], boolean[]>(confidence, sharedBetter));
         							
         							maxMuStart = muSharedBetter[d] ? Math.max(maxMuStart, muSumStarts[d][k]) : maxMuStart; 
         							minMuEnd = muSharedBetter[d] ? Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]) : minMuEnd;
@@ -883,7 +901,12 @@ public class BindingEM_Statistic implements BindingEM_interface {
     							}
     						}
     					}
-    					maxSharedFuzz = sharedFuzzSum / (V1 - (V2/V1));	
+	        			//set maxSharedFuzz = 0  if V1^2 == V2
+	        			if((Math.pow(V1, 2) - V2) == 0) 
+	        				maxSharedFuzz = 0;
+	        			else
+	        				maxSharedFuzz = (V1*sharedFuzzSum)/(Math.pow(V1, 2) - V2);
+	        			maxSharedFuzz = new BigDecimal(String.valueOf(maxSharedFuzz)).setScale(2, RoundingMode.HALF_UP).doubleValue();
         				//update mu
     					newMu[c][j] = maxSharedMu;
     					newFuzz[c][j] = maxSharedFuzz;
@@ -898,8 +921,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
         	
         	// update mu 
         	for(int c=0; c<numConditions; c++) {
-//        		mu[c] = new int[numComp];
-//        		fuzz[c] = new double[numComp];
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
         				mu[c][j] = newMu[c][j];
@@ -1212,21 +1233,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
             	break;
             }
         } //LOOP: Run EM while not converged
-        
-        //monitor code: show binding component information after EM loop
-//        for(int c=0; c<numConditions; c++) {
-//        	System.out.println("Condition "+c);
-//        	for(int j=0; j<numComp; j++) {
-//        		if(pi[c][j]>0) {
-//        			System.out.println("\tBinding Component"+j);
-//        			System.out.println("\t\tpi: "+pi[c][j]);
-//        			System.out.println("\t\tmu: "+mu[c][j]);
-//        			System.out.println("\t\tfuzziness: "+fuzz[c][j]);
-//        			System.out.println("\t\ttau: "+Arrays.toString(tau[c][j]));
-//        		}
-//        	}
-//        }
-//        System.exit(1);
     } // end of EM_MAP method
 	
 	/**

@@ -6,40 +6,54 @@ package org.seqcode.projects.sem.utilities;
  */
 
 import java.util.*;
-
 import org.apache.commons.math3.distribution.TDistribution;
 import org.apache.commons.math3.distribution.FDistribution;
 
+import org.seqcode.projects.sem.framework.SEMConfig;
+import org.seqcode.gseutils.Pair;;
+
 public class Statistics {
-	protected static final double fThreshold = 1e-7;
-	protected static final double tThreshold = 1e-7;
 	
-	public static boolean[] comparison(List<Integer> hitPos1, List<Integer> hitPos2, List<Double> resp1, List<Double> resp2) {
+	protected static double fThreshold;
+	protected static double tThreshold;
+	
+	public Statistics(SEMConfig semconfig) {
+		fThreshold = semconfig.getFThreshold();
+		tThreshold = semconfig.getTThreshold();
+	}
+	
+	public static Pair<double[], boolean[]> comparison(List<Integer> hitPos1, List<Integer> hitPos2, List<Double> resp1, List<Double> resp2) throws Exception {
 		//convert arraylist to array
 		int[] ix = hitPos1.stream().mapToInt(i->i).toArray();
 		int[] iy = hitPos2.stream().mapToInt(i->i).toArray();
 		double[] wx = resp1.stream().mapToDouble(i->i).toArray();
 		double[] wy = resp2.stream().mapToDouble(i->i).toArray();
 		
-		boolean fuzzShared = false;
-		boolean muShared = false;
-		
 		double[] x = copyFromIntArray(ix);
 		double[] y = copyFromIntArray(iy);
 		
+		checkSamples(x, wx);
+		checkSamples(y, wy);
+		
 		// comparison of two nucleosomes
+		double fuzzConfidence = 0;
+		double muConfidence = 0;
+		boolean fuzzShared = false;
+		boolean muShared = false;
 		// step 1: f-test to check if it is better to share fuzziness
-		fuzzShared = fTest(x, y, wx, wy) > fThreshold;
+		fuzzConfidence = fTest(x, y, wx, wy);
+		fuzzShared = fuzzConfidence > fThreshold;
 		// step 2: (welch's) t-test to check if it is better to share dyad location
 		if(fuzzShared) {
 			// t-test if share fuzziness (equal variance)
-			muShared = tTest(x, y, wx, wy, true) > tThreshold;
+			muConfidence = tTest(x, y, wx, wy, true);
 		} else {
 			// welch's t-test if don't share fuzziness (unequal variance)
-			muShared = tTest(x, y, wx, wy, false) > tThreshold;
+			muConfidence = tTest(x, y, wx, wy, false);
 		}
+		muShared = muConfidence > tThreshold;
 		
-		return new boolean[] {muShared, fuzzShared};
+		return new Pair<double[], boolean[]>(new double[] {muConfidence, fuzzConfidence}, new boolean[] {muShared, fuzzShared});
 	}
 	
 	// basic f-test
@@ -100,10 +114,6 @@ public class Statistics {
 	
 	// t-test/welch's t-test on weighted data
 	public static double tTest(double[] x, double[] y, double[] wx, double[] wy, boolean equalVariance) {
-		if(x.length != wx.length || y.length != wy.length) {
-			System.err.println("Unequal length of array detected!");
-			System.exit(1);
-		}
 		long n1 = x.length;
 		long n2 = y.length;
 		
@@ -155,7 +165,11 @@ public class Statistics {
 			V1 += weight[i];
 			V2 += Math.pow(weight[i], 2);
 		}
-		return sum/(V1 - (V2/V1));
+		//return 0  if V1^2 == V2
+		if((Math.pow(V1, 2) - V2) == 0) 
+			return 0;
+		else
+			return (V1*sum)/(Math.pow(V1, 2) - V2);
 	}
 	
 	public static double[] copyFromIntArray(int[] source) {
@@ -164,6 +178,13 @@ public class Statistics {
 	        dest[i] = source[i];
 	    }
 	    return dest;
+	}
+	
+	public static void checkSamples(double[] x, double[] wx) throws Exception {
+		if(x.length != wx.length)
+			throw new Exception("Length of x and wx are not equal!");
+		if(x.length < 2 ) 
+			throw new Exception("Length of x is too small!");
 	}
 	
     public static void main(String[] args) {
