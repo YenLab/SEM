@@ -1,17 +1,11 @@
 package org.seqcode.projects.sem.events;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.util.*;
+import org.apache.commons.math3.distribution.NormalDistribution;
 
 import org.seqcode.gseutils.Pair;
-import org.seqcode.math.stats.StatUtil;
-
 import org.seqcode.deepseq.StrandedPair;
 import org.seqcode.deepseq.experiments.ExperimentManager;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
@@ -150,11 +144,9 @@ public class BindingModel {
 	}
 	
 	public static void main(String[] args) {
-		try {
-			System.out.println(Math.log(1/(Math.sqrt(1000)*ROOT2PI) * Math.exp(-Math.pow(2000, 2)/(2*1000))));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		System.out.println(1/(Math.sqrt(100)*ROOT2PI) * Math.exp(-Math.pow(20, 2)/(2*100)));
+		NormalDistribution normal = new NormalDistribution(10, 10);
+		System.out.println(normal.density(30));
 	}
 }
 

@@ -24,6 +24,7 @@ import java.util.stream.Stream;
 import java.util.stream.Collectors;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import org.apache.commons.math3.distribution.NormalDistribution;
 
 import org.seqcode.deepseq.StrandedPair;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
@@ -557,7 +558,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) 
         				for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
         					rBind[c][j][i] /= totalResp[c][i];
-        					rBind[c][j][i] = new BigDecimal(String.valueOf(rBind[c][j][i])).setScale(2, RoundingMode.HALF_UP).doubleValue();
+//        					rBind[c][j][i] = new BigDecimal(String.valueOf(rBind[c][j][i])).setScale(2, RoundingMode.HALF_UP).doubleValue();
         				}
         		}
             	
@@ -673,16 +674,9 @@ public class BindingEM_Statistic implements BindingEM_interface {
 	        				fuzzMax[c][j] = 0;
 	        			else
 	        				fuzzMax[c][j] = (V1*fuzzSum[c][j])/(Math.pow(V1, 2) - V2);
-	        			fuzzMax[c][j] = new BigDecimal(String.valueOf(fuzzMax[c][j])).setScale(2, RoundingMode.HALF_UP).doubleValue();
-	        			if(fuzzMax[c][j]<0) {
-	        				System.out.println("V1:" + V1);
-	        				System.out.println("V1^2:" + Math.pow(V1, 2));
-	        				System.out.println("V2:" + V2);
-	        				System.out.println("V2/V1:" + (V2/V1));
-	        				System.out.println("scale: "+(V1-(V2/V1)));
-		        			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) 
-		        				System.out.println(resp[c][j][i]);
-	        			}
+//	        			fuzzMax[c][j] = fuzzSum[c][j]/V1;
+	        			// fuzziness should be at least larger than pre-set threshold
+//	        			fuzzMax[c][j] = Math.max(fuzzMax[c][j], semconfig.LEAST_FUZZINESS);
         			}
         			}
         		}
@@ -875,7 +869,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
         				//get shared fuzziness based nucleosomes marked by fuzzSharedBetter
         				double maxSharedFuzz;    
         				double sharedFuzzSum = 0;
-//        				double sharedFuzzSumResp = sumResp[c][j];
         				double V1 = 0; double V2 = 0;
         				for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
 							sharedFuzzSum += resp[c][j][i] * Math.pow(hitPos[c][i]-maxSharedMu, 2);
@@ -891,13 +884,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
     									V1 += resp[d][k][i];
     									V2 += Math.pow(resp[d][k][i], 2);
     								}
-    								//TODO: I remove this else branch because if two nucleosomes don't share position, they won't share fuzziness
-//    								else {
-//    									for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
-//    										sharedFuzzSum += resp[d][k][i] * Math.pow(hitPos[d][i]-muMax[d][k], 2);
-//    									}
-//    								}
-//    								sharedFuzzSumResp += sumResp[d][k];
     							}
     						}
     					}
@@ -906,7 +892,9 @@ public class BindingEM_Statistic implements BindingEM_interface {
 	        				maxSharedFuzz = 0;
 	        			else
 	        				maxSharedFuzz = (V1*sharedFuzzSum)/(Math.pow(V1, 2) - V2);
-	        			maxSharedFuzz = new BigDecimal(String.valueOf(maxSharedFuzz)).setScale(2, RoundingMode.HALF_UP).doubleValue();
+//    					maxSharedFuzz = sharedFuzzSum/V1;
+	        			// fuzziness should be at least larger than pre-set threshold
+//	        			maxSharedFuzz = Math.max(maxSharedFuzz, semconfig.LEAST_FUZZINESS);
         				//update mu
     					newMu[c][j] = maxSharedMu;
     					newFuzz[c][j] = maxSharedFuzz;
@@ -919,7 +907,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		}
         	}
         	
-        	// update mu 
+        	// update mu and fuzziness
         	for(int c=0; c<numConditions; c++) {
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
