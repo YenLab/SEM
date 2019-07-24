@@ -102,7 +102,7 @@ public class SEMConfig {
 	public final double EM_STATE_EQUIV_FUZZ_THRES = 0.1; // &
 	public final double EM_STATE_EQUIV_TAU_THRES = 0.05; // &
 	public final int INIT_COMPONENT_SPACING = 100; // &
-	public final double LEAST_FUZZINESS = 25;		// least value of fuzziness
+//	public final double LEAST_FUZZINESS = 25;		// least value of fuzziness
 	
 	protected String[] args;
 	public String getArgs() {

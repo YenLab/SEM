@@ -504,7 +504,9 @@ public class BindingEM_Statistic implements BindingEM_interface {
     			double fragSizeProb;
     			for(int j=0; j<numComp; j++) {
     				if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
-    					for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+    					int startIndex = pairIndexAroundMu.get(c).get(j).car();
+    					int endIndex = pairIndexAroundMu.get(c).get(j).cdr();
+    					for(int i=startIndex; i<=endIndex; i++) {
     						fuzzProb = BindingModel.probability(fuzz[c][j], mu[c][j]-hitPos[c][i]);
         					fragSizeProb = 0;
         					for(int index=0; index< fragSizePDF.length; index++) {
@@ -517,7 +519,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
     			for(int i=0; i<numPairs; i++) {
     				nc[i] = noise.get(c).score(hitPos[c][i], hitSize[c][i], repIndices[c][i]);
     			}
-    			
     			h[c] = hc;
     			n[c] = nc;
     			
@@ -531,12 +532,15 @@ public class BindingEM_Statistic implements BindingEM_interface {
     			rNoise[c] = new double[numPairs];
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
-        				for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+    					int startIndex = pairIndexAroundMu.get(c).get(j).car();
+    					int endIndex = pairIndexAroundMu.get(c).get(j).cdr();
+        				for(int i=startIndex; i<=endIndex; i++) {
         					rBind[c][j][i] = h[c][j][i]*pi[c][j];
         					totalResp[c][i] += rBind[c][j][i];
         				}
         			}
         		}
+        		
         		for(int i=0; i<numPairs; i++) {
         			rNoise[c][i] = n[c][i] * piNoise[c];
         			totalResp[c][i] += rNoise[c][i];
@@ -555,11 +559,14 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		
         		// Normalize responsibilities
         		for(int j=0; j<numComp; j++) {
-        			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) 
-        				for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+        			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
+    					int startIndex = pairIndexAroundMu.get(c).get(j).car();
+    					int endIndex = pairIndexAroundMu.get(c).get(j).cdr();
+        				for(int i=startIndex; i<=endIndex; i++) {
         					rBind[c][j][i] /= totalResp[c][i];
 //        					rBind[c][j][i] = new BigDecimal(String.valueOf(rBind[c][j][i])).setScale(2, RoundingMode.HALF_UP).doubleValue();
         				}
+        			}
         		}
             	
     			//monitor: count time
@@ -578,14 +585,16 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
         				if(pos2index.containsKey(mu[c][j])) {
+        					int startIndex = pairIndexAroundMu.get(c).get(j).car();
+        					int endIndex = pairIndexAroundMu.get(c).get(j).cdr();
         					int orig = pos2index.get(mu[c][j]);
         					// Combine
         					pi[c][orig] += pi[c][j];
-        					for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++)
+        					for(int i=startIndex; i<=endIndex; i++)
         						rBind[c][orig][i] += rBind[c][j][i];
         					// Delete
         					pi[c][j] = 0.0;
-        					for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++)
+        					for(int i=startIndex; i<=endIndex; i++)
         						rBind[c][j][i] = 0;
         				} else {
         					pos2index.put(mu[c][j], j);
@@ -607,7 +616,9 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		resp[c] = new double[numComp][hitNum[c]];
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
-        				for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+    					int startIndex = pairIndexAroundMu.get(c).get(j).car();
+    					int endIndex = pairIndexAroundMu.get(c).get(j).cdr();
+        				for(int i=startIndex; i<=endIndex; i++) {
         					resp[c][j][i] = rBind[c][j][i] * hitCounts[c][i];
         					sumResp[c][j] += resp[c][j][i];
         				}
@@ -622,11 +633,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
     		/////////////////////
     		//M-step: maximize mu (positions), fuzz (fuzziness), tau (fragment size subtype), pi (strength)
     		/////////////////////
-        	if(numConditions>1 && t==semconfig.ALPHA_ANNEALING_ITER)
-        		for(int c=0; c<numConditions; c++)
-        			for(int j=0; j<numComp; j++)
-        				if(pi[c][j]>0)
-        					muSums[c][j] = new double[semconfig.EM_MU_UPDATE_WIN*2];
         	
         	// Part1.1: Maximize mu (Because we use Gaussian distribution to describe tag distribution around dyad, we can get dyad directly by the proportional sum of tag position)
         	for(int c=0; c<numConditions; c++) {
@@ -641,7 +647,9 @@ public class BindingEM_Statistic implements BindingEM_interface {
         					muSumStarts[c][j] = start; muSumWidths[c][j] = end-start;
         				}
         				
-        				for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+    					int startIndex = pairIndexAroundMu.get(c).get(j).car();
+    					int endIndex = pairIndexAroundMu.get(c).get(j).cdr();
+        				for(int i=startIndex; i<=endIndex; i++) {
         					muSum[c][j] += resp[c][j][i] * hitPos[c][i];
         				}
 
@@ -664,7 +672,9 @@ public class BindingEM_Statistic implements BindingEM_interface {
         			fuzzSum[c] = new double[numComp];
         			for(int j=0; j<numComp; j++) {if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
         				double V1 = 0; double V2 = 0;
-	        			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+    					int startIndex = pairIndexAroundMu.get(c).get(j).car();
+    					int endIndex = pairIndexAroundMu.get(c).get(j).cdr();
+	        			for(int i=startIndex; i<=endIndex; i++) {
 	        				fuzzSum[c][j] += resp[c][j][i] * Math.pow(hitPos[c][i]-muMax[c][j], 2);
 	        				V1 += resp[c][j][i];
 	        				V2 += Math.pow(resp[c][j][i], 2);
@@ -674,9 +684,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
 	        				fuzzMax[c][j] = 0;
 	        			else
 	        				fuzzMax[c][j] = (V1*fuzzSum[c][j])/(Math.pow(V1, 2) - V2);
-//	        			fuzzMax[c][j] = fuzzSum[c][j]/V1;
-	        			// fuzziness should be at least larger than pre-set threshold
-//	        			fuzzMax[c][j] = Math.max(fuzzMax[c][j], semconfig.LEAST_FUZZINESS);
         			}
         			}
         		}
@@ -692,17 +699,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
         	
         	//test code: employ Gale/Shapley algorithm to find pairwise nucleosomes
         	//TODO:Can we designate an anchor sample ?
-        	//1. for each condition, get active components index
-        	int ac = 0;		// anchor condition index
-        	List<List<Integer>> activeIndex = new ArrayList<List<Integer>>();
-        	for(int c=0; c<numConditions; c++) {
-        		activeIndex.add(new ArrayList<Integer>());
-        		for(int j=0; j<numComp; j++) {
-        			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1)
-        				activeIndex.get(c).add(j);
-        		}
-        	}
-        	//2. for each nucleosome, get preference list of nucleosomes from other conditions
+        	//1. for each nucleosome, get preference list of nucleosomes from other conditions
         	Map<Pair<Integer, Integer>, Map<Integer, List<Integer>>> preference = new HashMap<Pair<Integer, Integer>, Map<Integer, List<Integer>>>();
         	for(int c=0; c<numConditions; c++) {
         		for(int d=0; d<numConditions; d++) {
@@ -743,7 +740,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
 	        		}
 	        	}}
         	}
-        	//3. put each pair of conditions into Gale-Shapley algorithm
+        	//2. put each pair of conditions into Gale-Shapley algorithm
         	Map<Pair<Integer, Integer>, GaleShapley<Integer>> gsMap = new HashMap<Pair<Integer, Integer>, GaleShapley<Integer>>();
         	for(int c=0; c<numConditions; c++) {
 	        	for(int d=0; d<numConditions; d++) {
@@ -784,8 +781,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
         				//b: evaluate each pair of conditions, asking if a shared event involving j and its closest component would be better than independent events
         				Pair<Integer, Integer> storeKey = new Pair<Integer, Integer>(c, j);
 						compareStore.put(storeKey, new HashMap<Pair<Integer, Integer>, Pair<double[], boolean[]>>());
-        				int numMuSharedBetter = 0;
-        				int numFuzzSharedBetter = 0;
         				int maxMuStart = muSumStarts[c][j];
         				int minMuEnd = muSumStarts[c][j] + muSumWidths[c][j];
         				for(int d=0; d<numConditions; d++) {
@@ -813,13 +808,18 @@ public class BindingEM_Statistic implements BindingEM_interface {
         								//1. prepare array for comparison
         								List<Integer> hitPos1 = new ArrayList<Integer>();	List<Integer> hitPos2 = new ArrayList<Integer>();
         								List<Double> resp1 = new ArrayList<Double>();		List<Double> resp2 = new ArrayList<Double>();
-        								for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+        								int startIndex;	int endIndex;
+        	        					startIndex = pairIndexAroundMu.get(c).get(j).car();
+        	        					endIndex = pairIndexAroundMu.get(c).get(j).cdr();
+        								for(int i=startIndex; i<=endIndex; i++) {
         									for(int z=0; z<hitCounts[c][i]; z++) {
         										hitPos1.add(hitPos[c][i]);
         										resp1.add(resp[c][j][i]);
         									}
         								}
-        								for(int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
+        	        					startIndex = pairIndexAroundMu.get(d).get(k).car();
+        	        					endIndex = pairIndexAroundMu.get(d).get(k).cdr();
+        								for(int i=startIndex; i<=endIndex; i++) {
         									for(int z=0; z<hitCounts[d][i]; z++) {
         										hitPos2.add(hitPos[d][i]);
         										resp2.add(resp[d][k][i]);
@@ -842,10 +842,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
         							
         							maxMuStart = muSharedBetter[d] ? Math.max(maxMuStart, muSumStarts[d][k]) : maxMuStart; 
         							minMuEnd = muSharedBetter[d] ? Math.min(minMuEnd, muSumStarts[d][k]+muSumWidths[d][k]) : minMuEnd;
-        							if(muSharedBetter[d])
-        								numMuSharedBetter++;
-        							if(fuzzSharedBetter[d])
-        								numFuzzSharedBetter++;
         						}
         					}
         				}
@@ -870,7 +866,10 @@ public class BindingEM_Statistic implements BindingEM_interface {
         				double maxSharedFuzz;    
         				double sharedFuzzSum = 0;
         				double V1 = 0; double V2 = 0;
-        				for (int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+						int startIndex;	int endIndex;
+    					startIndex = pairIndexAroundMu.get(c).get(j).car();
+    					endIndex = pairIndexAroundMu.get(c).get(j).cdr();
+        				for (int i=startIndex; i<=endIndex; i++) {
 							sharedFuzzSum += resp[c][j][i] * Math.pow(hitPos[c][i]-maxSharedMu, 2);
 							V1 += resp[c][j][i];
 							V2 += Math.pow(resp[c][j][i], 2);
@@ -879,7 +878,9 @@ public class BindingEM_Statistic implements BindingEM_interface {
     						if(d!=c) {
     							int k = muJoinClosestComps[d];
     							if(k!=-1 && fuzzSharedBetter[d] && muSharedBetter[d]) {
-    								for (int i=pairIndexAroundMu.get(d).get(k).car(); i<=pairIndexAroundMu.get(d).get(k).cdr(); i++) {
+    	        					startIndex = pairIndexAroundMu.get(d).get(k).car();
+    	        					endIndex = pairIndexAroundMu.get(d).get(k).cdr();
+    								for (int i=startIndex; i<=endIndex; i++) {
     									sharedFuzzSum += resp[d][k][i] * Math.pow(hitPos[d][i]-maxSharedMu, 2);
     									V1 += resp[d][k][i];
     									V2 += Math.pow(resp[d][k][i], 2);
@@ -935,7 +936,9 @@ public class BindingEM_Statistic implements BindingEM_interface {
         			double probSum = 0;
         			
         			// Compute tau probability of each fragment size subtype for each component
-        			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
+        			int startIndex = pairIndexAroundMu.get(c).get(j).car();
+        			int endIndex = pairIndexAroundMu.get(c).get(j).cdr();
+        			for(int i=startIndex; i<=endIndex; i++) {
         				double[] subProb = new double[bindingManager.getBindingSubtypes(cond).size()];
         				double subProbSum = 0;
         				
@@ -1090,6 +1093,25 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		}
         	}
         	
+    		//Are there any components sharing the same location from the same experiment condition?
+    		boolean componentOverlapping = false;
+    		for(int c=0; c<numConditions; c++) {
+    			List<Integer> compLoc = new ArrayList<Integer>();
+    			for(int j=0; j<numComp; j++) {
+    				if(pi[c][j]>0) {
+    				if(!compLoc.contains(mu[c][j])) {
+    					compLoc.add(mu[c][j]);
+    				} else {
+    					componentOverlapping = true;
+    					break;
+    				}
+    				}
+    			}
+    			if(componentOverlapping) {
+    				break;
+    			}
+    		}
+        	
     		/////////////
         	//Anneal alpha Q: Looks like annealling means reduce alpha each turn, I don't know why
         	//////////////
@@ -1109,23 +1131,21 @@ public class BindingEM_Statistic implements BindingEM_interface {
         			if(pi[c][j]>0)
         				nonZeroComps++;
         	
-        	//monitor
-//        	System.out.println("\tCompute LL");
-        	
         	////////////
         	//Compute LL
         	////////////
         	LAP=0;
-        	if(semconfig.CALC_LL) {
+        	if(semconfig.CALC_LL && !(componentEliminated || componentOverlapping || (numConditions>1 && t<=semconfig.POSPRIOR_ITER) || (numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER))) {
         		// Log-likelihood calculation
         		double LL = 0;
         		for(int c=0; c<numConditions; c++) {
         			int numPairs = hitNum[c];
         			for(int j=0; j<numComp; j++) {
-        				if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1)
+        				if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) 
                 			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
                 				LL += Math.log(rBind[c][j][i]/semconfig.LOG2) * hitCounts[c][i];
                 			}
+
         			}
         			for(int i=0; i<numPairs; i++) {
         				LL += Math.log(rNoise[c][i])/semconfig.LOG2 * hitCounts[c][i];
@@ -1135,11 +1155,9 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		double LP=0;
         		for(int c=0; c<numConditions; c++) {
         			// sum of log pi (Assumption1: Dirichlet prior on nucleosome occupancy)
-//        			double sum_log_pi = 0;
         			double sum_alpha = 0;
         			for(int j=0; j<numComp; j++) {
         				if(pi[c][j]>0.0) {
-//        					sum_log_pi += Math.log(pi[c][j])/semconfig.LOG2;
         					sum_alpha += currAlpha[c][j] * Math.log(pi[c][j])/semconfig.LOG2;
         				}
         			}
@@ -1153,7 +1171,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		}
         		LAP = LL + LP;
         		
-//        		System.out.println("EM: "+t+"\t"+LAP+"\t("+nonZeroComps+" non-zero components).");
         	}
         	
 			//monitor: count time
@@ -1174,25 +1191,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
     		//Save parameters if plotEM
     		if(plotEM) {
     			EMStepPlotter.excute(mu, pi, fuzz, tau, iter, t);
-    		}
-    		
-    		//Are there any components sharing the same location from the same experiment condition?
-    		boolean componentOverlapping = false;
-    		for(int c=0; c<numConditions; c++) {
-    			List<Integer> compLoc = new ArrayList<Integer>();
-    			for(int j=0; j<numComp; j++) {
-    				if(pi[c][j]>0) {
-    				if(!compLoc.contains(mu[c][j])) {
-    					compLoc.add(mu[c][j]);
-    				} else {
-    					componentOverlapping = true;
-    					break;
-    				}
-    				}
-    			}
-    			if(componentOverlapping) {
-    				break;
-    			}
     		}
     		
     		 ////////////

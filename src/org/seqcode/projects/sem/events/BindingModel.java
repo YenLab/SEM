@@ -144,9 +144,19 @@ public class BindingModel {
 	}
 	
 	public static void main(String[] args) {
-		System.out.println(1/(Math.sqrt(100)*ROOT2PI) * Math.exp(-Math.pow(20, 2)/(2*100)));
+		double a;
+		double start; double end;
+		start = System.currentTimeMillis();
+		for (int i=0; i<10000000; i++)
+			a = 1/(Math.sqrt(100)*ROOT2PI) * Math.exp(-Math.pow(20, 2)/(2*100));
+		end = System.currentTimeMillis();
+		System.out.println("direct: " + (end-start));
 		NormalDistribution normal = new NormalDistribution(10, 10);
-		System.out.println(normal.density(30));
+		start = System.currentTimeMillis();
+		for (int i=0; i<10000000; i++)
+			a = normal.density(30);
+		end = System.currentTimeMillis();
+		System.out.println("commons: " + (end-start));
 	}
 }
 
