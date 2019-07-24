@@ -22,9 +22,6 @@ import java.util.Map;
 import java.util.Comparator;
 import java.util.stream.Stream;
 import java.util.stream.Collectors;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import org.apache.commons.math3.distribution.NormalDistribution;
 
 import org.seqcode.deepseq.StrandedPair;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
@@ -1135,7 +1132,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
         	//Compute LL
         	////////////
         	LAP=0;
-        	if(semconfig.CALC_LL && !(componentEliminated || componentOverlapping || (numConditions>1 && t<=semconfig.POSPRIOR_ITER) || (numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER))) {
+        	if(semconfig.CALC_LL && !((numConditions>1 && t<=semconfig.POSPRIOR_ITER) || (numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER))) {
         		// Log-likelihood calculation
         		double LL = 0;
         		for(int c=0; c<numConditions; c++) {
