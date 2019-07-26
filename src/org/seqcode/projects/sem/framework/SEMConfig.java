@@ -84,7 +84,7 @@ public class SEMConfig {
 	public final double LOG2 = Math.log(2);
 	public final int POTREG_BIN_STEP = 100; //Sliding window step in potential region scanner(?)
 	public final int MAXSECTION = 5000000;
-	public final double NOISE_EMISSION_MIN = 0.01; //Arbitrary floor on the emission probability of noise (must be non-zero to mop up noise reads)
+	public final double NOISE_EMISSION_MIN = 0; //Arbitrary floor on the emission probability of noise (must be non-zero to mop up noise reads)
     public final double NOISE_EMISSION_MAX = 0.95; //Arbitrary ceiling on the emission probability of noise
     public final int NOISE_DISTRIB_SMOOTHING_WIN = 50; //Smoothing window for the noise distribution used in the BindingMixture
 	public final int EM_MU_UPDATE_WIN = 50; // &

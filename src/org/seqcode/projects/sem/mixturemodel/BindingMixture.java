@@ -651,7 +651,10 @@ public class BindingMixture {
 					emission = config.NOISE_EMISSION_MAX;
 				if(emission<config.NOISE_EMISSION_MIN)
 					emission = config.NOISE_EMISSION_MIN;
-    		
+				
+//				System.err.println("localNoiseFactor: " + localNoiseFactor);
+//				System.err.println("emission: " + emission);
+				
 				//Add the noise component
 				NoiseComponent n = new NoiseComponent(emission, distribs, currReg, numReps, fragSizeFreq.get(cond));
 				noise.add(n);
@@ -986,8 +989,8 @@ public class BindingMixture {
 			}
 			for(int key: normalizedFreq.keySet()) {
 				double oldValue = normalizedFreq.get(key);
-				normalizedFreq.put(key, oldValue/totalCount); 
-			}		
+				normalizedFreq.put(key, oldValue/totalCount);
+			}	
         	return normalizedFreq;
         }
         

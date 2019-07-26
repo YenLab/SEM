@@ -25,7 +25,7 @@ public class BindingModel {
 	protected GenomeConfig gconfig;
 	protected ExperimentCondition cond;
 	
-	protected double initialFuzziness;
+	protected double initialFuzziness = 2500;
 	protected List<Pair<String, Integer>> initialDyad;
 	protected Map<Integer, Double> pairFreqAroundInitialDyad;
 	
@@ -57,8 +57,7 @@ public class BindingModel {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-		}
-		initializeFuzziness();		
+		}	
 		
 		maxIR = (int)Math.rint(Math.sqrt(initialFuzziness) * 1.96) * 2;
 		
@@ -139,7 +138,7 @@ public class BindingModel {
 		initialFuzziness /= sumWeight;	
 		if(Double.isNaN(initialFuzziness)) {
 			System.err.println("NaN initialized fuzziness detected, set 100 as initial fuzziness");
-			initialFuzziness = 100;
+			initialFuzziness = 2500;
 		}
 	}
 	

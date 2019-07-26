@@ -1216,6 +1216,41 @@ public class BindingEM_Statistic implements BindingEM_interface {
             	break;
             }
         } //LOOP: Run EM while not converged
+        
+        //monitor
+        System.out.println(currRegion.toString());
+        for(ExperimentCondition cond: manager.getConditions()) {
+        	int c = cond.getIndex();
+    		System.out.println("Binding Components:");
+        	for(int j=0; j<numComp; j++) {
+        		if(sumResp[c][j]>0) {
+	        		System.out.println("\tindex: " + j);
+	        		System.out.println("\tmu: " + mu[c][j]);
+	        		System.out.println("\tfuzz: " + fuzz[c][j]);
+	        		System.out.println("\tsumResp: "+ sumResp[c][j]);
+        		}
+        	}
+//        	System.out.println("rNoise > 0.5");
+//            for(int i=0; i<hitNum[c]; i++) {
+//            	if(rNoise[c][i]>0.5) {
+//            		System.out.println("\tposition: " + hitPos[c][i]);
+//            		System.out.println("\tsize: " + hitSize[c][i]);
+//            	}
+//            }
+            System.out.println("sum of Noise");
+			double noise_resp = 0.0;
+			for(int i=0; i<hitNum[c]; i++)
+				noise_resp += hitCounts[c][i]*rNoise[c][i];
+			System.out.println("\tnoise sum resp: " + noise_resp);
+			System.out.println("sum of Binding components");
+			double bind_resp = 0.0;
+			for(int j=0; j<numComp; j++) {
+				bind_resp += sumResp[c][j];
+			}
+			System.out.println("\tbinding component sum resp: " + bind_resp);
+        }
+        
+        System.exit(1);
     } // end of EM_MAP method
 	
 	/**
