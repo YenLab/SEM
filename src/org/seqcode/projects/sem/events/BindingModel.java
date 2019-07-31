@@ -12,6 +12,7 @@ import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.genome.GenomeConfig;
 import org.seqcode.genome.location.Region;
+import org.seqcode.projects.sem.framework.SEMConfig;
 
 /**
  * BindingModel defines a (probabilistic) model of read occurrences around a binding event.
@@ -21,11 +22,12 @@ import org.seqcode.genome.location.Region;
  *
  */
 public class BindingModel {
+	protected SEMConfig	semconfig;
 	protected ExperimentManager manager;
 	protected GenomeConfig gconfig;
 	protected ExperimentCondition cond;
 	
-	protected double initialFuzziness = 2500;
+	protected double initialFuzziness;
 	protected List<Pair<String, Integer>> initialDyad;
 	protected Map<Integer, Double> pairFreqAroundInitialDyad;
 	
@@ -39,7 +41,8 @@ public class BindingModel {
 	protected final int maxIR;	// 95% influence range computed by initialized fuzziness
 	
 	// Constructor: Read in dyad location of nucleosome to initialize fuzziness
-	public BindingModel(String dyadFile, ExperimentManager eman, ExperimentCondition ec, GenomeConfig gc) {
+	public BindingModel(String dyadFile, SEMConfig config, ExperimentManager eman, ExperimentCondition ec, GenomeConfig gc) {
+		semconfig = config;
 		manager = eman;	
 		gconfig = gc;
 		cond = ec;
@@ -59,6 +62,7 @@ public class BindingModel {
 			e.printStackTrace();
 		}	
 		
+		initialFuzziness = semconfig.INIT_FUZZINESS;
 		maxIR = (int)Math.rint(Math.sqrt(initialFuzziness) * 1.96) * 2;
 		
 		//monitor

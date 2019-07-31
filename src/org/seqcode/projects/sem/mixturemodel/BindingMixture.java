@@ -149,7 +149,7 @@ public class BindingMixture {
     		System.out.println("training round: "+trainingRound+"\tnoise per base: "+noisePerBase[e]);
     	}
     }
-    
+     
     /**
      * Update condition backgrounds for alpha
      */
@@ -224,9 +224,9 @@ public class BindingMixture {
     		if(mode.equals(EMmode.NORMAL))
     			filename = config.getOutputIntermediateDir()+File.separator+config.getOutBase()+"_t"+trainingRound+".components";
     		else if(mode.equals(EMmode.ALTERNATIVE))
-    			filename = config.getOutputIntermediateDir()+File.separator+config.getOutBase()+"_alternative.components";
+    			filename = config.getOutputIntermediateDir()+File.separator+config.getOutBase()+"_alternative_t"+trainingRound+".components";
     		else if(mode.equals(EMmode.CONSENSUS))
-    			filename = config.getOutputIntermediateDir()+File.separator+config.getOutBase()+"_consensus.components";
+    			filename = config.getOutputIntermediateDir()+File.separator+config.getOutBase()+"_consensus_t"+trainingRound+".components";
 			FileWriter fout = new FileWriter(filename);
 			fout.write("#region\tchromosome\tdyad\tpi\tsumResp\tfuzziness\ttau\tisPair\n");
 			for(Region rr : activeComponents.keySet()){
@@ -388,7 +388,7 @@ public class BindingMixture {
         	if(uniformBindingComponents)
         		bindingComponents = initializeBindingComponentsUniformly(w, noiseComponents);
         	else
-        		bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, config.getAddFlankingComponents());
+        		bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, mode);
             
             //ATAC-seq prior
             double[][] atacPrior = null;
@@ -719,30 +719,46 @@ public class BindingMixture {
          *
          * @param currReg
          */
-        private List<List<BindingComponent>> initializeBindingComponentsFromAllConditionActive(Region currReg, List<NoiseComponent> noise, boolean addFlanking){
+        private List<List<BindingComponent>> initializeBindingComponentsFromAllConditionActive(Region currReg, List<NoiseComponent> noise, EMmode mode){
         	//Initialize component positions with active locations
         	List<Integer> componentPositions = new ArrayList<Integer>();
         	for(int e=0; e<manager.getNumConditions(); e++)
         		for(BindingComponent comp : activeComponents.get(currReg).get(e)){
         			if(!componentPositions.contains(comp.getPosition()) && comp.getPosition()>=currReg.getStart() && comp.getPosition()<currReg.getEnd())
         				componentPositions.add(comp.getPosition());
-        			if(addFlanking){
-        				if(!componentPositions.contains(comp.getPosition()-config.getAddFlankingComponentSpacing())
-        						 && comp.getPosition()-config.getAddFlankingComponentSpacing()>=currReg.getStart())
-        					componentPositions.add(comp.getPosition()-config.getAddFlankingComponentSpacing());
-        				if(!componentPositions.contains(comp.getPosition()+config.getAddFlankingComponentSpacing())
-        						&& comp.getPosition()+config.getAddFlankingComponentSpacing()<currReg.getEnd())
-        					componentPositions.add(comp.getPosition()+config.getAddFlankingComponentSpacing());
-        			}
+//        			if(addFlanking){
+//        				if(!componentPositions.contains(comp.getPosition()-config.getAddFlankingComponentSpacing())
+//        						 && comp.getPosition()-config.getAddFlankingComponentSpacing()>=currReg.getStart())
+//        					componentPositions.add(comp.getPosition()-config.getAddFlankingComponentSpacing());
+//        				if(!componentPositions.contains(comp.getPosition()+config.getAddFlankingComponentSpacing())
+//        						&& comp.getPosition()+config.getAddFlankingComponentSpacing()<currReg.getEnd())
+//        					componentPositions.add(comp.getPosition()+config.getAddFlankingComponentSpacing());
+//        			}
         		}
-
-        	numBindingComponents = componentPositions.size();
+        	
+        	//sort all component positions
+        	Collections.sort(componentPositions);
         	
         	//If no components exist in region, add one to the center to allow rescues
-        	if(numBindingComponents==0 && addFlanking){
+        	if(numBindingComponents==0){
         		componentPositions.add(currReg.getMidpoint().getLocation());
         		numBindingComponents++;
         	}
+        	
+        	//if distance between two adjacent nucleosomes is > 2 * exclusion zone, add one rescue nucleosome in the middle
+        	if(mode != EMmode.NORMAL) {
+	        	int exclusion = mode == EMmode.CONSENSUS ? config.getConsensusExclusionZone() : config.getAlternativeExclusionZone();
+	        	int size = componentPositions.size();
+	        	for(int i=0; i<(size-1); i++) {
+	        		int currentPosition = componentPositions.get(i);
+	        		int nextPosition = componentPositions.get(i+1);
+	        		if((nextPosition-currentPosition)>2*exclusion) {
+	        			componentPositions.add((currentPosition + nextPosition)/2);
+	        		}
+	        	}
+        	}
+        	
+        	numBindingComponents = componentPositions.size();
 
         	//Make new components with these locations
         	List<List<BindingComponent>> components = new ArrayList<List<BindingComponent>>();

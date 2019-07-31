@@ -102,6 +102,7 @@ public class SEMConfig {
 	public final double EM_STATE_EQUIV_FUZZ_THRES = 0.1; // &
 	public final double EM_STATE_EQUIV_TAU_THRES = 0.05; // &
 	public final int INIT_COMPONENT_SPACING = 100; // &
+	public final int INIT_FUZZINESS = 2500;			// initialized fuzziness
 //	public final double LEAST_FUZZINESS = 25;		// least value of fuzziness
 	
 	protected String[] args;
@@ -181,8 +182,8 @@ public class SEMConfig {
 				fixedAlpha = Args.parseDouble(args,"fixedalpha",fixedAlpha);
 				// fixedAlpha should be at least >=1 to avoid nucleosomes with only one fragment support
 				// which will have a 0 fuzziness
-//				if(fixedAlpha >= 0)
-//					fixedAlpha = Math.max(fixedAlpha, 1);
+				if(fixedAlpha >= 0)
+					fixedAlpha = Math.max(fixedAlpha, 1);
 				//Beta scaling factor
 				betaScalingFactor = Args.parseDouble(args,"betascale",betaScalingFactor);
 				//Number of base pair to extend around gff
@@ -200,8 +201,8 @@ public class SEMConfig {
 				if(test>0)
 					System.err.println("SEM is in test mode" + test + ".............");
 				//Fixed exclusion zone
-				alternativeExclusion = Args.parseInteger(args, "alternativeExclusion", 30);
-				consensusExclusion = Args.parseInteger(args, "consensusExclusion", 147);
+				alternativeExclusion = Args.parseInteger(args, "alternativeExclusion", alternativeExclusion);
+				consensusExclusion = Args.parseInteger(args, "consensusExclusion", consensusExclusion);
 				//Output path
 				DateFormat df = new SimpleDateFormat("yyyy-MM-dd-hh-mm-ss");  
 			    df.setTimeZone(TimeZone.getTimeZone("EST"));

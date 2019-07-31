@@ -83,7 +83,7 @@ public class SEM {
 		condBindingModels = new HashMap<ExperimentCondition, List<BindingModel>>();
 		for(ExperimentCondition cond:manager.getConditions()) {
 			condBindingModels.put(cond, new ArrayList<BindingModel>());
-			condBindingModels.get(cond).add(new BindingModel(semconfig.getInitialDyad(), manager, cond, gconfig));
+			condBindingModels.get(cond).add(new BindingModel(semconfig.getInitialDyad(),semconfig, manager, cond, gconfig));
 			bindingManager.setMaxInfluenceRange(cond, condBindingModels.get(cond).get(0).getMaxInfluenceRange());
 		}
 		bindingManager.setBindingModels(condBindingModels);
@@ -110,7 +110,7 @@ public class SEM {
 		boolean converged = false;
 		while (!converged) {
 		
-			System.err.println("\n============================== Round "+round+" =====================");
+			System.err.println("\n============================== Round "+(round+1)+" =====================");
 			long start = System.currentTimeMillis();
 			//Execute the SEM mixture model, now only EM
 			//TODO: how to add ML step?
@@ -126,7 +126,7 @@ public class SEM {
 		
 			//Update noise models
 			mixtureModel.updateGlobalNoise();
-			
+			 
 			mixtureModel.updateAlpha();
 		
 			//Print current components
@@ -151,21 +151,26 @@ public class SEM {
 		}
 		// find alternative and consensus nucleosomes after EM mode has converged
 		// alternative nucleosome calling
-		System.err.println("\n============================== Finding alternative nucleosome =====================");
-		mixtureModel.execute(true, false, EMmode.ALTERNATIVE);
-		// print consensus components
-		mixtureModel.printActiveComponentsToFile(EMmode.ALTERNATIVE);
-		Timer.summary();
-		Timer.showTime();
-		Timer.reset();
+//		for(int i=0; i<2; i++) {
+//			System.err.format("============================== Finding alternative nucleosome (%d/2) =====================\n", i+1);
+//			mixtureModel.execute(true, false, EMmode.ALTERNATIVE);
+//			// print consensus components
+//			mixtureModel.printActiveComponentsToFile(EMmode.ALTERNATIVE);
+//			Timer.summary();
+//			Timer.showTime();
+//			Timer.reset();
+//		}
 		// find consensus nucleosome after model has converged
-		System.err.println("\n============================== Finding consensus nucleosome =====================");
-		mixtureModel.execute(true, false, EMmode.CONSENSUS);
-		// print consensus components
-		mixtureModel.printActiveComponentsToFile(EMmode.CONSENSUS);
-		mixtureModel.printNucleosomeComparisonToFile();
-		Timer.summary();
-		Timer.showTime();
+		for(int i=0; i<2; i++) {
+			System.err.format("============================== Finding consensus nucleosome (%d/2) =====================\n", i+1);
+			mixtureModel.execute(true, false, EMmode.CONSENSUS);
+			// print consensus components
+			mixtureModel.printActiveComponentsToFile(EMmode.CONSENSUS);
+			mixtureModel.printNucleosomeComparisonToFile();
+			Timer.summary();
+			Timer.showTime();
+			
+		}
 	}
 	
 	/**
