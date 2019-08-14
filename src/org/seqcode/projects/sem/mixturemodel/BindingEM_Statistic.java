@@ -34,6 +34,7 @@ import org.seqcode.projects.sem.events.BindingManager;
 import org.seqcode.projects.sem.events.BindingModel;
 import org.seqcode.projects.sem.events.BindingSubtype;
 import org.seqcode.projects.sem.utilities.Timer;
+
 import org.seqcode.projects.sem.utilities.EMStepPlotter;
 import org.seqcode.projects.sem.utilities.Statistics;
 import org.seqcode.projects.sem.utilities.GaleShapley;
@@ -66,12 +67,15 @@ public class BindingEM_Statistic implements BindingEM_interface {
 	protected int[]			hitNum;				// Number of hits in each condition
 	protected int[][]		repIndices;			// Index of replicate for the hit
 	protected double[][][]	hAll;				// H function values for all positions in the current window (precomputed)
-	protected double[][][]	h;					// H function (binding component probability per read)
+	protected double[][][][]h;					// H function (binding component probability per read)
 	protected double[][]	n;					// N function (noise component probability per read)
 	protected double[][][]	rBind;				// Binding component responsibilities
+	protected double[][][][]rBindS;				// Binding component responsibilities for each subtype
 	protected double[][]	rNoise;				// Noise component responsibilities
 	protected double[][][]	resp;				// Responsibility each bindingComponent to each fragments
+	protected double[][][][]respS;				// Responsibility each bindingComponent to each fragment per subtype
 	protected double[][]	sumResp;			// Sum of responsibility each bindingComponent
+	protected double[][][]	sumRespS;			// Sum of responsibility each bindingComponent per subtype
 	protected double[][]	pValue;				// p value of each components if alpha is determined by poisson background
 	protected double[][]	pi;					// pi: emission probabilities for binding components
 	protected double[]		piNoise;			// piNoise: emission probabilities for noise components (fixed)
@@ -132,12 +136,15 @@ public class BindingEM_Statistic implements BindingEM_interface {
 		hitNum = new int[numConditions];				// Number of hits in each condition
 		repIndices = new int[numConditions][];			// Index of replicate for the hit
 		hAll = new double[numConditions][][];			// H functions for all positions in the current window
-		h = new double[numConditions][][];				// H function (binding component probability per read)
+		h = new double[numConditions][][][];			// H function (binding component probability per read)
 		n = new double[numConditions][];				// N function (noise component probability per read)
 		rBind = new double[numConditions][][];			// Binding component responsibilities
+		rBindS = new double[numConditions][][][];		// Binding component responsibilities per subtype
 		rNoise = new double[numConditions][];			// Noise component responsibilities
 		resp = new double[numConditions][][];
+		respS = new double[numConditions][][][];
 		sumResp = new double[numConditions][];			// Sum of responsibilities each bindingComponent
+		sumRespS = new double[numConditions][][];		// Sum of responsibilities each bindingComponent per subtype
 		pValue = new double[numConditions][];			// p value of each components if alpha is determined by poisson background
 		pi = new double[numConditions][numComponents];	// pi: emission probabilities for binding components
 		piNoise = new double[numConditions];			// pi: emission probabilities for noise components (fixed)
@@ -325,19 +332,19 @@ public class BindingEM_Statistic implements BindingEM_interface {
 			// Binding Components
 			List<BindingComponent> currActiveComps = new ArrayList<BindingComponent>();
 			for(int j=0; j<numComp; j++) {
-				BindingComponent comp = components.get(c).get(j);
-				comp.setPi(pi[c][j]);
-				comp.setPosition(mu[c][j]);
-				comp.setFuzziness(fuzz[c][j]);
-				comp.setTau(tau[c][j]);
-				double sum_resp = 0.0;	
-				for(int i=0;i<hitNum[c];i++){
-                    sum_resp += hitCounts[c][i]*rBind[c][j][i];
-                }
-	            comp.setSumResponsibility(sum_resp);
-	            if(semconfig.getFixedAlpha()<0)
-	            	comp.setPValue(pValue[c][j]);
-				if(pi[c][j]>0.0) {
+				if(pi[c][j]>0) {
+					BindingComponent comp = components.get(c).get(j);
+					comp.setPi(pi[c][j]);
+					comp.setPosition(mu[c][j]);
+					comp.setFuzziness(fuzz[c][j]);
+					comp.setTau(tau[c][j]);
+					double sum_resp = 0.0;	
+					for(int i=0;i<hitNum[c];i++){
+						sum_resp += hitCounts[c][i]*rBind[c][j][i];
+	                }
+		            comp.setSumResponsibility(sum_resp);
+		            if(semconfig.getFixedAlpha()<0)
+		            	comp.setPValue(pValue[c][j]);
 					if(numConditions > 1)
 						comp.setCompareResults(compareStore.get(new Pair<Integer, Integer>(c, j)));
 					currActiveComps.add(comp);
@@ -386,18 +393,18 @@ public class BindingEM_Statistic implements BindingEM_interface {
 		int regStart = currRegion.getStart();
 		
 		// Variables for tracking mu maximization. Defined early to avoid memory assignment during main EM loop.
-		double[][][] muSums = new double[numConditions][numComp][];		//Results of mu maximization summations for individual components across genome
-        int[][] muSumStarts = new int[numConditions][numComp]; //Start positions of muSum arrays (start of maximization window).
-        int[][] muSumWidths = new int[numConditions][numComp]; //Effective widths of muSum arrays (width of maximization window).
-        int[][] muMax = new int[numConditions][numComp]; //Positions of maxima in mu maximization summations
-        double[][] fuzzMax = new double[numConditions][numComp]; //Fuzziness of maxima in fuzziness maximization summations
-        double[][] muSum = new double[numConditions][]; //Sum of hitPos*rBind*hitCounts for each binding component
-        double[][] fuzzSum = new double[numConditions][]; //Sum of Variance*rBind*hitCounts for each binding component
-        int[] muJoinClosestComps = new int[numConditions]; //Indices of nearest components in other conditions
-        boolean[] muSharedBetter = new boolean[numConditions]; //Indicator that sharing dyad locations across conditions is better than not
-        boolean[] fuzzSharedBetter = new boolean[numConditions]; //Indicator that sharing fuzziness across conditions is better than not
-        int[][] newMu = new int[numConditions][numComponents];// mu update
-        double[][] newFuzz = new double[numConditions][numComponents]; // fuzziness update
+        int[][] muSumStarts; 		//Start positions of muSum arrays (start of maximization window).
+        int[][] muSumWidths; 		//Effective widths of muSum arrays (width of maximization window).
+        int[][] muMax;				//Positions of maxima in mu maximization summations
+        double[][] fuzzMax = new double[numConditions][numComponents];			//Fuzziness of maxima in fuzziness maximization summations
+        double[][] muSum;			//Sum of hitPos*rBind*hitCounts for each binding component
+        double[][] fuzzSum; 		//Sum of Variance*rBind*hitCounts for each binding component
+        int[] muJoinClosestComps;	//Indices of nearest components in other conditions
+        boolean[] muSharedBetter;	//Indicator that sharing dyad locations across conditions is better than not
+        boolean[] fuzzSharedBetter;	//Indicator that sharing fuzziness across conditions is better than not
+        int[][] newMu;				// mu update
+        double[][] newFuzz;			// fuzziness update
+        double[][][] newTau;			// tau update
                 
         // Initialize responsibilities
         for(int c=0; c<numConditions; c++) {
@@ -417,7 +424,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
         //record the initial parameters if plotting
         if(plotEM) {
         	EMStepPlotter plot = new EMStepPlotter(currRegion, semconfig, hitPos, hitCounts, hitSize, trainingRound);
-        	EMStepPlotter.excute(mu, pi, fuzz, tau, 0, 0);
+        	EMStepPlotter.excute(mu, sumResp, fuzz, tau, 0, 0);
         }
         
     	//////////////////////////////////////////////////////////////////////////////////////////
@@ -430,6 +437,11 @@ public class BindingEM_Statistic implements BindingEM_interface {
     		////////
     		//E-step
     		////////
+        	
+        	//initialize new mu, fuzz, tau to store the features of nucleosomes in the new round
+        	newMu = new int[numConditions][numComponents];
+        	newFuzz = new double[numConditions][numComponents];
+        	newTau = new double[numConditions][numComponents][];
         	
         	//I want to get the range of fragment midpoint coordinates that will be influenced by each BindingComponent
         	//It's a trick to improve the performance because when encountering quite long region, calculate each fragment
@@ -473,15 +485,18 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		}
         	}
         	
+			//monitor: count time
+        	timer.end("mark");
+        	
         	//compute current alpha for each component
 	        for(int c=0; c<numConditions; c++) {
 	        	ExperimentCondition cond = manager.getIndexedCondition(c);
 	        	for(int j=0; j<numComponents; j++) 
-	       			currAlpha[c][j] = semconfig.getFixedAlpha()<0 ? Math.max(conditionBackgrounds.get(cond).calcCountThreshold(maxIR[c][j]) * alphaCoefficient, 1):semconfig.getFixedAlpha();
+	        		if (pi[c][j] > 0) {
+	        			currAlpha[c][j] = semconfig.getFixedAlpha()<0 ? conditionBackgrounds.get(cond).calcCountThreshold(maxIR[c][j]):semconfig.getFixedAlpha();
+	        			currAlpha[c][j] = Math.max(currAlpha[c][j] * alphaCoefficient, 1);
+	        		}
 	       	}
-        	
-			//monitor: count time
-        	timer.end("mark");
         	
         	for(int c=0; c<numConditions; c++) {
         		int numPairs = hitNum[c];
@@ -494,9 +509,8 @@ public class BindingEM_Statistic implements BindingEM_interface {
             	timer.start();
     			
     			// Compute H and N function
-    			double[][] hc = new double[numComp][numPairs];
-    			double[] nc = new double[numPairs];
-    			
+            	h[c] = new double[numComp][bindingManager.getNumBindingType(cond)][numPairs];
+            	n[c] = new double[numPairs];
     			double fuzzProb;
     			double fragSizeProb;
     			for(int j=0; j<numComp; j++) {
@@ -504,20 +518,20 @@ public class BindingEM_Statistic implements BindingEM_interface {
     					int startIndex = pairIndexAroundMu.get(c).get(j).car();
     					int endIndex = pairIndexAroundMu.get(c).get(j).cdr();
     					for(int i=startIndex; i<=endIndex; i++) {
+    						// probability that a nucleosome with fuzziness fuzzProb generates a fragment located on hitPos[c][i]
     						fuzzProb = BindingModel.probability(fuzz[c][j], mu[c][j]-hitPos[c][i]);
-        					fragSizeProb = 0;
-        					for(int index=0; index< fragSizePDF.length; index++) {
-        						fragSizeProb += tau[c][j][index] * fragSizePDF[index][hitSize[c][i]];
-        					}
-        					hc[j][i] = fuzzProb * fragSizeProb;
+    						for(int s=0; s<fragSizePDF.length; s++) {
+	        					// probability that a nucleosome with mixture probability tau generates a fragment with length hitSize[c][i]
+	    						fragSizeProb = tau[c][j][s] * fragSizePDF[s][hitSize[c][i]];
+	        					// compute h function
+	        					h[c][j][s][i] = fuzzProb * fragSizeProb;
+    						}
     					}
     				}
     			}
     			for(int i=0; i<numPairs; i++) {
-    				nc[i] = noise.get(c).score(hitPos[c][i], hitSize[c][i], repIndices[c][i]);
+    				n[c][i] = noise.get(c).score(hitPos[c][i], hitSize[c][i], repIndices[c][i]);
     			}
-    			h[c] = hc;
-    			n[c] = nc;
     			
     			//monitor: count time
     			timer.end("HN");
@@ -526,14 +540,17 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		// Compute responsibilities
     			totalResp[c] = new double[numPairs];
     			rBind[c] = new double[numComp][numPairs];
+    			rBindS[c] = new double[numComp][bindingManager.getNumBindingType(cond)][numPairs];
     			rNoise[c] = new double[numPairs];
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
     					int startIndex = pairIndexAroundMu.get(c).get(j).car();
     					int endIndex = pairIndexAroundMu.get(c).get(j).cdr();
-        				for(int i=startIndex; i<=endIndex; i++) {
-        					rBind[c][j][i] = h[c][j][i]*pi[c][j];
-        					totalResp[c][i] += rBind[c][j][i];
+    					for(int s=0; s<bindingManager.getNumBindingType(manager.getIndexedCondition(c)); s++) {
+    						for(int i=startIndex; i<=endIndex; i++) {
+        						rBindS[c][j][s][i] = h[c][j][s][i] * pi[c][j];
+            					totalResp[c][i] += rBindS[c][j][s][i];
+        					}
         				}
         			}
         		}
@@ -554,9 +571,11 @@ public class BindingEM_Statistic implements BindingEM_interface {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
     					int startIndex = pairIndexAroundMu.get(c).get(j).car();
     					int endIndex = pairIndexAroundMu.get(c).get(j).cdr();
-        				for(int i=startIndex; i<=endIndex; i++) {
-        					rBind[c][j][i] /= totalResp[c][i];
-//        					rBind[c][j][i] = new BigDecimal(String.valueOf(rBind[c][j][i])).setScale(2, RoundingMode.HALF_UP).doubleValue();
+    					for(int s=0; s<bindingManager.getNumBindingType(manager.getIndexedCondition(c)); s++) {
+    						for(int i=startIndex; i<=endIndex; i++) {
+        						rBindS[c][j][s][i] /= totalResp[c][i];
+        						rBind[c][j][i] += rBindS[c][j][s][i];
+        					}
         				}
         			}
         		}
@@ -566,9 +585,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
         	}
         	
         	timer.start();
-        	
-        	//monitor
-//        	System.out.println("\t\tResolve duplicate");
         	
         	// Resolve duplicate binding components (share the same position) -> combine & delete one copy
         	//TODO: I don't know how to combine binding components with different fuzziness at the same location, so I decide to combine binding components before computing fuzziness
@@ -582,12 +598,20 @@ public class BindingEM_Statistic implements BindingEM_interface {
         					int orig = pos2index.get(mu[c][j]);
         					// Combine
         					pi[c][orig] += pi[c][j];
-        					for(int i=startIndex; i<=endIndex; i++)
+        					for(int i=startIndex; i<=endIndex; i++) {
         						rBind[c][orig][i] += rBind[c][j][i];
+        					}
+        					for(int s=0; s<bindingManager.getNumBindingType(manager.getIndexedCondition(c)); s++)
+        						for(int i=startIndex; i<=endIndex; i++)
+            						rBindS[c][orig][s][i] += rBindS[c][j][s][i];
         					// Delete
         					pi[c][j] = 0.0;
-        					for(int i=startIndex; i<=endIndex; i++)
+        					for(int i=startIndex; i<=endIndex; i++) {
         						rBind[c][j][i] = 0;
+        					}
+        					for(int s=0; s<bindingManager.getNumBindingType(manager.getIndexedCondition(c)); s++)
+        						for(int i=startIndex; i<=endIndex; i++)
+            						rBindS[c][j][s][i] = 0;
         				} else {
         					pos2index.put(mu[c][j], j);
         				}
@@ -605,15 +629,22 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		ExperimentCondition cond = manager.getIndexedCondition(c);
         		pValue[c] = new double[numComp];
         		sumResp[c] = new double[numComp];
+        		sumRespS[c] = new double[numComp][bindingManager.getNumBindingType(cond)];
         		resp[c] = new double[numComp][hitNum[c]];
+        		respS[c] = new double[numComp][bindingManager.getNumBindingType(cond)][hitNum[c]];
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
     					int startIndex = pairIndexAroundMu.get(c).get(j).car();
     					int endIndex = pairIndexAroundMu.get(c).get(j).cdr();
-        				for(int i=startIndex; i<=endIndex; i++) {
-        					resp[c][j][i] = rBind[c][j][i] * hitCounts[c][i];
-        					sumResp[c][j] += resp[c][j][i];
+    					for(int s=0; s<bindingManager.getNumBindingType(manager.getIndexedCondition(c)); s++) {
+    						for(int i=startIndex; i<=endIndex; i++) {
+        						respS[c][j][s][i] = rBindS[c][j][s][i] * hitCounts[c][i];
+        						sumRespS[c][j][s] += respS[c][j][s][i];
+        						resp[c][j][i] += respS[c][j][s][i];
+        					}	
         				}
+    					for(int s=0; s<bindingManager.getNumBindingType(manager.getIndexedCondition(c)); s++) 
+    						sumResp[c][j] += sumRespS[c][j][s];
         				pValue[c][j] = conditionBackgrounds.get(cond).calcPValue(maxIR[c][j], sumResp[c][j]);
         			}
         		}
@@ -627,6 +658,10 @@ public class BindingEM_Statistic implements BindingEM_interface {
     		/////////////////////
         	
         	// Part1.1: Maximize mu (Because we use Gaussian distribution to describe tag distribution around dyad, we can get dyad directly by the proportional sum of tag position)
+        	muSum = new double[numConditions][];
+        	muSumStarts = new int[numConditions][numComponents];
+        	muSumWidths = new int[numConditions][numComponents];
+        	muMax = new int[numConditions][numComponents];
         	for(int c=0; c<numConditions; c++) {
         		muSum[c] = new double[numComp];
         		for(int j=0; j<numComp; j++) {
@@ -659,7 +694,9 @@ public class BindingEM_Statistic implements BindingEM_interface {
         	timer.start();
         	
         	// Part2: Maximize fuzziness
-        	if(t/semconfig.FUZZINESS_ANNEALING_ITER==0 || t>semconfig.ALPHA_ANNEALING_ITER) {
+        	if(t%semconfig.FUZZINESS_ANNEALING_ITER==0 || t>semconfig.ALPHA_ANNEALING_ITER) {
+        		fuzzSum = new double[numConditions][];
+        		fuzzMax = new double[numConditions][numComponents];
         		for(int c=0; c<numConditions; c++) {
         			fuzzSum[c] = new double[numComp];
         			for(int j=0; j<numComp; j++) {if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
@@ -756,7 +793,9 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
         				if(numConditions>1 && t>semconfig.ALPHA_ANNEALING_ITER && sumResp[c][j] > Math.max(currAlpha[c][j], 1)) {
-        				
+            			muJoinClosestComps = new int[numConditions];
+            			muSharedBetter = new boolean[numConditions];
+            			fuzzSharedBetter = new boolean[numConditions];
         				//a: get the paired nucleosome to j in each condition
         				for(int d=0; d<numConditions; d++) {
         					Pair<Integer, Integer> key = new Pair<Integer, Integer>(c, d);
@@ -789,7 +828,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
         							} else {
         								key = new PairwiseKey(d, k, c, j);
         							}
-        							int maxSharedPos; double maxSharedFuzz;
         							double[] confidence; boolean[] sharedBetter; 
         							if(pairwiseComparisonResults.containsKey(key)) {
         								//get shared position, fuzziness directly from stored map
@@ -885,9 +923,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
 	        				maxSharedFuzz = 0;
 	        			else
 	        				maxSharedFuzz = (V1*sharedFuzzSum)/(Math.pow(V1, 2) - V2);
-//    					maxSharedFuzz = sharedFuzzSum/V1;
-	        			// fuzziness should be at least larger than pre-set threshold
-//	        			maxSharedFuzz = Math.max(maxSharedFuzz, semconfig.LEAST_FUZZINESS);
         				//update mu
     					newMu[c][j] = maxSharedMu;
     					newFuzz[c][j] = maxSharedFuzz;
@@ -905,7 +940,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
         				mu[c][j] = newMu[c][j];
-        				fuzz[c][j] = newFuzz[c][j];
+        				fuzz[c][j] = Math.min(semconfig.MAX_FUZZINESS, newFuzz[c][j]);
         			}
         		}
         	}
@@ -918,52 +953,34 @@ public class BindingEM_Statistic implements BindingEM_interface {
 //        	System.out.println("\t\tMaximize tau");
         	
         	// Part3: Maximize tau
-        	if(t/semconfig.TAU_ANNEALING_ITER==0) {
-        	for(ExperimentCondition cond: manager.getConditions()) {
-        		int c = cond.getIndex();
-        		int numSubtypes = bindingManager.getBindingSubtypes(cond).size();
-				List<BindingSubtype> bindingSubtypes = bindingManager.getBindingSubtypes(cond);
-        		for(int j=0; j<numComp; j++) {if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
-        			tau[c][j] = new double[numSubtypes];
-        			double probSum = 0;
-        			
-        			// Compute tau probability of each fragment size subtype for each component
-        			int startIndex = pairIndexAroundMu.get(c).get(j).car();
-        			int endIndex = pairIndexAroundMu.get(c).get(j).cdr();
-        			for(int i=startIndex; i<=endIndex; i++) {
-        				double[] subProb = new double[bindingManager.getBindingSubtypes(cond).size()];
-        				double subProbSum = 0;
-        				
-        				for(BindingSubtype b: bindingSubtypes) {
-        					subProb[b.getIndex()] = b.probability(hitSize[c][i]);
-        					subProbSum += subProb[b.getIndex()];
-        				}
-        				
-        				for(BindingSubtype b: bindingSubtypes) {
-        					subProb[b.getIndex()] /= subProbSum;
-        					tau[c][j][b.getIndex()] += subProb[b.getIndex()] * resp[c][j][i];
-        				}
-        			}
-        			
-        			// Normalize tau for each component
-        			for(BindingSubtype b: bindingSubtypes) 
-        				tau[c][j][b.getIndex()] /= sumResp[c][j];
-        			// Eliminate subtype with not enough ratio of tags (Assumption2: each nucleosome should not be associated with too many subtypes)
-        			for(BindingSubtype b: bindingSubtypes) {
-        				if(tau[c][j][b.getIndex()] < semconfig.SPARSE_PRIOR_SUBTYPE)
-        					tau[c][j][b.getIndex()] = 0;
-        			}
-        			// Re-normalize tau for each component after eliminating low ratio subtypes
-        			probSum = 0;
-        			for(BindingSubtype b: bindingSubtypes) {
-       					probSum += tau[c][j][b.getIndex()];
-
-        			}
-        			for(BindingSubtype b: bindingSubtypes) 
-        				tau[c][j][b.getIndex()] /= probSum;
-        		}
-        		}
-        	}
+        	if(t%semconfig.TAU_ANNEALING_ITER==0 || t>semconfig.ALPHA_ANNEALING_ITER) {
+	        	for(ExperimentCondition cond: manager.getConditions()) {
+	        		int c = cond.getIndex();
+	        		int numSubtypes = bindingManager.getBindingSubtypes(cond).size();
+					List<BindingSubtype> bindingSubtypes = bindingManager.getBindingSubtypes(cond);
+	        		for(int j=0; j<numComp; j++) {if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) {
+	        			newTau[c][j] = new double[numSubtypes];
+	        			
+	        			// Normalize tau for each component
+	        			for(BindingSubtype b: bindingSubtypes) 
+	        				newTau[c][j][b.getIndex()] = sumRespS[c][j][b.getIndex()]/sumResp[c][j];
+	        			// Eliminate subtype with not enough ratio of tags (Assumption2: each nucleosome should not be associated with too many subtypes)
+	        			for(BindingSubtype b: bindingSubtypes) {
+	        				if(newTau[c][j][b.getIndex()] < semconfig.SPARSE_PRIOR_SUBTYPE)
+	        					newTau[c][j][b.getIndex()] = 0;
+	        			}
+	        			// Re-normalize tau for each component after eliminating low ratio subtypes
+	        			double probSum = 0;
+	        			for(BindingSubtype b: bindingSubtypes) {
+	       					probSum += newTau[c][j][b.getIndex()];
+	
+	        			}
+	        			for(BindingSubtype b: bindingSubtypes) 
+	        				newTau[c][j][b.getIndex()] /= probSum;
+	        		}
+	        		}
+	        	}
+	        	tau = newTau;
         	}
         	
 			//monitor: count time
@@ -982,16 +999,15 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		double[] sumR = new double[numComponents];
         		sumR = sumResp[c];
         		boolean[] isEliminated = new boolean[numComponents];
-        		boolean ifEliminate = false;
         		for(int j=0; j<numComp; j++) {
         			if(pi[c][j]>0) {
         				if(sumR[j]<=currAlpha[c][j]) {
         					isEliminated[j] = true;
-        					ifEliminate = true;
+        					componentEliminated = true;
         				}
         			}
         		}
-        		if(!ifEliminate) {
+        		if(!componentEliminated) {
         			// No component will be eliminated, update pi[j]
         			for(int j=0; j<numComp; j++) {
         				if(pi[c][j]>0) {
@@ -1028,18 +1044,13 @@ public class BindingEM_Statistic implements BindingEM_interface {
         							rBind[c][j][i] = 0;
         				}
         			}
-        			// Re-estimate pi values for non-eliminated components using the current responsibility assignments
-        			for(int j=0; j<numComp; j++) {
-        				if(!isEliminated[j])
-        					pi[c][j] = Math.max(0, sumR[j]); // Q: I think here should be sumR[j]-currAlpha[c].
-        			}
         			componentEliminated = true;
         		}
         		
         		// 	if there is no component eliminated because of resp < currAlpha, use exclusion zone to exclude nucleosome
         		// 	note: I don't want exclusion zone and alpha eliminate nucleosome at the same round because I want to make sure before
         		// any component is eliminated due to exclusion zone, all responsibilities have been assigned to components
-        		if(t>=semconfig.ALPHA_ANNEALING_ITER && !ifEliminate && !mode.equals(EMmode.NORMAL)) {
+        		if(t>=semconfig.ALPHA_ANNEALING_ITER && !componentEliminated && !mode.equals(EMmode.NORMAL)) {
             		boolean[] exclusionZone = new boolean[currRegion.getWidth()];
         			int exclusion = mode.equals(EMmode.ALTERNATIVE)? semconfig.getAlternativeExclusionZone() : semconfig.getConsensusExclusionZone();
         			//sort component according to their pi then get the excluded nucleosome with the lowest pi
@@ -1073,6 +1084,13 @@ public class BindingEM_Statistic implements BindingEM_interface {
             			componentEliminated = true;
         			}
         		}
+        		
+    			// Re-estimate pi values for non-eliminated components using the current responsibility assignments
+    			for(int j=0; j<numComp; j++) {
+    				if(!isEliminated[j])
+    					pi[c][j] = Math.max(0, sumR[j]); // Q: I think here should be sumR[j]-currAlpha[c].
+    			}
+    			
         		// Normalize pi (accounting for piNoise)
         		double totalPi = 0;
         		for(int j=0; j<numComp; j++) {
@@ -1135,7 +1153,8 @@ public class BindingEM_Statistic implements BindingEM_interface {
         			for(int j=0; j<numComp; j++) {
         				if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) 
                 			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
-                				LL += Math.log(rBind[c][j][i]/semconfig.LOG2) * hitCounts[c][i];
+                				for(int s=0; s<bindingManager.getNumBindingType(manager.getIndexedCondition(c)); s++)
+                					LL += Math.log(rBindS[c][j][s][i]/semconfig.LOG2) * hitCounts[c][i];
                 			}
 
         			}
@@ -1153,6 +1172,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
         					sum_alpha += currAlpha[c][j] * Math.log(pi[c][j])/semconfig.LOG2;
         				}
         			}
+        			// TODO: add tau prior knowledge
         			// Position prior (Assumption3: Bernouli prior on nucleosome positions)
         			double sum_pos_prior = 0;
         			if(atacPrior!=null && semconfig.useAtacPrior())
@@ -1182,7 +1202,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
     		
     		//Save parameters if plotEM
     		if(plotEM) {
-    			EMStepPlotter.excute(mu, pi, fuzz, tau, iter, t);
+    			EMStepPlotter.excute(mu, sumResp, fuzz, tau, iter, t);
     		}
     		
     		 ////////////
@@ -1212,7 +1232,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
             }
         } //LOOP: Run EM while not converged
         
-//        //monitor
+        //monitor
 //        System.out.println(currRegion.toString());
 //        for(ExperimentCondition cond: manager.getConditions()) {
 //        	int c = cond.getIndex();
