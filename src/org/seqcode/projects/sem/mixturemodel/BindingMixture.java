@@ -13,6 +13,9 @@ import org.seqcode.projects.sem.mixturemodel.NoiseComponent;
 import org.seqcode.projects.sem.events.*;
 import org.seqcode.projects.sem.framework.*;
 import org.seqcode.projects.sem.utilities.Timer;
+
+import joinery.impl.Aggregation.Max;
+
 import org.seqcode.projects.sem.utilities.NucleosomePoissonBackgroundModel;
 import org.seqcode.projects.sem.utilities.EMmode;
 import org.seqcode.deepseq.experiments.*;
@@ -59,7 +62,7 @@ public class BindingMixture {
 		potRegFilter = filter;
 		testRegions = filter.getPotentialRegions();
 //		plotDyad = bindingManager.getBindingModel(manager.getIndexedCondition(0)).get(0).getIntialDyadByIndex(0);
-		plotDyad = new Pair<String, Integer>("I", 1191);
+		plotDyad = semconfig.getPlotDyad();
 		bindingEvents = new ArrayList<BindingEvent>();
 		BindingEvent.setExperimentManager(manager);
 		BindingEvent.setConfig(evconfig);
@@ -726,39 +729,41 @@ public class BindingMixture {
         		for(BindingComponent comp : activeComponents.get(currReg).get(e)){
         			if(!componentPositions.contains(comp.getPosition()) && comp.getPosition()>=currReg.getStart() && comp.getPosition()<currReg.getEnd())
         				componentPositions.add(comp.getPosition());
-//        			if(addFlanking){
-//        				if(!componentPositions.contains(comp.getPosition()-config.getAddFlankingComponentSpacing())
-//        						 && comp.getPosition()-config.getAddFlankingComponentSpacing()>=currReg.getStart())
-//        					componentPositions.add(comp.getPosition()-config.getAddFlankingComponentSpacing());
-//        				if(!componentPositions.contains(comp.getPosition()+config.getAddFlankingComponentSpacing())
-//        						&& comp.getPosition()+config.getAddFlankingComponentSpacing()<currReg.getEnd())
-//        					componentPositions.add(comp.getPosition()+config.getAddFlankingComponentSpacing());
-//        			}
         		}
         	
         	//sort all component positions
         	Collections.sort(componentPositions);
         	
         	//If no components exist in region, add one to the center to allow rescues
+        	numBindingComponents = componentPositions.size();
         	if(numBindingComponents==0){
         		componentPositions.add(currReg.getMidpoint().getLocation());
         		numBindingComponents++;
         	}
         	
-        	//if distance between two adjacent nucleosomes is > 2 * exclusion zone, add one rescue nucleosome in the middle
-        	if(mode != EMmode.NORMAL) {
-	        	int exclusion = mode == EMmode.CONSENSUS ? config.getConsensusExclusionZone() : config.getAlternativeExclusionZone();
-	        	int size = componentPositions.size();
-	        	for(int i=0; i<(size-1); i++) {
-	        		int currentPosition = componentPositions.get(i);
-	        		int nextPosition = componentPositions.get(i+1);
-	        		if((nextPosition-currentPosition)>2*exclusion) {
-	        			componentPositions.add((currentPosition + nextPosition)/2);
-	        		}
-	        	}
+        	//if the overhang region is longer than 1/2 maxIR, add one rescue nucleosome on the start or end of region
+        	int maxIR = (int)Math.round(2 * 1.96 * Math.sqrt(config.INIT_FUZZINESS));
+			int half_maxIR = maxIR / 2;
+			if((currReg.getEnd()-componentPositions.get(componentPositions.size()-1))>half_maxIR) {
+				componentPositions.add(currReg.getEnd());
+				numBindingComponents++;
+			}
+        	if(componentPositions.get(0)-currReg.getStart()>half_maxIR) {
+        		componentPositions.add(currReg.getStart());
+        		numBindingComponents++;
         	}
         	
-        	numBindingComponents = componentPositions.size();
+        	//if distance between two adjacent nucleosomes is > maxIR (defined by initial fuzziness), add one rescue nucleosome in the middle
+        	//to rescue the fragments between them
+        	int size = componentPositions.size();
+        	for(int i=0; i<(size-1); i++) {
+        		int currentPosition = componentPositions.get(i);
+        		int nextPosition = componentPositions.get(i+1);
+        		if((nextPosition-currentPosition)>2*maxIR) {
+        			componentPositions.add((currentPosition + nextPosition)/2);
+        			numBindingComponents++;
+        		}
+        	}
 
         	//Make new components with these locations
         	List<List<BindingComponent>> components = new ArrayList<List<BindingComponent>>();
