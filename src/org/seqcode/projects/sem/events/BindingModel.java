@@ -28,6 +28,7 @@ public class BindingModel {
 	protected ExperimentCondition cond;
 	
 	protected double initialFuzziness;
+	protected String initialDyadFile;
 	protected List<Pair<String, Integer>> initialDyad;
 	protected Map<Integer, Double> pairFreqAroundInitialDyad;
 	
@@ -46,21 +47,8 @@ public class BindingModel {
 		manager = eman;	
 		gconfig = gc;
 		cond = ec;
+		initialDyadFile = dyadFile;
 		initialDyad = new ArrayList<Pair<String, Integer>>();
-		
-		try {
-			BufferedReader br = new BufferedReader(new FileReader(dyadFile));
-			String line = "";
-			while( (line=br.readLine()) != null) {
-				if(line.charAt(0) == '#') {continue;}
-				// use \t as delimiter
-				String[] info = line.split("\t");
-				initialDyad.add(new Pair<String, Integer>(info[0].replaceFirst("^chromosome", "").
-																	replaceFirst("^chrom", "").replaceFirst("^chr", ""), Integer.parseInt(info[1])));
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}	
 		
 		initialFuzziness = semconfig.INIT_FUZZINESS;
 		maxIR = (int)Math.rint(Math.sqrt(initialFuzziness) * 1.96) * 2;
@@ -109,6 +97,21 @@ public class BindingModel {
 	}
 	
 	private void initializeFuzziness() {
+		// read in initial dyad location
+		try {
+			BufferedReader br = new BufferedReader(new FileReader(initialDyadFile));
+			String line = "";
+			while( (line=br.readLine()) != null) {
+				if(line.charAt(0) == '#') {continue;}
+				// use \t as delimiter
+				String[] info = line.split("\t");
+				initialDyad.add(new Pair<String, Integer>(info[0].replaceFirst("^chromosome", "").
+																	replaceFirst("^chrom", "").replaceFirst("^chr", ""), Integer.parseInt(info[1])));
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}	
+		
 		// Initialize frequency map
 		pairFreqAroundInitialDyad = new HashMap<Integer, Double>();
 		for(int i=-75; i<=75; i++) {

@@ -115,9 +115,9 @@ public class SEM {
 			//Execute the SEM mixture model, now only EM
 			//TODO: how to add ML step?
 			if(round==0)
-				mixtureModel.execute(true, true, EMmode.NORMAL); //EM
+				mixtureModel.execute(true, true, EMmode.ALTERNATIVE); //EM
 			else
-				mixtureModel.execute(true, false, EMmode.NORMAL); //EM
+				mixtureModel.execute(true, false, EMmode.ALTERNATIVE); //EM
 		
 			//Update binding models in multiGPS
 			//TODO: add statistical test for fuzziness distribution for SEM?
@@ -130,7 +130,7 @@ public class SEM {
 			mixtureModel.updateAlpha();
 		
 			//Print current components
-			mixtureModel.printActiveComponentsToFile(EMmode.NORMAL);
+			mixtureModel.printActiveComponentsToFile(EMmode.ALTERNATIVE);
 			
 			long end = System.currentTimeMillis();
 			System.err.println("Round "+round+"\tOverall time: "+(end-start)/60000+"min");

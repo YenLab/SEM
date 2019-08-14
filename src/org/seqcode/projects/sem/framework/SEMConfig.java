@@ -46,11 +46,11 @@ public class SEMConfig {
 	protected double sigLogConf = -5; //???
 	protected double prLogConf = -10; //???
 	protected int minModelUpdateRounds = 1; //Minimum number of EM training rounds
-	protected int maxModelUpdateRounds = 15; //Maximum number of EM training rounds (May increase @ Jianyu Yang)
+	protected int maxModelUpdateRounds = 5; //Maximum number of EM training rounds (May increase @ Jianyu Yang)
 	protected int posPriorScaling = 10; //???
 	protected int maxThreads = 1;
 	protected double alphaScalingFactor = 1.0; //Scaling the condition-specific alpha value by this factor
-	protected double fixedAlpha = -1.0; //Fixed alpha value if >= 0 else automatic mode (use 1 to find potential regions then automatically adjust alpha each EM round)
+	protected double fixedAlpha = 10; //Fixed alpha value if >= 0 else automatic mode (use 1 to find potential regions then automatically adjust alpha each EM round)
 	protected double betaScalingFactor = 0.05; //Scale the condition and component-specfic beta value by this factor (May change @ Jianyu Yang)
 	protected double extendWindow = 500; //Range extension around gff points
 	protected double prob_shared_binding = 0.9; //Prior probability that binding sites are shared between conditions
@@ -78,6 +78,7 @@ public class SEMConfig {
 	protected int numClusters = -1; // & Number of clusters for GMM (if numCluster==-1 will use InfiniteGMM class to determine cluster number automatically)
 	protected String initialDyad = "";	// & File containing the dyad locations for fuzziness initialization (format:chr	coordinate)
 	protected int test = 0; // Determine whether to use BindingEM_test instead of BindingEM_Statistic
+	protected Pair<String, Integer> plotDyad = new Pair<String, Integer>("II", 1564);
 	
 		
 	//Constants
@@ -102,7 +103,8 @@ public class SEMConfig {
 	public final double EM_STATE_EQUIV_FUZZ_THRES = 0.1; // &
 	public final double EM_STATE_EQUIV_TAU_THRES = 0.05; // &
 	public final int INIT_COMPONENT_SPACING = 100; // &
-	public final int INIT_FUZZINESS = 2500;			// initialized fuzziness
+	public final double INIT_FUZZINESS = 2500;			// initialized fuzziness
+	public final double MAX_FUZZINESS = 10000;			// arbitrary ceiling on the fuzziness 
 //	public final double LEAST_FUZZINESS = 25;		// least value of fuzziness
 	
 	protected String[] args;
@@ -200,6 +202,9 @@ public class SEMConfig {
 				test = Args.parseInteger(args, "test", 0);
 				if(test>0)
 					System.err.println("SEM is in test mode" + test + ".............");
+				//Dyad location used to determine which region to plot
+				String[] plotDyadString = Args.parseString(args, "plotdyad", "II,1564").split(",");
+				plotDyad = new Pair<String, Integer>(plotDyadString[0], Integer.parseInt(plotDyadString[1]));
 				//Fixed exclusion zone
 				alternativeExclusion = Args.parseInteger(args, "alternativeExclusion", alternativeExclusion);
 				consensusExclusion = Args.parseInteger(args, "consensusExclusion", consensusExclusion);
@@ -284,6 +289,7 @@ public class SEMConfig {
 	public int getConsensusExclusionZone() {return consensusExclusion;}
 	public String getInitialDyad() {return initialDyad;}
 	public int getTestMode() {return test;}
+	public Pair<String, Integer> getPlotDyad() {return plotDyad;}
 	
 	/**
 	 * Make output directories used by SEM

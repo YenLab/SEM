@@ -64,7 +64,7 @@ public class EMStepPlotter {
 	 * @param fuzz
 	 * @param tau
 	 */
-	public static void excute(int[][] mu, double[][] pi, double[][] fuzz, double[][][] tau, int r, int t) {
+	public static void excute(int[][] mu, double[][] resp, double[][] fuzz, double[][][] tau, int r, int t) {
 		try {
 			String regStr = plotRegion.getLocationString().replaceAll(":", "-");
 			String fileName = dir.getAbsolutePath()+File.separator+"EM_"+regStr+"_trainingRound"+trainingRound+"_dyadInfo.txt";
@@ -73,8 +73,8 @@ public class EMStepPlotter {
 			bw.write("#Iter\tt\tcondition\tindex\tmu\tpi\tfuzz\n");
 			for(int c=0; c<mu.length; c++) {	
 				for(int j=0; j<mu[c].length; j++) {
-					if(pi[c][j]>0) {
-						bw.write(r+"\t"+t+"\t"+c+"\t"+j+"\t"+mu[c][j]+"\t"+pi[c][j]+"\t"+
+					if(resp[c][j]>0) {
+						bw.write(r+"\t"+t+"\t"+c+"\t"+j+"\t"+mu[c][j]+"\t"+resp[c][j]+"\t"+
 								fuzz[c][j]+"\t"+Arrays.toString(tau[c][j])+"\n");
 					}
 				}
