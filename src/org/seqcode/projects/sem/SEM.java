@@ -115,14 +115,12 @@ public class SEM {
 			//Execute the SEM mixture model, now only EM
 			//TODO: how to add ML step?
 			if(round==0)
-				mixtureModel.execute(true, true, EMmode.ALTERNATIVE); //EM
+				mixtureModel.execute(true, true, EMmode.CONSENSUS); //EM
 			else
-				mixtureModel.execute(true, false, EMmode.ALTERNATIVE); //EM
+				mixtureModel.execute(true, false, EMmode.CONSENSUS); //EM
 		
 			//Update binding models in multiGPS
 			//TODO: add statistical test for fuzziness distribution for SEM?
-		
-			//Update motifs in multiGPS, I think SEM doesn't need it
 		
 			//Update noise models
 			mixtureModel.updateGlobalNoise();
@@ -130,14 +128,14 @@ public class SEM {
 			mixtureModel.updateAlpha();
 		
 			//Print current components
-			mixtureModel.printActiveComponentsToFile(EMmode.ALTERNATIVE);
+			mixtureModel.printActiveComponentsToFile(EMmode.CONSENSUS);
 			
 			long end = System.currentTimeMillis();
 			System.err.println("Round "+round+"\tOverall time: "+(end-start)/60000+"min");
 			round++;
 		
 			//Check for convergence
-			if(round>=semconfig.getMaxModelUpdateRounds() || mixtureModel.isConverged()) {
+			if(round>=semconfig.getMaxModelUpdateRounds() || (mixtureModel.ifConverged() && round>semconfig.getMinModelUpdateRounds())) {
 				converged=true;
 			}else {
 				converged=false;
@@ -161,16 +159,16 @@ public class SEM {
 //			Timer.reset();
 //		}
 		// find consensus nucleosome after model has converged
-		for(int i=0; i<2; i++) {
-			System.err.format("============================== Finding consensus nucleosome (%d/2) =====================\n", i+1);
-			mixtureModel.execute(true, false, EMmode.CONSENSUS);
-			// print consensus components
-			mixtureModel.printActiveComponentsToFile(EMmode.CONSENSUS);
-			mixtureModel.printNucleosomeComparisonToFile();
-			Timer.summary();
-			Timer.showTime();
-			
-		}
+//		for(int i=0; i<2; i++) {
+//			System.err.format("============================== Finding consensus nucleosome (%d/2) =====================\n", i+1);
+//			mixtureModel.execute(true, false, EMmode.CONSENSUS);
+//			// print consensus components
+//			mixtureModel.printActiveComponentsToFile(EMmode.CONSENSUS);
+//			mixtureModel.printNucleosomeComparisonToFile();
+//			Timer.summary();
+//			Timer.showTime();
+//			
+//		}
 	}
 	
 	/**

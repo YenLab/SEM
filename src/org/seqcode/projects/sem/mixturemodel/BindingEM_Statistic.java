@@ -457,7 +457,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		pairIndexAroundMu.add(new HashMap<Integer, Pair<Integer, Integer>>());
         		for(int j=0; j<numComp; j++) {
         			// Get half 95% influence range for each nucleosome
-        			maxIR[c][j] = (int)(Math.sqrt(fuzz[c][j]) * 1.96 * 2);
+        			maxIR[c][j] = (int)(Math.sqrt(fuzz[c][j]) * 2.58 * 2);
         			int half_maxIR = maxIR[c][j] / 2;
         			
         			// Increase speed by binary search
@@ -529,9 +529,10 @@ public class BindingEM_Statistic implements BindingEM_interface {
     					}
     				}
     			}
-    			for(int i=0; i<numPairs; i++) {
-    				n[c][i] = noise.get(c).score(hitPos[c][i], hitSize[c][i], repIndices[c][i]);
-    			}
+    			if(semconfig.getFixedAlpha()<0)
+	    			for(int i=0; i<numPairs; i++) {
+	    				n[c][i] = noise.get(c).score(hitPos[c][i], hitSize[c][i], repIndices[c][i]);
+	    			}
     			
     			//monitor: count time
     			timer.end("HN");
@@ -555,12 +556,13 @@ public class BindingEM_Statistic implements BindingEM_interface {
         			}
         		}
         		
-        		for(int i=0; i<numPairs; i++) {
-        			rNoise[c][i] = n[c][i] * piNoise[c];
-        			totalResp[c][i] += rNoise[c][i];
-        			//normalize noise here
-        			rNoise[c][i]/=totalResp[c][i];
-        		}
+    			if(semconfig.getFixedAlpha()<0)
+	        		for(int i=0; i<numPairs; i++) {
+	        			rNoise[c][i] = n[c][i] * piNoise[c];
+	        			totalResp[c][i] += rNoise[c][i];
+	        			//normalize noise here
+	        			rNoise[c][i]/=totalResp[c][i];
+	        		}
         		
     			//monitor: count time
         		timer.end("cResp");
@@ -1145,22 +1147,22 @@ public class BindingEM_Statistic implements BindingEM_interface {
         	//Compute LL
         	////////////
         	LAP=0;
-        	if(semconfig.CALC_LL && !((numConditions>1 && t<=semconfig.POSPRIOR_ITER) || (numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER))) {
+        	if(semconfig.CALC_LL && ((numConditions>1 && t>=semconfig.POSPRIOR_ITER) || (numConditions==1 && t>=semconfig.ALPHA_ANNEALING_ITER))) {
         		// Log-likelihood calculation
         		double LL = 0;
         		for(int c=0; c<numConditions; c++) {
         			int numPairs = hitNum[c];
         			for(int j=0; j<numComp; j++) {
         				if(pi[c][j]>0 && pairIndexAroundMu.get(c).get(j).car()!=-1) 
-                			for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++) {
-                				for(int s=0; s<bindingManager.getNumBindingType(manager.getIndexedCondition(c)); s++)
+            				for(int s=0; s<bindingManager.getNumBindingType(manager.getIndexedCondition(c)); s++)
+            					for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++)
                 					LL += Math.log(rBindS[c][j][s][i]/semconfig.LOG2) * hitCounts[c][i];
-                			}
 
         			}
-        			for(int i=0; i<numPairs; i++) {
-        				LL += Math.log(rNoise[c][i])/semconfig.LOG2 * hitCounts[c][i];
-        			}
+        			if(semconfig.getFixedAlpha()<0)
+	        			for(int i=0; i<numPairs; i++) {
+	        				LL += Math.log(rNoise[c][i])/semconfig.LOG2 * hitCounts[c][i];
+	        			}
         		}
         		// Log priors
         		double LP=0;
@@ -1182,18 +1184,11 @@ public class BindingEM_Statistic implements BindingEM_interface {
         			LP += -sum_alpha + sum_pos_prior;
         		}
         		LAP = LL + LP;
-        		
         	}
+
         	
 			//monitor: count time
         	timer.end("LL");
-        	
-        	//Is current state equivalent to the last?
-            if(((numConditions>1 && t>semconfig.POSPRIOR_ITER) || (numConditions==1 && t>semconfig.ALPHA_ANNEALING_ITER)) && 
-            		lastEquivToCurr())
-            	stateEquivCount++;
-            else
-            	stateEquivCount=0;
         	
         	//Tick the clock forward
     		if(!componentEliminated)
@@ -1209,22 +1204,19 @@ public class BindingEM_Statistic implements BindingEM_interface {
           	//Check Stopping condition TODO: I don't know whether it is right to use Math.abs
           	////////////   		
             if (nonZeroComps>0 && (componentEliminated || componentOverlapping || (numConditions>1 && t<=semconfig.POSPRIOR_ITER) || (numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER) 
-            		|| (semconfig.CALC_LL && Math.abs(LAP-lastLAP)>Math.abs(semconfig.EM_CONVERGENCE*lastLAP)) || (stateEquivCount<semconfig.EM_STATE_EQUIV_ROUNDS))){
+            		|| (semconfig.CALC_LL && Math.abs(LAP-lastLAP)>Math.abs(semconfig.EM_CONVERGENCE*lastLAP)) )){
             	if(t==semconfig.MAX_EM_ITER) {
 	            	System.out.println("\tcriteria 1: "+(numConditions>1 && t<=semconfig.POSPRIOR_ITER));
 	            	System.out.println("\tcriteria 2: "+(numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER));
 	            	System.out.println("\tcriteria 3: "+(semconfig.CALC_LL && Math.abs(LAP-lastLAP)>Math.abs(semconfig.EM_CONVERGENCE*lastLAP)));
-	            	System.out.println("\tcriteria 4: "+(stateEquivCount<semconfig.EM_STATE_EQUIV_ROUNDS));
 	            	if(semconfig.CALC_LL && Math.abs(LAP-lastLAP)>Math.abs(semconfig.EM_CONVERGENCE*lastLAP)){
 	            		System.out.println("\t\tlastLAP: "+lastLAP);
 	            		System.out.println("\t\tLAP: "+LAP);
 	            	}
             	}
-                copyStateToLast();
                 lastLAP = LAP;
                 continue;
             }else{
-            	copyStateToLast();
             	lastLAP = LAP;
             	if(semconfig.isVerbose())
             		System.err.println("\tRegTrain:"+trainingRound+"\t"+currRegion.getLocationString()+"\twidth:"+currRegion.getWidth()+"\tnoEliminated:"+t+"\toverall:"+iter+"\t"+nonZeroComps);
@@ -1265,80 +1257,18 @@ public class BindingEM_Statistic implements BindingEM_interface {
 //			System.out.println("\tbinding component sum resp: " + bind_resp);
 //        }
 //        
-//        System.exit(1);
     } // end of EM_MAP method
 	
 	/**
-     * Copy current variables to last variables (lastRBind, lastPi, lastMu).
-     * Assumes visibility of both.
-     */
-    private void copyStateToLast(){
-    	int numC = manager.getNumConditions();
-    	for(int c=0; c<numC; c++){
-    		for(int j=0; j<numComponents; j++){
-    			lastPi[c][j] = pi[c][j];
-    			lastMu[c][j] = mu[c][j];
-    			lastFuzz[c][j] = fuzz[c][j];
-    			lastTau[c][j] = tau[c][j];
-    			lastSumResp[c][j] = sumResp[c][j];
-    		}
-    	}
-    }
-    
+	 * @return return the LAP of the converged model
+	 */
+	public double getLAP() {return LAP;}
+	
     /**
-     * Compare last variables to current (lastRBind, lastPi, lastMu).
-     * Assumes visibility of both.
-     * @return
+     * Pairwise key used to store the results of nucleosome comparison across different conditions
+     * @author Administrator
+     *
      */
-    private boolean lastEquivToCurr(){
-    	int numC = manager.getNumConditions();
-    	int currNZ=0, lastNZ=0;
-    	for(int c=0; c<numConditions; c++)
-    		for(int j=0;j<numComponents;j++){
-    			if(pi[c][j]>0)
-    				currNZ++;
-    			if(lastPi[c][j]>0)
-    				lastNZ++;
-    		}
-    	boolean numCompEqual = currNZ==lastNZ;
-    	boolean compPosEqual=true;
-    	if(numCompEqual){
-    		for(int c=0; c<numC; c++)
-    			for(int j=0; j<mu[c].length; j++){if(pi[c][j]>0){
-    				compPosEqual = compPosEqual && Math.abs(mu[c][j] - lastMu[c][j])<3;
-    			}}
-    	}else{
-    		compPosEqual=false;
-    	}
-    	boolean piBindEquivalent=true;
-    	for(int c=0; c<numC; c++)
-			for(int j=0; j<pi[c].length; j++){if(pi[c][j]>0){
-				piBindEquivalent = piBindEquivalent && (Math.abs(pi[c][j]-lastPi[c][j])<semconfig.EM_STATE_EQUIV_PI_THRES);
-			}}
-    	boolean fuzzBindEquivalent=true;
-    	for(int c=0; c<numC; c++)
-    		for(int j=0; j<pi[c].length; j++) {
-    			if(pi[c][j]>0)
-    				fuzzBindEquivalent = fuzzBindEquivalent && (Math.abs(fuzz[c][j]-lastFuzz[c][j]) < semconfig.EM_STATE_EQUIV_FUZZ_THRES*lastFuzz[c][j]);
-//    			if(Math.abs(fuzz[c][j]-lastFuzz[c][j]) >= semconfig.EM_STATE_EQUIV_FUZZ_THRES*lastFuzz[c][j]) {
-//    				System.out.println("\t\t\tunequal fuzziness: "+fuzz[c][j]+"-"+lastFuzz[c][j]);
-//    			}
-    		}
-    	boolean tauBindEquivalent=true;
-    	for(int c=0; c<numC; c++)
-    		for(int j=0 ;j<pi[c].length; j++) {
-    			if(pi[c][j]>0)
-    				for(int t=0; t<tau[c][j].length; t++)
-    					tauBindEquivalent = tauBindEquivalent && (Math.abs(tau[c][j][t] - lastTau[c][j][t]) < semconfig.EM_STATE_EQUIV_TAU_THRES);
-    		}
-//    	System.out.println("\t\tnumCompEqual: "+numCompEqual);
-//    	System.out.println("\t\tcompPosEqual: "+compPosEqual);
-//    	System.out.println("\t\tpiBindEquivalent: "+piBindEquivalent);
-//    	System.out.println("\t\tfuzzBindEquivalent: "+fuzzBindEquivalent);
-//    	System.out.println("\t\ttauBindEquivalent: "+tauBindEquivalent);
-		return numCompEqual && compPosEqual && piBindEquivalent && fuzzBindEquivalent && tauBindEquivalent;
-    }
-    
     private class PairwiseKey{
     	int cond1;
     	int index1;
@@ -1378,6 +1308,11 @@ public class BindingEM_Statistic implements BindingEM_interface {
     	}
     }
     
+    /**
+     * Comparator used to sort binding components according to their responsibility
+     * @author Administrator
+     *
+     */
     private class ArrayIndexComparator implements Comparator<Integer>
     {
         private final double[] array;

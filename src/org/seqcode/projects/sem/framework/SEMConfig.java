@@ -45,8 +45,8 @@ public class SEMConfig {
 	protected double tThreshold = 1e-7;
 	protected double sigLogConf = -5; //???
 	protected double prLogConf = -10; //???
-	protected int minModelUpdateRounds = 1; //Minimum number of EM training rounds
-	protected int maxModelUpdateRounds = 5; //Maximum number of EM training rounds (May increase @ Jianyu Yang)
+	protected int minModelUpdateRounds = 3; //Minimum number of EM training rounds
+	protected int maxModelUpdateRounds = 10; //Maximum number of EM training rounds (May increase @ Jianyu Yang)
 	protected int posPriorScaling = 10; //???
 	protected int maxThreads = 1;
 	protected double alphaScalingFactor = 1.0; //Scaling the condition-specific alpha value by this factor
@@ -98,10 +98,6 @@ public class SEMConfig {
 	public final double SPARSE_PRIOR_SUBTYPE = 0.05; // &
 	public final boolean CALC_LL = true; // &
 	public final double EM_CONVERGENCE = 0.01; // &
-	public final int EM_STATE_EQUIV_ROUNDS = 0; // &
-	public final double EM_STATE_EQUIV_PI_THRES = 0.01; // &
-	public final double EM_STATE_EQUIV_FUZZ_THRES = 0.1; // &
-	public final double EM_STATE_EQUIV_TAU_THRES = 0.05; // &
 	public final int INIT_COMPONENT_SPACING = 100; // &
 	public final double INIT_FUZZINESS = 2500;			// initialized fuzziness
 	public final double MAX_FUZZINESS = 10000;			// arbitrary ceiling on the fuzziness 

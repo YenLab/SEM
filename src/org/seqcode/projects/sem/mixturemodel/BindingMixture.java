@@ -4,6 +4,7 @@ import java.io.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.seqcode.deepseq.StrandedBaseCount;
 import org.seqcode.deepseq.StrandedPair;
 import org.seqcode.gseutils.Args;
@@ -13,6 +14,7 @@ import org.seqcode.projects.sem.mixturemodel.NoiseComponent;
 import org.seqcode.projects.sem.events.*;
 import org.seqcode.projects.sem.framework.*;
 import org.seqcode.projects.sem.utilities.Timer;
+import org.seqcode.projects.sem.utilities.ConsoleProgressBar;
 
 import joinery.impl.Aggregation.Max;
 
@@ -46,11 +48,16 @@ public class BindingMixture {
 	protected List<BindingEvent> bindingEvents;
 	protected Pair<String, Integer> plotDyad; //plot region which contains this dyad
 	protected int trainingRound = 0;
+	protected double LAP = 0;
+	protected double lastLAP = -Double.MAX_VALUE;
 	protected boolean converged = false;
 	protected double noisePerBase[];		//Defines global noise
 	protected double relativeCtrlNoise[];	//Defines global noise
 	protected HashMap<Region, Double[]> noiseResp = new HashMap<Region, Double[]>(); //noise responsibilities after a round of execute(). Hashed by Region, indexed by condition
 	protected HashMap<ExperimentCondition, Map<Integer, Double>> noiseFragSizeFreq;
+	protected int numRegions = 0;										//Number of all regions
+	protected AtomicInteger passRegion = new AtomicInteger();			//Number of regions have finished
+	protected ConsoleProgressBar progressBar;
 	
 	public BindingMixture(GenomeConfig gcon, ExptConfig econ, EventsConfig evcon, SEMConfig semconfig, ExperimentManager eMan, BindingManager bMan, PotentialRegionFilter filter) {
 		gconfig = gcon;
@@ -61,6 +68,7 @@ public class BindingMixture {
 		bindingManager = bMan;
 		potRegFilter = filter;
 		testRegions = filter.getPotentialRegions();
+		numRegions = testRegions.size();
 //		plotDyad = bindingManager.getBindingModel(manager.getIndexedCondition(0)).get(0).getIntialDyadByIndex(0);
 		plotDyad = semconfig.getPlotDyad();
 		bindingEvents = new ArrayList<BindingEvent>();
@@ -87,7 +95,14 @@ public class BindingMixture {
 	}
 	
 	// Is the model converged?
-	public boolean isConverged() {return converged;}
+	public boolean ifConverged() {
+		//monitor
+		System.err.println("LAP this round: " + LAP);
+		converged = (Math.abs(LAP - lastLAP)/lastLAP)<config.EM_CONVERGENCE;
+		lastLAP = LAP;
+		LAP = 0;
+		return converged;
+	}
 	
 	/**
      * Initialize the global noise parameters. Inferred either from:
@@ -142,10 +157,8 @@ public class BindingMixture {
     		
     		for(Region r : noiseResp.keySet())
     			noiseReads+=noiseResp.get(r)[e];
+    		
     		double newNoisePerBase = noiseReads/config.getGenome().getGenomeLength();
-    		//TODO: now whether model is converged is judged here
-    		if(Math.abs(newNoisePerBase-noisePerBase[e])/noisePerBase[e] >= 0.01)
-    			converged = false;
     		noisePerBase[e] = newNoisePerBase;  //Signal channel noise per base
     		
     		//monitor print updated noisePerBase
@@ -172,6 +185,8 @@ public class BindingMixture {
     
 	public void execute(boolean EM, boolean uniformBindingComponents, EMmode mode) {
 		trainingRound++;
+		progressBar = new ConsoleProgressBar(0, 100, 30, '#');
+		passRegion.set(0);
 		
 		//Have to split the test regions up by chromosome in order to maintain compatibility with experiment file cache loading
 		//There will be some performance hit here, as all threads have to finish in a given chromosome before moving on to the next one. 
@@ -322,6 +337,15 @@ public class BindingMixture {
 								noiseRSums[e] += wComps.car().get(e).getSumResponsibility();
 								currComps.get(e).addAll(wComps.cdr().get(e));
 							}
+							//update the finshied region number and progress bar
+							synchronized(passRegion) {
+								int numPass = passRegion.incrementAndGet();
+								if(numPass % 1e2 == 0) {
+									progressBar.show(100l*(long)numPass/(long)numRegions);
+								} else if (numPass == numRegions) {
+									progressBar.show(100l);
+								}
+							}
 						}
 						
 						//Only non-zero components are returned by analyzeWindow, so add them to the recorded active components
@@ -329,6 +353,7 @@ public class BindingMixture {
 						
 						//Add the sum of noise responsibilities to this region
 						synchronized(noiseResp) { noiseResp.put(rr, noiseRSums);}
+						
 					} else {
 						//Run ML assignment
 						List<BindingEvent> windowBindingEvents = new ArrayList<BindingEvent>();
@@ -401,6 +426,9 @@ public class BindingMixture {
 
             //EM learning: resulting binding components list will only contain non-zero components
             nonZeroComponents = EM.train(signals, w, noiseComponents, bindingComponents, numBindingComponents, atacPrior, trainingRound, mode, timer, plotEM);
+            
+            //Add the log likelihood to the whole model
+            LAP += EM.getLAP();
             
             return new Pair<List<NoiseComponent>, List<List<BindingComponent>>>(noiseComponents, nonZeroComponents);
 		}
@@ -742,7 +770,7 @@ public class BindingMixture {
         	}
         	
         	//if the overhang region is longer than 1/2 maxIR, add one rescue nucleosome on the start or end of region
-        	int maxIR = (int)Math.round(2 * 1.96 * Math.sqrt(config.INIT_FUZZINESS));
+        	int maxIR = (int)Math.round(2 * 2.58 * Math.sqrt(config.INIT_FUZZINESS));
 			int half_maxIR = maxIR / 2;
 			if((currReg.getEnd()-componentPositions.get(componentPositions.size()-1))>half_maxIR) {
 				componentPositions.add(currReg.getEnd());
@@ -759,7 +787,7 @@ public class BindingMixture {
         	for(int i=0; i<(size-1); i++) {
         		int currentPosition = componentPositions.get(i);
         		int nextPosition = componentPositions.get(i+1);
-        		if((nextPosition-currentPosition)>2*maxIR) {
+        		if((nextPosition-currentPosition)>maxIR) {
         			componentPositions.add((currentPosition + nextPosition)/2);
         			numBindingComponents++;
         		}

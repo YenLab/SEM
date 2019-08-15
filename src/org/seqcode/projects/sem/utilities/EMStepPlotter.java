@@ -41,11 +41,11 @@ public class EMStepPlotter {
 			String fileName = dir.getAbsolutePath()+File.separator+"EM_"+regStr+"_hitsInfo.txt";
 			
 			FileWriter fout = new FileWriter(fileName);
-			fout.write("#"+w.getLocationString()+"\n");
-			fout.write("#hitPos\thitSize\thitCount\n");
+			fout.write("#"+w.getLocationString()+"\r\n");
+			fout.write("#hitPos\thitSize\thitCount\r\n");
 			for(int c=0; c<hitPos.length; c++) {
 				for(int i=0; i<hitPos[c].length; i++) {
-					fout.write(hitPos[c][i]+"\t"+hitSize[c][i]+"\t"+hitCount[c][i]+"\n");
+					fout.write(hitPos[c][i]+"\t"+hitSize[c][i]+"\t"+hitCount[c][i]+"\r\n");
 				}
 			}
 			fout.close();
@@ -69,13 +69,13 @@ public class EMStepPlotter {
 			String regStr = plotRegion.getLocationString().replaceAll(":", "-");
 			String fileName = dir.getAbsolutePath()+File.separator+"EM_"+regStr+"_trainingRound"+trainingRound+"_dyadInfo.txt";
 			BufferedWriter bw = new BufferedWriter(new FileWriter(fileName, true));
-			bw.write("#"+plotRegion.getLocationString()+"\n");
-			bw.write("#Iter\tt\tcondition\tindex\tmu\tpi\tfuzz\n");
+			bw.write("#"+plotRegion.getLocationString()+"\r\n");
+			bw.write("#Iter\tt\tcondition\tindex\tmu\tpi\tfuzz\r\n");
 			for(int c=0; c<mu.length; c++) {	
 				for(int j=0; j<mu[c].length; j++) {
 					if(resp[c][j]>0) {
 						bw.write(r+"\t"+t+"\t"+c+"\t"+j+"\t"+mu[c][j]+"\t"+resp[c][j]+"\t"+
-								fuzz[c][j]+"\t"+Arrays.toString(tau[c][j])+"\n");
+								fuzz[c][j]+"\t"+Arrays.toString(tau[c][j])+"\r\n");
 					}
 				}
 			}

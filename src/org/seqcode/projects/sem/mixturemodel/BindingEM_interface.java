@@ -25,4 +25,6 @@ public interface BindingEM_interface {
 			EMmode mode,
 			Timer timer,
 			boolean plotEM) throws Exception;
+	
+	public double getLAP();
 }
