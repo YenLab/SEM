@@ -147,6 +147,8 @@ public class SEM {
 			Timer.reset();
 			
 		}
+		// print nucleosome comparison results to file
+		mixtureModel.printNucleosomeComparisonToFile();
 		// find alternative and consensus nucleosomes after EM mode has converged
 		// alternative nucleosome calling
 //		for(int i=0; i<2; i++) {

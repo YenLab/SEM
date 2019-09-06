@@ -1174,14 +1174,22 @@ public class BindingEM_Statistic implements BindingEM_interface {
         					sum_alpha += currAlpha[c][j] * Math.log(pi[c][j])/semconfig.LOG2;
         				}
         			}
+        			// sum of log rho (Assumption2: Dirichlet prior on subtype probability)
+        			double sum_beta = 0;
+        			for(int j=0; j<numComp; j++) {
+        				if(pi[c][j]>0.0) {
+        					for(int s=0; s<bindingManager.getNumBindingType(manager.getIndexedCondition(c)); s++)
+        						sum_beta += semconfig.SPARSE_PRIOR_SUBTYPE * Math.log(tau[c][j][s])/semconfig.LOG2;
+        				}
+        			}
         			// TODO: add tau prior knowledge
         			// Position prior (Assumption3: Bernouli prior on nucleosome positions)
         			double sum_pos_prior = 0;
         			if(atacPrior!=null && semconfig.useAtacPrior())
         				for(int j=0; j<numComp; j++)
         					sum_pos_prior += atacPrior[c][mu[c][j]-currRegion.getStart()];
-        			
-        			LP += -sum_alpha + sum_pos_prior;
+      
+        			LP += -sum_alpha - sum_beta + sum_pos_prior;
         		}
         		LAP = LL + LP;
         	}
