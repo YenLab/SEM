@@ -18,6 +18,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 	
 	protected int[] trainingData;
 	protected int[] freq;
+	protected int freqSum = 0;
 	protected int size = 0;
 	protected int mixNum = 3;
 	protected double[] weights;
@@ -58,6 +59,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		for(int fz: keys) {
 			trainingData[index] = fz;
 			freq[index] = mergeFragSizeFrequency.get(fz);
+			freqSum += mergeFragSizeFrequency.get(fz);
 			index++;
 		}
 		
@@ -102,6 +104,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		for(int fz: mergeFragSizeFrequency.keySet()) {
 			trainingData[index] = fz;
 			freq[index] = mergeFragSizeFrequency.get(fz);
+			freqSum += mergeFragSizeFrequency.get(fz);
 			index++;
 		}
 		
@@ -158,13 +161,13 @@ public class FiniteGaussianMixture extends AbstractCluster{
 						dn.cindex = j;
 					}
 				}
-				currL += (p > 1E-20) ? Math.log(p) : -20;
+				currL += ((p > 1E-20) ? Math.log(p) : -20) * freq[k];
 			}
-			currL /= size;
+			currL /= freqSum;
 			
 			// Re-estimation: generate new weights, means and variances.
 			for (int j=0; j<mixNum; j++) {
-				weights[j] = next_weights[j] / size;
+				weights[j] = next_weights[j] / freqSum;
 			}
 			
 			// means
@@ -230,15 +233,10 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		// Initialize cluster according to cluster number (assign mean to percentile equally)
 		List<DataNode> cList = new ArrayList<DataNode>();	
 		int[] m_means_index = new int[mixNum];
-		int freq_sum = 0;
-		for(int k=0; k<size; k++) {
-			freq_sum += freq[k];
-		}
 		for(int i=0; i<mixNum; i++) {
-			m_means_index[i] = (int)Math.ceil((double)(i+1)/(double)(mixNum+1) * freq_sum);
+			m_means_index[i] = (int)Math.ceil((double)(i+1)/(double)(mixNum+1) * freqSum);
 		}
-		int index = 0;
-		freq_sum = 0;
+		int index = 0; int freq_sum = 0;
 		for(int k=0; k<size; k++) {
 			freq_sum += freq[k];
 			if(freq_sum >= m_means_index[index]) {
@@ -269,7 +267,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		
 		// Compute weights
 		for(int i=0; i<mixNum; i++) {
-			weights[i] = counts[i] / size;
+			weights[i] = counts[i] / freqSum;
 		}
 		
 		// Compute variance
