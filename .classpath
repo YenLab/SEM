@@ -79,7 +79,7 @@
 	<classpathentry kind="lib" path="lib/tomcat/tomcat-util.jar"/>
 	<classpathentry kind="lib" path="lib/weka/weka-3-7-12.jar"/>
 	<classpathentry kind="lib" path="lib/datumbox/datumbox-framework-core-0.8.1.jar"/>
-	<classpathentry kind="lib" path="lib/seqcode-core/seqcode-core_sem_v1.1.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/HDF5"/>
+	<classpathentry kind="lib" path="D:/Dropbox/Code/seqcode-core-master/target/seqcode-core_sem_v2.0.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>

@@ -3,17 +3,12 @@ package org.seqcode.projects.sem.GMM;
 import java.util.*;
 import java.io.*;
 
-import org.seqcode.projects.sem.events.BindingSubtype;
 import org.seqcode.projects.sem.framework.SEMConfig;
-import org.seqcode.deepseq.experiments.ExperimentManager;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
-import org.seqcode.deepseq.experiments.ControlledExperiment;
-import org.seqcode.gseutils.Pair;
 
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
-import org.apache.commons.math3.distribution.NormalDistribution;
 
 public class FiniteGaussianMixture extends AbstractCluster{
 	protected ExperimentCondition cond;
@@ -22,6 +17,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 	protected List<HashMap<Integer, Integer>> fragSizeFrequency;
 	
 	protected int[] trainingData;
+	protected int[] freq;
 	protected int size = 0;
 	protected int mixNum = 3;
 	protected double[] weights;
@@ -50,19 +46,19 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		//Merge all fragment size frequency to a single frequency
 		for(HashMap<Integer, Integer> d: fragSizeFrequency) {
 			d.forEach((k,v) -> mergeFragSizeFrequency.merge(k, v, (a,b)->a+b));
-			d.forEach((k,v) -> size += v);
 		}
 		
 		//Generate sorted dataset
+		size = mergeFragSizeFrequency.keySet().size();
 		trainingData = new int[size];
+		freq = new int[size];
 		int index=0;
 		int[] keys = new ArrayList<Integer>(mergeFragSizeFrequency.keySet()).stream().mapToInt(Integer::valueOf).toArray();
 		Arrays.sort(keys);
 		for(int fz: keys) {
-			for(int count=0; count<mergeFragSizeFrequency.get(fz); count++) {
-				trainingData[index] = fz;
-				index++;
-			}
+			trainingData[index] = fz;
+			freq[index] = mergeFragSizeFrequency.get(fz);
+			index++;
 		}
 		
 		//Initialize matrix
@@ -97,18 +93,16 @@ public class FiniteGaussianMixture extends AbstractCluster{
         }
         
         mergeFragSizeFrequency  = frequency;
-        for(int i: mergeFragSizeFrequency.keySet()) {
-        	size += mergeFragSizeFrequency.get(i);
-        }
         
 		//Generate dataset
+        size = mergeFragSizeFrequency.keySet().size();
         trainingData = new int[size];
+        freq = new int[size];
 		int index=0;
 		for(int fz: mergeFragSizeFrequency.keySet()) {
-			for(int count=0; count<mergeFragSizeFrequency.get(fz); count++) {
-				trainingData[index] = fz;
-				index++;
-			}
+			trainingData[index] = fz;
+			freq[index] = mergeFragSizeFrequency.get(fz);
+			index++;
 		}
 		
 		//Initialize matrix
@@ -132,7 +126,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		double currL = 0;
 		int unchanged = 0;
 		
-		initParameters(trainingData);
+		initParameters(trainingData, freq);
 		
 		double[] next_means = new double[mixNum];
 		double[] next_weights = new double[mixNum];
@@ -152,12 +146,12 @@ public class FiniteGaussianMixture extends AbstractCluster{
 			currL = 0;
 			for(int k=0; k<size; k++) {
 				double p = getProbability(trainingData[k]);	// Sum of all probability density function on this data point
-				DataNode dn = new DataNode(trainingData[k]);
+				DataNode dn = new DataNode(trainingData[k], freq[k]);
 				dn.index = k;
 				cList.add(dn);
 				double maxResp = Double.MIN_VALUE;
 				for(int j=0; j<mixNum; j++) {					
-					resp[j][k] = getProbability(trainingData[k], j) * weights[j] / p;	// Proportion of a specific PDF on this data point		
+					resp[j][k] = (getProbability(trainingData[k], j) * weights[j] / p ) * freq[k];	// Proportion of a specific PDF on this data point		
 					next_weights[j] += resp[j][k];
 					if(resp[j][k]>maxResp) {
 						maxResp = resp[j][k];
@@ -232,18 +226,33 @@ public class FiniteGaussianMixture extends AbstractCluster{
 	/**
 	 * @param data
 	 */
-	private void initParameters(int[] data) {
+	private void initParameters(int[] data, int[] freq) {
 		// Initialize cluster according to cluster number (assign mean to percentile equally)
 		List<DataNode> cList = new ArrayList<DataNode>();	
+		int[] m_means_index = new int[mixNum];
+		int freq_sum = 0;
+		for(int k=0; k<size; k++) {
+			freq_sum += freq[k];
+		}
 		for(int i=0; i<mixNum; i++) {
-			m_means[i] = data[(int)Math.ceil((double)(i+1)/(double)(mixNum+1) * (double)data.length)];
+			m_means_index[i] = data[(int)Math.ceil((double)(i+1)/(double)(mixNum+1) * freq_sum)];
+		}
+		int index = 0;
+		freq_sum = 0;
+		for(int k=0; k<size; k++) {
+			freq_sum += freq[k];
+			if(freq_sum >= m_means_index[index]) {
+				m_means[index++] = data[k];
+				if(index>=m_means_index.length)
+					break;
+			}
 		}
 		
 		
 		// Assign data points to the closest cluster
 		double[] counts = new double[mixNum];
 		for(int k=0; k<size; k++) {
-			DataNode dn = new DataNode(data[k]);
+			DataNode dn = new DataNode(data[k], freq[k]);
 			dn.index = k;
 			double min = Double.MAX_VALUE;
 			for(int i=0; i<mixNum; i++) {
@@ -254,7 +263,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 					dn.cindex = i;
 				}
 			}
-			counts[dn.cindex]++;
+			counts[dn.cindex]+=freq[k];
 			cList.add(dn);
 		}
 		
@@ -266,13 +275,13 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		// Compute variance
 		for(DataNode dn: cList) {
 			// Count each Gaussian
-				m_vars[dn.cindex] += Math.pow((dn.value - m_means[dn.cindex]), 2);
+			m_vars[dn.cindex] += Math.pow((dn.value - m_means[dn.cindex]), 2) * dn.freq;
 		}
 		
 		// Initialize each Gaussian.
 		for(int i=0; i<mixNum; i++) {
 			if(weights[i]>0) {
-					m_vars[i] = m_vars[i] / counts[i];
+				m_vars[i] = m_vars[i] / counts[i];
 			}
 		}
 		
@@ -325,10 +334,12 @@ public class FiniteGaussianMixture extends AbstractCluster{
 	public class DataNode {
 		public int cindex; // cluster
 		public int index;
+		public int freq;
 		public double value;
 		
-		public DataNode(double v) {
+		public DataNode(double v, int f) {
 			this.value = v;
+			this.freq = f;
 			cindex = -1;
 			index = -1;
 		}
