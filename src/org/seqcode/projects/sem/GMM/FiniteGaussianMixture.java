@@ -235,7 +235,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 			freq_sum += freq[k];
 		}
 		for(int i=0; i<mixNum; i++) {
-			m_means_index[i] = data[(int)Math.ceil((double)(i+1)/(double)(mixNum+1) * freq_sum)];
+			m_means_index[i] = (int)Math.ceil((double)(i+1)/(double)(mixNum+1) * freq_sum);
 		}
 		int index = 0;
 		freq_sum = 0;
