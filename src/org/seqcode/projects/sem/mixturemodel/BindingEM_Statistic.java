@@ -247,45 +247,45 @@ public class BindingEM_Statistic implements BindingEM_interface {
 			hitCounts[c] = countc;
 			hitSize[c] = sizec;
 			
-			//test: collapse duplicate fragments when fragment density is higher than 10/bp
-			if(numPairs/w.getWidth()>=10) {
-				System.out.println("Collapsing high density region");
-				int uniquePos=1;
-				for(int k=0; k < hitPos[c].length-1; k++) {
-					if(hitSize[c][k+1] != hitSize[c][k] ||
-							hitPos[c][k+1] != hitPos[c][k] ||
-							repIndices[c][k+1] != repIndices[c][k]) {
-						uniquePos++;
-					}
+			timer.extra_start();
+			//Collapse duplicate fragments to reduce compuatation time
+			int uniquePos=1;
+			for(int k=0; k < hitPos[c].length-1; k++) {
+				if(hitSize[c][k+1] != hitSize[c][k] ||
+						hitPos[c][k+1] != hitPos[c][k] ||
+						repIndices[c][k+1] != repIndices[c][k]) {
+					uniquePos++;
 				}
-				int[] tmphitPos = new int[uniquePos];
-				int[] tmphitSize = new int[uniquePos];
-				double[] tmphitCounts = new double[uniquePos];
-				int[] tmprepIndices = new int[uniquePos];
-				int x=0;
-				tmphitPos[x] = hitPos[c][0];
-				tmphitSize[x] = hitSize[c][0];
-				tmphitCounts[c] += hitCounts[c][0];
-				tmprepIndices[c] = repIndices[c][0];
-				for(int k=1; k<hitPos[c].length; k++) {
-					if(hitSize[c][k-1] != hitSize[c][k] ||
-							hitPos[c][k-1] != hitPos[c][k] ||
-							repIndices[c][k-1] != repIndices[c][k]) {
-						x++;
-					}
-					tmphitPos[x] = hitPos[c][k];
-					tmphitSize[x] = hitSize[c][k];
-					tmphitCounts[x] += hitCounts[c][k];
-					tmprepIndices[x] = repIndices[c][k];
-				}
-				hitPos[c] = tmphitPos;
-				hitSize[c] = tmphitSize;
-				hitCounts[c] = tmphitCounts;
-				repIndices[c] = tmprepIndices;
-				
-				numPairs = hitPos[c].length;
-				hitNum[c] = numPairs;
 			}
+			int[] tmphitPos = new int[uniquePos];
+			int[] tmphitSize = new int[uniquePos];
+			double[] tmphitCounts = new double[uniquePos];
+			int[] tmprepIndices = new int[uniquePos];
+			int x=0;
+			tmphitPos[x] = hitPos[c][0];
+			tmphitSize[x] = hitSize[c][0];
+			tmphitCounts[c] += hitCounts[c][0];
+			tmprepIndices[c] = repIndices[c][0];
+			for(int k=1; k<hitPos[c].length; k++) {
+				if(hitSize[c][k-1] != hitSize[c][k] ||
+						hitPos[c][k-1] != hitPos[c][k] ||
+						repIndices[c][k-1] != repIndices[c][k]) {
+					x++;
+				}
+				tmphitPos[x] = hitPos[c][k];
+				tmphitSize[x] = hitSize[c][k];
+				tmphitCounts[x] += hitCounts[c][k];
+				tmprepIndices[x] = repIndices[c][k];
+			}
+			hitPos[c] = tmphitPos;
+			hitSize[c] = tmphitSize;
+			hitCounts[c] = tmphitCounts;
+			repIndices[c] = tmprepIndices;
+			
+			numPairs = hitPos[c].length;
+			hitNum[c] = numPairs;
+			
+			timer.extra_end();;
 			
 			// Load pi for binding components
 			for(int j=0;j<numComp; j++) {
@@ -1234,7 +1234,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
         } //LOOP: Run EM while not converged
         
 //        //monitor
-//        if(currRegion.getStart()==6764) {
 //	        System.out.println(currRegion.toString());
 //	        for(ExperimentCondition cond: manager.getConditions()) {
 //	        	int c = cond.getIndex();
@@ -1267,7 +1266,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
 //				System.out.println("\tbinding component sum resp: " + bind_resp);
 //	        }
 //	        System.exit(1);
-//        }
         
     } // end of EM_MAP method
 	
