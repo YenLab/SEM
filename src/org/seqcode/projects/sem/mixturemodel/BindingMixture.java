@@ -346,6 +346,10 @@ public class BindingMixture {
 									progressBar.show(100l);
 								}
 							}
+							//Free memory
+							wComps.car().clear();
+							wComps.cdr().clear();
+							wComps = null;
 						}
 						
 						//Only non-zero components are returned by analyzeWindow, so add them to the recorded active components
@@ -376,14 +380,8 @@ public class BindingMixture {
 			
 			// Determine which BindingEM method will be used
 			BindingEM_interface EM;
-			if(config.getTestMode()==0) {
-//				BindingEM EM = new BindingEM(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
-				EM = new BindingEM_Statistic(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
-			} else if(config.getTestMode()==1) {
-				EM = new BindingEM_Test(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
-			} else {
-				EM = new BindingEM_Test2(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
-			}
+			EM = new BindingEM_Statistic(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
+				
 			List<List<BindingComponent>> bindingComponents = null;
 			List<NoiseComponent> noiseComponents = null;
 			List<List<BindingComponent>> nonZeroComponents = new ArrayList<List<BindingComponent>>();
@@ -429,6 +427,13 @@ public class BindingMixture {
             
             //Add the log likelihood to the whole model
             LAP += EM.getLAP();
+            
+            //Free memory
+            signals.clear();
+            signals = null;
+            bindingComponents.clear();
+            bindingComponents = null;
+            EM = null;
             
             return new Pair<List<NoiseComponent>, List<List<BindingComponent>>>(noiseComponents, nonZeroComponents);
 		}

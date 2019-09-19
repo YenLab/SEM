@@ -334,6 +334,11 @@ public class PotentialRegionFilter {
 					}
                 }
                 threadPotentials = filterExcluded(threadPotentials);
+                
+                // set large object variables to null to save memory
+                ipHits = null;
+                backHits = null;
+                ipHitsByRep = null;
             }
         	if(threadPotentials.size()>0){
         		synchronized(potentialRegions){

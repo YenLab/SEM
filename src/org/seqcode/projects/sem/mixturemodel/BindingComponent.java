@@ -70,7 +70,9 @@ public class BindingComponent implements Comparable<BindingComponent>{
 		maxIR = (int)(Math.sqrt(fuzziness * 1.96 * 2));
 	}
 	public void setTau(double[] t) {
-		tau=t; 
+		tau=new double[t.length];
+		for(int i=0; i<t.length; i++)
+			tau[i] = t[i];
 		isSubtype=true;
 		
 		//Set subtype with highest probability as the subtype of this component
