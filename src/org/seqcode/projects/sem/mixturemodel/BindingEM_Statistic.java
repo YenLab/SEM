@@ -282,6 +282,11 @@ public class BindingEM_Statistic implements BindingEM_interface {
 			hitCounts[c] = tmphitCounts;
 			repIndices[c] = tmprepIndices;
 			
+			tmphitCounts = null;
+			tmphitSize = null;
+			tmphitPos = null;
+			tmprepIndices = null;
+			
 			numPairs = hitPos[c].length;
 			hitNum[c] = numPairs;
 			

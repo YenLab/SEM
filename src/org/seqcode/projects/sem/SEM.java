@@ -98,6 +98,9 @@ public class SEM {
 			System.exit(1);
 		}
 		potentialFilter.printPotentialRegionsToFile();
+		
+		// TODO: GC here, but I don't think it's a good way to clear memory, I think there might be something wrong
+		System.gc();
 	}
 	
 	//Run the mixture model to find binding events
