@@ -282,8 +282,8 @@ public class BindingMixture {
 	    				fout.write(rr.getLocationString()+"\t"+manager.getIndexedCondition(cond.getIndex()).getName()+"\t"+comp.toString()+"\t");
 	    				for(Pair<Integer, Integer> index: comp.getCompareRestulsConvert().keySet()) {
 	    					fout.write(manager.getIndexedCondition(index.car()).getName()+"\t"+comps.get(index.car()).get(index.cdr()).toString());
-	    					fout.write("\t"+comp.getCompareRestulsConvert().get(index).cdr());
-	    					fout.write("\t"+comp.getCompareRestulsConvert().get(index).car());
+	    					fout.write("\t"+Arrays.toString(comp.getCompareRestulsConvert().get(index).cdr()));
+	    					fout.write("\t"+Arrays.toString(comp.getCompareRestulsConvert().get(index).car()));
 	    				}
 	    				fout.write("\n");
 	    			}

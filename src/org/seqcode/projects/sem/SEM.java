@@ -49,7 +49,7 @@ public class SEM {
 		manager = eMan;
 		semconfig = c;
 		semconfig.makeSEMOutputDirs(true);
-		bindingManager = new BindingManager(evconfig, manager);
+		bindingManager = new BindingManager(semconfig, evconfig, manager);
 		
 		System.out.println("Pair count: "+manager.getSamples().get(0).getPairCount());
 		
@@ -99,7 +99,7 @@ public class SEM {
 		}
 		potentialFilter.printPotentialRegionsToFile();
 		
-		// TODO: GC here, but I don't think it's a good way to clear memory, I think there might be something wrong
+		// TODO: GC here, but I don't think it's a good way to clear memory, I think there might be some better methods
 		System.gc();
 	}
 	
@@ -138,7 +138,7 @@ public class SEM {
 			round++;
 		
 			//Check for convergence
-			if(round>=semconfig.getMaxModelUpdateRounds() || (mixtureModel.ifConverged() && round>semconfig.getMinModelUpdateRounds())) {
+			if(round>=semconfig.getMaxModelUpdateRounds() || (mixtureModel.ifConverged() && round>=semconfig.getMinModelUpdateRounds())) {
 				converged=true;
 			}else {
 				converged=false;
@@ -152,6 +152,8 @@ public class SEM {
 		}
 		// print nucleosome comparison results to file
 		mixtureModel.printNucleosomeComparisonToFile();
+		// print subtypes info
+		bindingManager.printSubtypes();
 		// find alternative and consensus nucleosomes after EM mode has converged
 		// alternative nucleosome calling
 //		for(int i=0; i<2; i++) {

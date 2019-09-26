@@ -10,6 +10,8 @@ import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
 
+
+
 public class FiniteGaussianMixture extends AbstractCluster{
 	protected ExperimentCondition cond;
 	protected SEMConfig semconfig;
@@ -120,7 +122,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 	 */
 	@Override
 	public void excute() {	
-		int m_maxIterNum = 100;
+		int m_maxIterNum = 500;
 		double err = 0.00001;
 		
 		boolean loop = true;
@@ -206,6 +208,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 				System.out.println("["+j+"]");
 				System.out.println("means: "+m_means[j]);
 				System.out.println("vars: "+m_vars[j]);
+				System.out.println("weight: " + weights[j]);
 				System.out.println();
 		}
 		
@@ -215,9 +218,9 @@ public class FiniteGaussianMixture extends AbstractCluster{
 //		}
 		
 		// Put data into map
-		clusterMu = new HashMap<Integer, RealVector>();
-		clusterSigma = new HashMap<Integer, RealMatrix>();
-		clusterWeight = new HashMap<Integer, Double>();
+		clusterMu = new LinkedHashMap<Integer, RealVector>();
+		clusterSigma = new LinkedHashMap<Integer, RealMatrix>();
+		clusterWeight = new LinkedHashMap<Integer, Double>();
 		
 		for(int j=0; j<mixNum; j++) {
 			clusterMu.put(j, MatrixUtils.createRealVector(new double[] {m_means[j]}));
@@ -246,23 +249,51 @@ public class FiniteGaussianMixture extends AbstractCluster{
 			}
 		}
 		
-		
 		// Assign data points to the closest cluster
+		double[] next_means = new double[mixNum];
 		double[] counts = new double[mixNum];
-		for(int k=0; k<size; k++) {
-			DataNode dn = new DataNode(data[k], freq[k]);
-			dn.index = k;
-			double min = Double.MAX_VALUE;
-			for(int i=0; i<mixNum; i++) {
-				double distance=0;
-				distance = Math.abs(data[k]-m_means[i]);
-				if(distance<min) {
-					min=distance;
-					dn.cindex = i;
+		int unchanged = 0;
+		int loopNum = 0;
+		while(true) {
+			counts = new double[mixNum];
+			next_means = new double[mixNum];
+			cList.clear();
+			for(int k=0; k<size; k++) {
+				DataNode dn = new DataNode(data[k], freq[k]);
+				dn.index = k;
+				double min = Double.MAX_VALUE;
+				for(int i=0; i<mixNum; i++) {
+					double distance=0;
+					distance = Math.abs(data[k]-m_means[i]);
+					if(distance<min) {
+						min=distance;
+						dn.cindex = i;
+					}
 				}
+				counts[dn.cindex]+=freq[k];
+				cList.add(dn);
 			}
-			counts[dn.cindex]+=freq[k];
-			cList.add(dn);
+			
+			// compute new means
+			for(DataNode dn: cList) {
+				next_means[dn.cindex] += dn.freq * dn.value;
+			}
+			
+			for(int i=0; i<mixNum; i++)
+				next_means[i] /= counts[i];
+						
+			// check termination
+			double diff = 0;
+			for(int i=0; i<mixNum; i++)
+				diff += Math.abs(m_means[i]-next_means[i]);
+			if(diff<5)
+				unchanged++;
+			loopNum++;
+			
+			m_means = next_means.clone();
+			
+			if(unchanged>=5 || loopNum>=100)
+				break;
 		}
 		
 		// Compute weights
@@ -346,7 +377,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 	//GMM on low MNase data from MPE-seq
 	public static void main(String[] args) {
 		String csvSplitBy = "\t";
-		String folderName = "C:\\Users\\Administrator\\Dropbox\\Code\\GaussianDPMM_fragSize_sample\\LM_H3_rep2\\";
+		String folderName = "D:\\Dropbox\\Code\\GaussianDPMM_fragSize_sample\\LM_H3_rep2\\";
 		for(int index=0; index<1; index++) {
 			String csvFile = folderName + "fragSizeFrequencySample" + index;
 			String outFile = folderName + "ClusterParameters" + index;

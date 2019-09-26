@@ -86,7 +86,7 @@ public class BindingSubtype {
 	
 	@Override
 	public String toString() {
-		return new String("mean: "+Double.toString(mean)+"\nvar: "+Double.toString(var)+"\nweight: "+Double.toString(weight));
+		return new String("index: " + index + "\t" + "mean: "+Double.toString(mean)+"\tvar: "+Double.toString(var)+"\tweight: "+Double.toString(weight));
 	}
 	
 	public static void main(String[] args) {

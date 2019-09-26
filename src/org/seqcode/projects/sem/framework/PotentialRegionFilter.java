@@ -476,15 +476,9 @@ public class PotentialRegionFilter {
 	        	            if(!inPot) {
 	        	            	currNonPotWeightSig+=hit.getWeight();
 	        	            	//Add hit to frequency channel
-	        	            	try {
+	        	            	synchronized(nonPotRegFragSizeFreqSigChannel) {
 	        	            		double frequency = nonPotRegFragSizeFreqSigChannel.get(cond).containsKey(hit.getFragmentSize())? nonPotRegFragSizeFreqSigChannel.get(cond).get(hit.getFragmentSize()):0;
-        	            		nonPotRegFragSizeFreqSigChannel.get(cond).put(hit.getFragmentSize(), frequency+hit.getWeight());
-	        	            	} catch (Exception e) {
-	        	            		e.printStackTrace();
-	        	            		System.out.println(cond.getName());
-	        	            		System.out.println(hit.getFragmentSize());
-	        	            		System.out.println(hit.toString());
-	        	            		System.exit(1);
+	        	            		nonPotRegFragSizeFreqSigChannel.get(cond).put(hit.getFragmentSize(), frequency+hit.getWeight());
 	        	            	}
 	        	            }
         				}

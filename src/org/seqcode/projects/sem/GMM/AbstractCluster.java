@@ -3,16 +3,16 @@ package org.seqcode.projects.sem.GMM;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
 import org.apache.commons.math3.linear.MatrixUtils;
-import org.seqcode.gseutils.Pair;
 
 public abstract class AbstractCluster {
-	protected Map<Integer, RealVector> clusterMu;	// Means of clusters
-	protected Map<Integer, RealMatrix> clusterSigma;	// Variances of clusters
-	protected Map<Integer, Double> clusterWeight;	// Weights of clusters
+	protected LinkedHashMap<Integer, RealVector> clusterMu;	// Means of clusters
+	protected LinkedHashMap<Integer, RealMatrix> clusterSigma;	// Variances of clusters
+	protected LinkedHashMap<Integer, Double> clusterWeight;	// Weights of clusters
 	
 	//Accessors
 	public Map<Integer, RealVector> getMu() {return clusterMu;}

@@ -50,7 +50,7 @@ public class SEMConfig {
 	protected int posPriorScaling = 10; //???
 	protected int maxThreads = 1;
 	protected double alphaScalingFactor = 1.0; //Scaling the condition-specific alpha value by this factor
-	protected double fixedAlpha = 10; //Fixed alpha value if >= 0 else automatic mode (use 1 to find potential regions then automatically adjust alpha each EM round)
+	protected double fixedAlpha = 1; //Fixed alpha value if >= 0 else automatic mode (use 1 to find potential regions then automatically adjust alpha each EM round)
 	protected double betaScalingFactor = 0.05; //Scale the condition and component-specfic beta value by this factor (May change @ Jianyu Yang)
 	protected double extendWindow = 500; //Range extension around gff points
 	protected double prob_shared_binding = 0.9; //Prior probability that binding sites are shared between conditions
@@ -95,7 +95,7 @@ public class SEMConfig {
 	public final int POSPRIOR_ITER = 15; // &
 	public final int FUZZINESS_ANNEALING_ITER = 2; // & Update fuzziness every ? turns
 	public final int TAU_ANNEALING_ITER = 2; // & Update tau every ? turns
-	public final double SPARSE_PRIOR_SUBTYPE = 0.05; // &
+	public final double SPARSE_PRIOR_SUBTYPE = 0.3; // &
 	public final boolean CALC_LL = true; // &
 	public final double EM_CONVERGENCE = 0.01; // &
 	public final int INIT_COMPONENT_SPACING = 100; // &
@@ -178,8 +178,7 @@ public class SEMConfig {
 				alphaScalingFactor = Args.parseDouble(args,"alphascale",alphaScalingFactor);
 				//Fixed alpha value
 				fixedAlpha = Args.parseDouble(args,"fixedalpha",fixedAlpha);
-				// fixedAlpha should be at least >=1 to avoid nucleosomes with only one fragment support
-				// which will have a 0 fuzziness
+				// fixedAlpha should be at least >=1 to avoid nucleosomes with less than one fragment support
 				if(fixedAlpha >= 0)
 					fixedAlpha = Math.max(fixedAlpha, 1);
 				//Beta scaling factor

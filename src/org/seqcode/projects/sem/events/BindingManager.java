@@ -3,15 +3,16 @@ package org.seqcode.projects.sem.events;
 import java.io.*;
 import java.util.*;
 
+import org.junit.experimental.theories.FromDataPoints;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;
-import org.seqcode.genome.location.Region;
-import org.seqcode.genome.location.StrandedPoint;
-import org.seqcode.gseutils.Pair;
 import org.seqcode.projects.sem.events.BindingEvent;
 import org.seqcode.projects.sem.events.BindingModel;
 import org.seqcode.projects.sem.events.BindingSubtype;
+import org.seqcode.projects.sem.framework.SEMConfig;
+
+import umontreal.ssj.functionfit.BSpline;
 
 /**
  * BindingManager stores lists of binding events and motifs associated with experiment conditions,
@@ -21,7 +22,7 @@ import org.seqcode.projects.sem.events.BindingSubtype;
  */
 
 public class BindingManager {
-	
+	protected SEMConfig semconfig;
 	protected EventsConfig config;
 	protected ExperimentManager manager;
 	protected List<BindingEvent> events;
@@ -34,7 +35,8 @@ public class BindingManager {
 	protected Map<ExperimentCondition, Integer> maxInfluenceRange;
 	protected Map<ExperimentCondition, double[][]> cachePDF; // &Indexed by ExperimentCondition:BindingSubtype index:fragment size
 	
-	public BindingManager(EventsConfig con, ExperimentManager exptman) {
+	public BindingManager(SEMConfig sconfig, EventsConfig con, ExperimentManager exptman) {
+		semconfig = sconfig;
 		config = con;
 		manager = exptman;
 		events = new ArrayList<BindingEvent>();
@@ -146,5 +148,22 @@ public class BindingManager {
 					count++;
 		}
 		return count;
+	}
+	
+	//Print the subtypes information into a file
+	public void printSubtypes() {
+		String filename = semconfig.getOutputIntermediateDir()+File.separator+semconfig.getOutBase() + "_subtypes.info";
+		try {
+			FileWriter fout = new FileWriter(filename);
+			for(ExperimentCondition cond: manager.getConditions()) {
+				fout.write(cond.getName() + "\n");
+				for(BindingSubtype bs: bindingSubtypes.get(cond)) {
+					fout.write("\t" + bs + "\n");
+				}
+			}
+			fout.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }

@@ -14,6 +14,8 @@ import org.seqcode.genome.GenomeConfig;
 import org.seqcode.genome.location.Region;
 import org.seqcode.projects.sem.framework.SEMConfig;
 
+import org.seqcode.genome.location.Point;
+
 /**
  * BindingModel defines a (probabilistic) model of read occurrences around a binding event.
  * In SEM, we assume fragment midpoints follow a Gaussian distribution around nucleosome dyad location
@@ -29,7 +31,7 @@ public class BindingModel {
 	
 	protected double initialFuzziness;
 	protected String initialDyadFile;
-	protected List<Pair<String, Integer>> initialDyad;
+	protected List<Point> initialDyad;
 	protected Map<Integer, Double> pairFreqAroundInitialDyad;
 	
 	protected static boolean isCache = false;
@@ -48,7 +50,7 @@ public class BindingModel {
 		gconfig = gc;
 		cond = ec;
 		initialDyadFile = dyadFile;
-		initialDyad = new ArrayList<Pair<String, Integer>>();
+		initialDyad = new ArrayList<Point>();
 		
 		initialFuzziness = semconfig.INIT_FUZZINESS;
 		maxIR = (int)Math.rint(Math.sqrt(initialFuzziness) * 1.96) * 2;
@@ -56,12 +58,14 @@ public class BindingModel {
 		//monitor
 		System.out.println("Initialize Fuzziness: "+initialFuzziness);
 		System.out.println("Initialize maxIR: "+maxIR);
+		
+		if(!initialDyadFile.equals(""))
+			initializeFuzziness();
 	};
 	
 	//Accessors
 	public double getIntialFuzziness() {return initialFuzziness;}
 	public int getMaxInfluenceRange() {return maxIR;}
-	public Pair<String, Integer> getIntialDyadByIndex(int index) {return initialDyad.get(index);}
 	
 	//Look up the probability corresponding to a distance
 	//Distance should be defined as (Read position - Peak position)
@@ -96,6 +100,14 @@ public class BindingModel {
 		}
 	}
 	
+	public boolean contains(Region r) {
+		for(Point p: initialDyad)
+			if(r.contains(p))
+				return true;
+		return false;
+	}
+	
+	
 	private void initializeFuzziness() {
 		// read in initial dyad location
 		try {
@@ -105,48 +117,48 @@ public class BindingModel {
 				if(line.charAt(0) == '#') {continue;}
 				// use \t as delimiter
 				String[] info = line.split("\t");
-				initialDyad.add(new Pair<String, Integer>(info[0].replaceFirst("^chromosome", "").
-																	replaceFirst("^chrom", "").replaceFirst("^chr", ""), Integer.parseInt(info[1])));
+				initialDyad.add(new Point(gconfig.getGenome(), info[0].replaceFirst("^chromosome", "").
+												replaceFirst("^chrom", "").replaceFirst("^chr", ""), Integer.parseInt(info[1])));
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}	
 		
 		// Initialize frequency map
-		pairFreqAroundInitialDyad = new HashMap<Integer, Double>();
-		for(int i=-75; i<=75; i++) {
-			pairFreqAroundInitialDyad.put(i, 0.);
-		}
-		
-		for(Pair<String, Integer> p: initialDyad) {
-			//Get strandedPair around dyad +/- 75bp
-			int start = (p.cdr()-75)>0 ? (p.cdr()-75) : 0;
-			int end = p.cdr() + 75;
-			Region r = new Region(gconfig.getGenome(), p.car(), start, end);
-			List<StrandedPair> pairs = new ArrayList<StrandedPair>();
-			for(ControlledExperiment rep: cond.getReplicates()) {
-				pairs.addAll(rep.getSignal().getPairsByMid(r));
-			}
-			
-			//Add strandedPair into frequency map
-			for (StrandedPair pair: pairs) {
-				int distance = p.cdr() - pair.getMidpoint().getLocation();
-				pairFreqAroundInitialDyad.put(distance, pairFreqAroundInitialDyad.get(distance) + pair.getWeight());
-			}
-		}
-		
-		//Compute initial fuzziness for all nucleosomes
-		initialFuzziness = 0;
-		double sumWeight = 0;
-		for(int dis: pairFreqAroundInitialDyad.keySet()) {
-			initialFuzziness += Math.pow(dis, 2) * pairFreqAroundInitialDyad.get(dis);
-			sumWeight += pairFreqAroundInitialDyad.get(dis);
-		}
-		initialFuzziness /= sumWeight;	
-		if(Double.isNaN(initialFuzziness)) {
-			System.err.println("NaN initialized fuzziness detected, set 100 as initial fuzziness");
-			initialFuzziness = 2500;
-		}
+//		pairFreqAroundInitialDyad = new HashMap<Integer, Double>();
+//		for(int i=-75; i<=75; i++) {
+//			pairFreqAroundInitialDyad.put(i, 0.);
+//		}
+//		
+//		for(Pair<String, Integer> p: initialDyad) {
+//			//Get strandedPair around dyad +/- 75bp
+//			int start = (p.cdr()-75)>0 ? (p.cdr()-75) : 0;
+//			int end = p.cdr() + 75;
+//			Region r = new Region(gconfig.getGenome(), p.car(), start, end);
+//			List<StrandedPair> pairs = new ArrayList<StrandedPair>();
+//			for(ControlledExperiment rep: cond.getReplicates()) {
+//				pairs.addAll(rep.getSignal().getPairsByMid(r));
+//			}
+//			
+//			//Add strandedPair into frequency map
+//			for (StrandedPair pair: pairs) {
+//				int distance = p.cdr() - pair.getMidpoint().getLocation();
+//				pairFreqAroundInitialDyad.put(distance, pairFreqAroundInitialDyad.get(distance) + pair.getWeight());
+//			}
+//		}
+//		
+//		//Compute initial fuzziness for all nucleosomes
+//		initialFuzziness = 0;
+//		double sumWeight = 0;
+//		for(int dis: pairFreqAroundInitialDyad.keySet()) {
+//			initialFuzziness += Math.pow(dis, 2) * pairFreqAroundInitialDyad.get(dis);
+//			sumWeight += pairFreqAroundInitialDyad.get(dis);
+//		}
+//		initialFuzziness /= sumWeight;	
+//		if(Double.isNaN(initialFuzziness)) {
+//			System.err.println("NaN initialized fuzziness detected, set 100 as initial fuzziness");
+//			initialFuzziness = 2500;
+//		}
 	}
 	
 	public static void main(String[] args) {
