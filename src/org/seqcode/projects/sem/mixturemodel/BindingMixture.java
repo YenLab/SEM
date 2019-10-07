@@ -98,7 +98,7 @@ public class BindingMixture {
 	public boolean ifConverged() {
 		//monitor
 		System.err.println("LAP this round: " + LAP);
-		converged = (Math.abs(LAP - lastLAP)/lastLAP)<config.EM_CONVERGENCE;
+		converged = Math.abs((LAP - lastLAP)/lastLAP)<config.EM_CONVERGENCE;
 		lastLAP = LAP;
 		LAP = 0;
 		return converged;

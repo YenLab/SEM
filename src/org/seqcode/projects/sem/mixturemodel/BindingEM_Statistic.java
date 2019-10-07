@@ -1380,19 +1380,20 @@ public class BindingEM_Statistic implements BindingEM_interface {
         } //LOOP: Run EM while not converged
         
 //        //monitor
-//	        System.out.println(currRegion.toString());
-//	        for(ExperimentCondition cond: manager.getConditions()) {
-//	        	int c = cond.getIndex();
-//	    		System.out.println("Binding Components:");
-//	        	for(int j=0; j<numComp; j++) {
-//	        		if(sumResp[c][j]>0) {
-//		        		System.out.println("\tindex: " + j);
-//		        		System.out.println("\tmu: " + mu[c][j]);
-//		        		System.out.println("\tfuzz: " + fuzz[c][j]);
-//		        		System.out.println("\tsumResp: "+ sumResp[c][j]);
-//		        		System.out.println("\ttau: " + Arrays.toString(tau[c][j]));
-//	        		}
-//	        	}
+	        System.out.println(currRegion.toString());
+	        for(ExperimentCondition cond: manager.getConditions()) {
+	        	int c = cond.getIndex();
+	    		System.out.println("Binding Components:");
+	        	for(int j=0; j<numComp; j++) {
+	        		if(sumResp[c][j]>0) {
+		        		System.out.println("\tindex: " + j);
+		        		System.out.println("\tmu: " + mu[c][j]);
+		        		System.out.println("\tfuzz: " + fuzz[c][j]);
+		        		System.out.println("\tsumResp: "+ sumResp[c][j]);
+		        		System.out.println("\ttau: " + Arrays.toString(tau[c][j]));
+	        		}
+	        	}
+	        }
 //	        	System.out.println("rNoise > 0.5");
 //	            for(int i=0; i<hitNum[c]; i++) {
 //	            	if(rNoise[c][i]>0.5) {
