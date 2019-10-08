@@ -27,7 +27,7 @@ import org.seqcode.motifs.FreqMatrixImport;
 
 /**
  * SEMConfig:
- * 		Maintains all constants needed by ChExMix.
+ * 		Maintains all constants needed by SEM.
  * 
  * @author Jianyu Yang
  * @version
@@ -190,7 +190,7 @@ public class SEMConfig {
 				//Window size for extracting tag counts
 				modelRange = Args.parseInteger(args,"mrange",modelRange);
 				//Number of clusters to divide fragment size frequency distribution
-				numClusters = Args.parseInteger(args, "numClusters", -1);
+				numClusters = Args.parseInteger(args, "numClusters", numClusters);
 				//Initial dyad location file for fuzziness initialization
 				initialDyad = Args.parseString(args, "initialDyad", "");
 				//Run SEM using BindingEM_test.java instead of BindingEM_Statistic ?

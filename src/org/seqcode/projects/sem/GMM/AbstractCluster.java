@@ -18,6 +18,7 @@ public abstract class AbstractCluster {
 	public Map<Integer, RealVector> getMu() {return clusterMu;}
 	public Map<Integer, RealMatrix> getSigma() {return clusterSigma;}
 	public Map<Integer, Double> getWeight() {return clusterWeight;}
+	public int getNumClusters() {return clusterMu.size();}
 	
 	public abstract void excute();
 	

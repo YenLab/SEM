@@ -51,8 +51,6 @@ public class SEM {
 		semconfig.makeSEMOutputDirs(true);
 		bindingManager = new BindingManager(semconfig, evconfig, manager);
 		
-		System.out.println("Pair count: "+manager.getSamples().get(0).getPairCount());
-		
 		//Insert fragment size distribution initializing here
 		System.err.println("Doing GMM on fragment size");
 		condModels = new HashMap<ExperimentCondition, List<BindingSubtype>>();
@@ -66,7 +64,14 @@ public class SEM {
 		}
 		//Employ GMM on each experiment condition's fragment size distribution
 		for(ExperimentCondition cond: manager.getConditions()) {
-			gmm = GMMFactory.getGMMClass(cond, semconfig, condFragSizeFrequency.get(cond));
+			int numClusters = semconfig.getNumClusters();
+			// Use DPMM to determine the number of clusters first if numClusters not specified
+			if(numClusters<=0) {
+				gmm = GMMFactory.getGMMClass(cond, semconfig, condFragSizeFrequency.get(cond), -1);
+				gmm.excute();
+				numClusters = gmm.getNumClusters();
+			}
+			gmm = GMMFactory.getGMMClass(cond, semconfig, condFragSizeFrequency.get(cond), numClusters);
 			gmm.excute();
 			List<BindingSubtype> fragSizeSubtypes = new ArrayList<BindingSubtype>();
 			int index=0;
@@ -78,6 +83,10 @@ public class SEM {
 			bindingManager.cache();
 			bindingManager.updateNumBindingTypes();
 		}
+		
+		//monitor
+		manager.close();
+		System.exit(1);
 		
 		//Insert bindingModel initialization here
 		condBindingModels = new HashMap<ExperimentCondition, List<BindingModel>>();
