@@ -205,7 +205,7 @@ public class SEMConfig {
 				consensusExclusion = Args.parseInteger(args, "consensusExclusion", consensusExclusion);
 				//Output path
 				DateFormat df = new SimpleDateFormat("yyyy-MM-dd-hh-mm-ss");  
-			    df.setTimeZone(TimeZone.getTimeZone("EST"));
+			    df.setTimeZone(TimeZone.getTimeZone("GMT+8"));
 				outName = Args.parseString(args, "out", outName+"_"+df.format(new Date()));
 				outDir =  new File(outName); //Output directory
 				outBase = outDir.getName(); //Last part of name

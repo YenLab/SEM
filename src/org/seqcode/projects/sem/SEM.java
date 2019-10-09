@@ -84,10 +84,6 @@ public class SEM {
 			bindingManager.updateNumBindingTypes();
 		}
 		
-		//monitor
-		manager.close();
-		System.exit(1);
-		
 		//Insert bindingModel initialization here
 		condBindingModels = new HashMap<ExperimentCondition, List<BindingModel>>();
 		for(ExperimentCondition cond:manager.getConditions()) {

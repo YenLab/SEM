@@ -281,6 +281,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
 			hitCounts[c] = tmphitCounts;
 			repIndices[c] = tmprepIndices;
 			
+			
 			tmphitCounts = null;
 			tmphitSize = null;
 			tmphitPos = null;
@@ -477,7 +478,7 @@ public class BindingEM_Statistic implements BindingEM_interface {
         		pairIndexAroundMu.add(new HashMap<Integer, Pair<Integer, Integer>>());
         		for(int j=0; j<numComp; j++) {
         			// Get half 95% influence range for each nucleosome
-        			maxIR[c][j] = (int)(Math.sqrt(fuzz[c][j]) * 2.58 * 2);
+        			maxIR[c][j] = (int)(Math.sqrt(fuzz[c][j]) * 1.96 * 2);
         			int half_maxIR = maxIR[c][j] / 2;
         			
         			// Increase speed by binary search
@@ -1126,7 +1127,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
 //        			}
         			
         			// A test version to find overlap
-        			timer.extra_start();
         			int minExIndex = -1;
         			List<Region> nonOverlapRegions = new ArrayList<Region>();
         			for(int j: indexes) {
@@ -1143,7 +1143,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
     							minExIndex = j;
         				}
         			}
-        			timer.extra_end();
         			
         			// Second test version
 //        			int minExIndex = -1;

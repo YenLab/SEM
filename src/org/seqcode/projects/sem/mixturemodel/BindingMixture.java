@@ -378,6 +378,7 @@ public class BindingMixture {
 //			System.err.println("Region: "+w.getChrom()+":"+w.getStart()+"-"+w.getEnd());
 			Timer timer = new Timer();
 			
+			timer.extra_start();
 			// Determine which BindingEM method will be used
 			BindingEM_interface EM;
 			EM = new BindingEM_Statistic(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
@@ -435,6 +436,7 @@ public class BindingMixture {
             bindingComponents = null;
             EM = null;
             
+            timer.extra_end();
             return new Pair<List<NoiseComponent>, List<List<BindingComponent>>>(noiseComponents, nonZeroComponents);
 		}
 		
