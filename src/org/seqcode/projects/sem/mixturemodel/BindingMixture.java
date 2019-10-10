@@ -381,7 +381,7 @@ public class BindingMixture {
 			timer.extra_start();
 			// Determine which BindingEM method will be used
 			BindingEM_interface EM;
-			EM = new BindingEM_Statistic(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
+			EM = new BindingEM(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
 				
 			List<List<BindingComponent>> bindingComponents = null;
 			List<NoiseComponent> noiseComponents = null;

@@ -420,14 +420,16 @@ public class BindingEM_Statistic implements BindingEM_interface {
         double[][] fuzzMax = new double[numConditions][numComponents];			//Fuzziness of maxima in fuzziness maximization summations
         double[][] muSum = new double[numConditions][];			//Sum of hitPos*rBind*hitCounts for each binding component
         double[][] fuzzSum = new double[numConditions][]; 		//Sum of Variance*rBind*hitCounts for each binding component
-        int[] muJoinClosestComps = new int[numConditions];	//Indices of nearest components in other conditions
-        boolean[] muSharedBetter = new boolean[numConditions];	//Indicator that sharing dyad locations across conditions is better than not
-        boolean[] fuzzSharedBetter = new boolean[numConditions];	//Indicator that sharing fuzziness across conditions is better than not
         int[][] newMu = new int[numConditions][numComponents];				// mu update
         double[][] newFuzz = new double[numConditions][numComponents];			// fuzziness update
         double[][][] newTau = new double[numConditions][numComponents][];			// tau update
         int[][] numCovHits = new int[numConditions][numComponents];	//Number of hits covered by each components (used for determine whether each component has >=2 fragments supported)
                 
+        int[] muJoinClosestComps = new int[numConditions];	//Indices of nearest components in other conditions
+        boolean[] muSharedBetter = new boolean[numConditions];	//Indicator that sharing dyad locations across conditions is better than not
+        boolean[] fuzzSharedBetter = new boolean[numConditions];	//Indicator that sharing fuzziness across conditions is better than not
+        
+
         // Initialize responsibilities
         for(int c=0; c<numConditions; c++) {
         	int numPairs = hitNum[c];
@@ -456,22 +458,17 @@ public class BindingEM_Statistic implements BindingEM_interface {
         int t=0, iter=0;   
         
         while(t<semconfig.MAX_EM_ITER) {
+        	//Set all arrays to zero to start a new round
+        	refresh();
+        	
+        	
     		////////
     		//E-step
     		////////
-        	
-        	//I want to get the range of fragment midpoint coordinates that will be influenced by each BindingComponent
-        	//It's a trick to improve the performance because when encountering quite long region, calculate each fragment
-        	//for each BindingComponent will waste a lot of sources.
-        	
-        	//set all arrays to zero to start a new round
-        	refresh();
-
-        	
 			//monitor: count time
         	timer.start();
         	
-        	// Marking range for each bindingComponent
+        	// E-step part 1: Marking range for each bindingComponent
         	List<Map<Integer, Pair<Integer, Integer>>> pairIndexAroundMu = new ArrayList<Map<Integer, Pair<Integer, Integer>>>(); 
         	for(int c=0; c<numConditions; c++) {
 
@@ -514,12 +511,12 @@ public class BindingEM_Statistic implements BindingEM_interface {
 			//monitor: count time
         	timer.end("mark");
         	
-        	//compute current alpha for each component
+        	//Compute current alpha for each component
 	        for(int c=0; c<numConditions; c++) {
 	        	ExperimentCondition cond = manager.getIndexedCondition(c);
 	        	for(int j=0; j<numComponents; j++) 
 	        		if (pi[c][j] > 0) {
-	        			currAlpha[c][j] = semconfig.getFixedAlpha()<0 ? conditionBackgrounds.get(cond).calcCountThreshold(maxIR[c][j]):semconfig.getFixedAlpha();
+	        			currAlpha[c][j] = semconfig.getFixedAlpha()<0 ? conditionBackgrounds.get(cond).calcCountThreshold(maxIR[c][j]) : semconfig.getFixedAlpha();
 	        			currAlpha[c][j] = Math.max(currAlpha[c][j] * alphaCoefficient, 1);
 	        		}
 	       	}
@@ -735,12 +732,8 @@ public class BindingEM_Statistic implements BindingEM_interface {
         	timer.end("fuzz");
         	
         	timer.start();
-        	//Insert pairwise bindingcomponents comparison here
-        	//Due to I haven't found a way to compare fragment size distribution across different experiment condition
-        	//I only consider position and fuzziness here.
         	
-        	//test code: employ Gale/Shapley algorithm to find pairwise nucleosomes
-        	//TODO:Can we designate an anchor sample so we can compare multiple conditions(>2)?
+        	//Employ Gale/Shapley algorithm to find pairwise nucleosomes
         	//1. for each nucleosome, get preference list of nucleosomes from other conditions
         	Map<Pair<Integer, Integer>, Map<Integer, List<Integer>>> preference = new HashMap<Pair<Integer, Integer>, Map<Integer, List<Integer>>>();
         	for(int c=0; c<numConditions; c++) {
@@ -988,7 +981,9 @@ public class BindingEM_Statistic implements BindingEM_interface {
 	        			
 	        			double tauSum = 0;
 	        			for(BindingSubtype b: bindingSubtypes) {
-	        				newTau[c][j][b.getIndex()] = Math.max(sumRespS[c][j][b.getIndex()]-semconfig.SPARSE_PRIOR_SUBTYPE*sumResp[c][j] + Math.pow(Math.E, (prob[b.getIndex()]-probMax))*sumResp[c][j], 0);
+	        				newTau[c][j][b.getIndex()] = Math.max(sumRespS[c][j][b.getIndex()] -
+	        						semconfig.SPARSE_PRIOR_SUBTYPE * sumResp[c][j] + 
+	        						semconfig.EFFECT_PRIOR_SUBTYPE * Math.pow(Math.E, (prob[b.getIndex()]-probMax))*sumResp[c][j], 0);
 	        				tauSum += newTau[c][j][b.getIndex()];
 	        			}
 	        			for(BindingSubtype b: bindingSubtypes) {

@@ -49,9 +49,9 @@ public class SEMConfig {
 	protected int maxModelUpdateRounds = 5; //Maximum number of EM training rounds (May increase @ Jianyu Yang)
 	protected int posPriorScaling = 10; //???
 	protected int maxThreads = 1;
-	protected double alphaScalingFactor = 1.0; //Scaling the condition-specific alpha value by this factor
+	protected double alphaScalingFactor = 1; //Scaling the condition-specific alpha value by this factor
 	protected double fixedAlpha = 1; //Fixed alpha value if >= 0 else automatic mode (use 1 to find potential regions then automatically adjust alpha each EM round)
-	protected double betaScalingFactor = 0.05; //Scale the condition and component-specfic beta value by this factor (May change @ Jianyu Yang)
+	protected double betaScalingFactor = 1; //Scale the condition and component-specfic beta value by this factor (May change @ Jianyu Yang)
 	protected double extendWindow = 500; //Range extension around gff points
 	protected double prob_shared_binding = 0.9; //Prior probability that binding sites are shared between conditions
 	protected int bmAnalysisWindowMax = 2000; //???
@@ -93,14 +93,15 @@ public class SEMConfig {
 	public final int EM_ML_ITER = 5; // &
 	public final int ALPHA_ANNEALING_ITER = 10; // &
 	public final int POSPRIOR_ITER = 15; // &
-	public final int FUZZINESS_ANNEALING_ITER = 2; // & Update fuzziness every ? turns
-	public final int TAU_ANNEALING_ITER = 2; // & Update tau every ? turns
-	public final double SPARSE_PRIOR_SUBTYPE = 0.3; // &
+	public final int FUZZINESS_ANNEALING_ITER = 2; // & Update fuzziness every 2 turns
+	public final int TAU_ANNEALING_ITER = 2; // & Update tau every 2 turns
+	public final double SPARSE_PRIOR_SUBTYPE = 0.2; // &
+	public final double EFFECT_PRIOR_SUBTYPE = 0.5;
 	public final boolean CALC_LL = true; // &
 	public final double EM_CONVERGENCE = 0.01; // &
 	public final int INIT_COMPONENT_SPACING = 100; // &
 	public final double INIT_FUZZINESS = 2500;			// initialized fuzziness
-	public final double MAX_FUZZINESS = 10000;			// arbitrary ceiling on the fuzziness 
+//	public final double MAX_FUZZINESS = 10000;			// arbitrary ceiling on the fuzziness 
 //	public final double LEAST_FUZZINESS = 25;		// least value of fuzziness
 	
 	protected String[] args;

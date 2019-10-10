@@ -39,9 +39,9 @@ public class BindingModel {
 		
 	protected static final double LOG2 = Math.log(2);
 	protected static final double ROOT2PI = Math.sqrt(2*Math.PI);
-	protected static final double bgProb=0;
-	protected static final double logBgProb=-Double.MAX_VALUE;
-	protected final int maxIR;	// 95% influence range computed by initialized fuzziness
+	protected static final double bgProb=1e-5;
+	protected static final double logBgProb=-5;
+	protected final int maxIR;	// 99% influence range computed by initialized fuzziness
 	
 	// Constructor: Read in dyad location of nucleosome to initialize fuzziness
 	public BindingModel(String dyadFile, SEMConfig config, ExperimentManager eman, ExperimentCondition ec, GenomeConfig gc) {
@@ -53,7 +53,7 @@ public class BindingModel {
 		initialDyad = new ArrayList<Point>();
 		
 		initialFuzziness = semconfig.INIT_FUZZINESS;
-		maxIR = (int)Math.rint(Math.sqrt(initialFuzziness) * 1.96) * 2;
+		maxIR = (int)Math.rint(Math.sqrt(initialFuzziness) * 2.58) * 2;
 		
 		//monitor
 		System.out.println("Initialize Fuzziness: "+initialFuzziness);
@@ -71,11 +71,12 @@ public class BindingModel {
 	//Distance should be defined as (Read position - Peak position)
 	public static double probability(double variance, int distance) throws Exception {
 		double prob;
-//		if(Math.abs(distance) > max) {
-//			prob = 0;
-//		} else 
 		if (variance > 0) {
-			prob = 1/(Math.sqrt(variance)*ROOT2PI) * Math.exp(-Math.pow(distance, 2)/(2*variance));
+			if(Math.abs(distance) > (2.58 * Math.sqrt(variance))) {
+				prob = bgProb;
+			}  else {
+				prob = 1/(Math.sqrt(variance)*ROOT2PI) * Math.exp(-Math.pow(distance, 2)/(2*variance));
+			}
 		} else if (variance == 0 && distance == 0) {
 			prob = 1;
 		} else if (variance == 0 && distance != 0) {

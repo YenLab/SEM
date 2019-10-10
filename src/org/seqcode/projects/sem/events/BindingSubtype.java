@@ -45,9 +45,9 @@ public class BindingSubtype {
 		weight = fragSizeDisPara.getEntry(2);
 		this.index = index;
 		
-		// Initialize 95 confidence interval
-		min = mean - 1.96 * Math.sqrt(var);
-		max = mean + 1.96 * Math.sqrt(var);
+		// Initialize 99% confidence interval
+		min = mean - 2.58 * Math.sqrt(var);
+		max = mean + 2.58 * Math.sqrt(var);
 		
 		// Pre-compute the probability of each fragment size to reduce time
 		for(int i=0; i<=1000; i++) {
@@ -76,7 +76,7 @@ public class BindingSubtype {
 		
 		double prob;
 		if(fragSize<min || fragSize>max) {
-			prob = 1e-20;
+			prob = 1e-5;
 		} else {
 			prob = 1/(Math.sqrt(var)*ROOT2PI) * Math.exp(-Math.pow(fragSize-mean, 2)/(2*var));
 			prob *= weight;
