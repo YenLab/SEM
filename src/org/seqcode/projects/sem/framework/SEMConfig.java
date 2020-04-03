@@ -96,7 +96,7 @@ public class SEMConfig {
 	public final int FUZZINESS_ANNEALING_ITER = 2; // & Update fuzziness every 2 turns
 	public final int TAU_ANNEALING_ITER = 2; // & Update tau every 2 turns
 	public final double SPARSE_PRIOR_SUBTYPE = 0.2; // &
-	public final double EFFECT_PRIOR_SUBTYPE = 0.5;
+	public final double EFFECT_PRIOR_SUBTYPE = 0;
 	public final boolean CALC_LL = true; // &
 	public final double EM_CONVERGENCE = 0.01; // &
 	public final int INIT_COMPONENT_SPACING = 100; // &
