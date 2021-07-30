@@ -183,8 +183,11 @@ public class Statistics {
 	public static void checkSamples(double[] x, double[] wx) throws Exception {
 		if(x.length != wx.length)
 			throw new Exception("Length of x and wx are not equal!");
-		if(x.length < 2 ) 
+		if(x.length < 2 ) { 
+			System.out.println(Arrays.toString(x));
+			System.out.println(Arrays.toString(wx));
 			throw new Exception("Length of x is too small!");
+		}
 	}
 	
     public static void main(String[] args) {

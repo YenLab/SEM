@@ -70,7 +70,9 @@ public class BindingComponent implements Comparable<BindingComponent>{
 		maxIR = (int)(Math.sqrt(fuzziness * 1.96 * 2));
 	}
 	public void setTau(double[] t) {
-		tau=t; 
+		tau=new double[t.length];
+		for(int i=0; i<t.length; i++)
+			tau[i] = t[i];
 		isSubtype=true;
 		
 		//Set subtype with highest probability as the subtype of this component
@@ -126,6 +128,6 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	public String toString(){
 //		return "B\tcoor: "+coord.getLocationString()+"\tpi: "+String.format("%.3f",pi)+"\tsumResp: "+String.format("%.3f", sumResp)+
 //				"\tfuzziness: "+fuzziness+"\ttau: "+Arrays.toString(tau)+"\tindex: "+index;
-		return "chr"+coord.getChrom()+"\t"+position+"\t"+pi+"\t"+sumResp+"\t"+fuzziness+"\t"+subtypeIndex+"\t"+isPair;
+		return "chr"+coord.getChrom()+"\t"+position+"\t"+pi+"\t"+sumResp+"\t"+fuzziness+ "\t" + Arrays.toString(tau) +  "\t"+subtypeIndex+"\t"+isPair;
 	}
 }

@@ -16,11 +16,11 @@ public class GMMFactory {
 	 * @param numMix
 	 * @return
 	 */
-	public static AbstractCluster getGMMClass(ExperimentCondition cond, SEMConfig s, List<HashMap<Integer, Integer>> frequency) {
-		if(s.getNumClusters() == -1) {
+	public static AbstractCluster getGMMClass(ExperimentCondition cond, SEMConfig s, List<HashMap<Integer, Integer>> frequency, int numClusters) {
+		if(numClusters == -1) {
 			return new InfiniteGaussianMixture(cond, s, frequency);
 		} else {
-			return new FiniteGaussianMixture(cond, s, frequency, s.getNumClusters());
+			return new FiniteGaussianMixture(cond, s, frequency, numClusters);
 		}
 	}
 }

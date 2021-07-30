@@ -49,9 +49,7 @@ public class SEM {
 		manager = eMan;
 		semconfig = c;
 		semconfig.makeSEMOutputDirs(true);
-		bindingManager = new BindingManager(evconfig, manager);
-		
-		System.out.println("Pair count: "+manager.getSamples().get(0).getPairCount());
+		bindingManager = new BindingManager(semconfig, evconfig, manager);
 		
 		//Insert fragment size distribution initializing here
 		System.err.println("Doing GMM on fragment size");
@@ -66,7 +64,14 @@ public class SEM {
 		}
 		//Employ GMM on each experiment condition's fragment size distribution
 		for(ExperimentCondition cond: manager.getConditions()) {
-			gmm = GMMFactory.getGMMClass(cond, semconfig, condFragSizeFrequency.get(cond));
+			int numClusters = semconfig.getNumClusters();
+			// Use DPMM to determine the number of clusters first if numClusters not specified
+			if(numClusters<=0) {
+				gmm = GMMFactory.getGMMClass(cond, semconfig, condFragSizeFrequency.get(cond), -1);
+				gmm.excute();
+				numClusters = gmm.getNumClusters();
+			}
+			gmm = GMMFactory.getGMMClass(cond, semconfig, condFragSizeFrequency.get(cond), numClusters);
 			gmm.excute();
 			List<BindingSubtype> fragSizeSubtypes = new ArrayList<BindingSubtype>();
 			int index=0;
@@ -135,7 +140,7 @@ public class SEM {
 			round++;
 		
 			//Check for convergence
-			if(round>=semconfig.getMaxModelUpdateRounds() || (mixtureModel.ifConverged() && round>semconfig.getMinModelUpdateRounds())) {
+			if(round>=semconfig.getMaxModelUpdateRounds() || (mixtureModel.ifConverged() && round>=semconfig.getMinModelUpdateRounds())) {
 				converged=true;
 			}else {
 				converged=false;
@@ -149,6 +154,8 @@ public class SEM {
 		}
 		// print nucleosome comparison results to file
 		mixtureModel.printNucleosomeComparisonToFile();
+		// print subtypes info
+		bindingManager.printSubtypes();
 		// find alternative and consensus nucleosomes after EM mode has converged
 		// alternative nucleosome calling
 //		for(int i=0; i<2; i++) {

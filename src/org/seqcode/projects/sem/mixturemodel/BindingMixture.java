@@ -98,7 +98,7 @@ public class BindingMixture {
 	public boolean ifConverged() {
 		//monitor
 		System.err.println("LAP this round: " + LAP);
-		converged = (Math.abs(LAP - lastLAP)/lastLAP)<config.EM_CONVERGENCE;
+		converged = Math.abs((LAP - lastLAP)/lastLAP)<config.EM_CONVERGENCE;
 		lastLAP = LAP;
 		LAP = 0;
 		return converged;
@@ -282,8 +282,8 @@ public class BindingMixture {
 	    				fout.write(rr.getLocationString()+"\t"+manager.getIndexedCondition(cond.getIndex()).getName()+"\t"+comp.toString()+"\t");
 	    				for(Pair<Integer, Integer> index: comp.getCompareRestulsConvert().keySet()) {
 	    					fout.write(manager.getIndexedCondition(index.car()).getName()+"\t"+comps.get(index.car()).get(index.cdr()).toString());
-	    					fout.write("\t"+comp.getCompareRestulsConvert().get(index).cdr());
-	    					fout.write("\t"+comp.getCompareRestulsConvert().get(index).car());
+	    					fout.write("\t"+Arrays.toString(comp.getCompareRestulsConvert().get(index).cdr()));
+	    					fout.write("\t"+Arrays.toString(comp.getCompareRestulsConvert().get(index).car()));
 	    				}
 	    				fout.write("\n");
 	    			}
@@ -346,6 +346,10 @@ public class BindingMixture {
 									progressBar.show(100l);
 								}
 							}
+							//Free memory
+							wComps.car().clear();
+							wComps.cdr().clear();
+							wComps = null;
 						}
 						
 						//Only non-zero components are returned by analyzeWindow, so add them to the recorded active components
@@ -374,16 +378,11 @@ public class BindingMixture {
 //			System.err.println("Region: "+w.getChrom()+":"+w.getStart()+"-"+w.getEnd());
 			Timer timer = new Timer();
 			
+			timer.extra_start();
 			// Determine which BindingEM method will be used
 			BindingEM_interface EM;
-			if(config.getTestMode()==0) {
-//				BindingEM EM = new BindingEM(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
-				EM = new BindingEM_Statistic(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
-			} else if(config.getTestMode()==1) {
-				EM = new BindingEM_Test(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
-			} else {
-				EM = new BindingEM_Test2(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
-			}
+			EM = new BindingEM(config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
+				
 			List<List<BindingComponent>> bindingComponents = null;
 			List<NoiseComponent> noiseComponents = null;
 			List<List<BindingComponent>> nonZeroComponents = new ArrayList<List<BindingComponent>>();
@@ -430,6 +429,14 @@ public class BindingMixture {
             //Add the log likelihood to the whole model
             LAP += EM.getLAP();
             
+            //Free memory
+            signals.clear();
+            signals = null;
+            bindingComponents.clear();
+            bindingComponents = null;
+            EM = null;
+            
+            timer.extra_end();
             return new Pair<List<NoiseComponent>, List<List<BindingComponent>>>(noiseComponents, nonZeroComponents);
 		}
 		
