@@ -1,6 +1,6 @@
-bin/
-heap/
-sem/
-target/
+./bin/
+./heap/
+./sem/
+./target/
 .settings/
 .classpath
