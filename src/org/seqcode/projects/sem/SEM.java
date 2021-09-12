@@ -7,7 +7,6 @@ import org.apache.commons.math3.linear.RealVector;
 
 import org.seqcode.genome.GenomeConfig;
 import org.seqcode.genome.location.Region;
-import org.seqcode.deepseq.events.EnrichmentSignificance;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;
@@ -250,7 +249,7 @@ public class SEM {
 				"\t--fixedmodelrange [flag to keep binding model range fixed to inital size (default: vary automatically)]\n" +
 				"\t--prlogconf <Poisson log threshold for potential region scanning(default=-6)>\n" +
 				"\t--alphascale <alpha scaling factor(default=1.0>\n" +
-				"\t--fixedalpha <impose this alpha (default: set automatically)>\n" +
+				"\t--fixedalpha <impose this alpha (default: set as 1)>\n" +
 				"\t--mlconfignotshared [flag to not share component configs in the ML step]\n" +
 				"\t--exclude <file of regions to ignore>\n" +
 				" MultiGPS priors:\n"+

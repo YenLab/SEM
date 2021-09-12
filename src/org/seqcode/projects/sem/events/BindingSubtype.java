@@ -9,7 +9,7 @@ import org.seqcode.deepseq.experiments.ExperimentCondition;
 
 
 /**
- * BindingSubtype class represent binding subtypes that are assocaited with fragment size distribution
+ * BindingSubtype class represent binding subtypes with each associated with specific fragment size distribution
  * 
  * @author Jianyu Yang
  *

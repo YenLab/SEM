@@ -900,6 +900,7 @@ public class BindingEM implements BindingEM_interface {
     		/////////////////////
         	
         	// Maximize fuzziness: Employ weighted sample variance to calculate maximization
+        	// Reference: https://en.wikipedia.org/wiki/Weighted_arithmetic_mean#Reliability_weights
         	if(t%semconfig.FUZZINESS_ANNEALING_ITER==0 || t>semconfig.ALPHA_ANNEALING_ITER) {
         		for(int c=0; c<numConditions; c++) {
         			fuzzSum[c] = new double[numComp];
@@ -968,7 +969,7 @@ public class BindingEM implements BindingEM_interface {
 	        				currEpsilon[c][j][s] = semconfig.EFFECT_PRIOR_SUBTYPE * epsilonAnnealingFactor * 
 	        						Math.pow(Math.E, (prob[s]-probMax))*sumResp[c][j];
 	        			}
-	        			// Get the subtype with the minial responsibility and check whether it will be terminated
+	        			// Get the subtype with the minimal responsibility and check whether it will be terminated
 	        			int minSubIndex = -1; double minVal = Double.MAX_VALUE;
 	        			for(int s=0; s<numSubtypes; s++)
 	        				if(tau[c][j][s]>0) {

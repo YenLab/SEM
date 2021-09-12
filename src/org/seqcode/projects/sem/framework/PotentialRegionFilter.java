@@ -40,7 +40,7 @@ import org.seqcode.gseutils.RealValuedHistogram;
  * 		The Poisson thresholds are based on the model span size to keep consistent with the final used thresholds. 
  * Overall counts for reads in potential regions and outside potential regions are maintained to assist noise model initialization.  
  * 
- * @author Shaun Mahony
+ * @author Shaun Mahony, Jianyu Yang
  * @version	%I%, %G%
  */
 public class PotentialRegionFilter {
@@ -284,7 +284,7 @@ public class PotentialRegionFilter {
 	                        		}
                         		}
 	                        	else {
-	                        		if(ipWinHits>1) {	// if doesn't set fixedalpha, select region having at least 2 fragments as potential region
+	                        		if(ipWinHits>1) {	// if doesn't set fixedalpha, select region having at least 1 fragments as potential region
 	                        			regionPasses = true;
 	                        			break;
 	                        		}
