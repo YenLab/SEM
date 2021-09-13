@@ -3,6 +3,8 @@ package org.seqcode.projects.sem.framework;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -119,8 +121,10 @@ public class PotentialRegionFilter {
 	 * Find list of potentially enriched regions 
 	 * (windows that contain the minimum number of reads needed to pass the Poisson backgrounds).
 	 * @param testRegions
+	 * @throws Exception 
 	 */
-	public List<Region> execute(){
+	public List<Region> execute(){			
+		
 		//TODO: check config for defined subset of regions
 		Iterator<Region> testRegions = new ChromosomeGenerator().execute(config.getGenome());
 		
@@ -170,6 +174,34 @@ public class PotentialRegionFilter {
         
         for(Region r : potentialRegions)
         	potRegionLengthTotal+=(double)r.getWidth();
+        
+		//Check if user provides potential region list, replace the potential region list if true
+		if (config.getUserPotentialRegs() != "") {
+			
+			System.out.println("User supplied potential region file: " + config.getUserPotentialRegs());
+			System.out.println("Pontential regions will be replaced...");
+			System.out.println("Warning: When user provides potential region file, fixedAlpha option must be > 0. Since SEM won't be able to compute genome-wide noise component responsibility during EM iteration");
+			
+			if (config.getFixedAlpha()>0) {		
+				potentialRegions = new ArrayList<Region>();
+				//Load all suppied potential regions
+				try {
+					BufferedReader br = new BufferedReader(new FileReader(config.getUserPotentialRegs()));
+					String line;
+					while((line = br.readLine()) != null) {
+						System.out.println(line);
+						// Delimiter: Tab
+						String[] entry = line.split("\t");
+						potentialRegions.add(new Region(gen, entry[0], Integer.parseInt(entry[1]), Integer.parseInt(entry[2])));
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			} else {
+				System.out.println("Incompatible arguments: userPotentialRegs && fixedAlpha <= 0, exiting...");
+				System.exit(1);
+			}
+		}
         
      	return potentialRegions;
 	}

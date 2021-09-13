@@ -93,6 +93,7 @@ public class SEM {
 		bindingManager.setBindingModels(condBindingModels);
 		
 		//Find potential binding regions
+		//Check if user already provided the potential regions
 		System.err.println("Finding potential binding regions.");
 		potentialFilter = new PotentialRegionFilter(evconfig, semconfig, econfig, manager, bindingManager);
 		List<Region> potentials = potentialFilter.execute();

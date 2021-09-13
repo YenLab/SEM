@@ -76,6 +76,7 @@ public class SEMConfig {
 	protected int alternativeExclusion = 30; // & Exclusion zone used to determine alternative nucleosome
 	protected int consensusExclusion = 127; // & Exclusion zone used to determine consensus nucleosome
 	protected int numClusters = -1; // & Number of clusters for GMM (if numCluster==-1 will use InfiniteGMM class to determine cluster number automatically)
+	protected String userPotentialRegs = ""; // & Potential regions provided by user, will skip PotentialRegionFilter step
 	protected String initialDyad = "";	// & File containing the dyad locations for fuzziness initialization (format:chr	coordinate)
 	protected int test = 0; // Determine whether to use BindingEM_test instead of BindingEM_Statistic
 	protected Pair<String, Integer> plotDyad = new Pair<String, Integer>("II", 1564);
@@ -204,6 +205,8 @@ public class SEMConfig {
 				//Fixed exclusion zone
 				alternativeExclusion = Args.parseInteger(args, "alternativeExclusion", alternativeExclusion);
 				consensusExclusion = Args.parseInteger(args, "consensusExclusion", consensusExclusion);
+				//User-provided potential regions
+				userPotentialRegs = Args.parseString(args, "providedPotentialRegions", "");
 				//Output path
 				DateFormat df = new SimpleDateFormat("yyyy-MM-dd-hh-mm-ss");  
 			    df.setTimeZone(TimeZone.getTimeZone("GMT+8"));
@@ -286,6 +289,7 @@ public class SEMConfig {
 	public String getInitialDyad() {return initialDyad;}
 	public int getTestMode() {return test;}
 	public Pair<String, Integer> getPlotDyad() {return plotDyad;}
+	public String getUserPotentialRegs() {return userPotentialRegs;}
 	
 	/**
 	 * Make output directories used by SEM
