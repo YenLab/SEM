@@ -41,6 +41,20 @@ public class SEM {
 	protected Map<ExperimentCondition, List<BindingSubtype>> condModels;
 	protected Map<ExperimentCondition, List<HashMap<Integer, Integer>>> condFragSizeFrequency;
 	
+	public static String logo = 				
+			"\r\n"
+			+ "███████╗███████╗███╗   ███╗\r\n"
+			+ "██╔════╝██╔════╝████╗ ████║\r\n"
+			+ "███████╗█████╗  ██╔████╔██║\r\n"
+			+ "╚════██║██╔══╝  ██║╚██╔╝██║\r\n"
+			+ "███████║███████╗██║ ╚═╝ ██║\r\n"
+			+ "╚══════╝╚══════╝╚═╝     ╚═╝\r\n"
+			+ "                           \r\n"
+			+ "\n" +
+			"Copyright (C) Jianyu Yang 2019-2022\n"
+//			"<http://mahonylab.org/software/multigps>\n"
+			;
+	
 	public SEM(GenomeConfig gcon, ExptConfig econ, EventsConfig evcon, SEMConfig c, ExperimentManager eMan) {
 		gconfig = gcon;
 		econfig = econ;
@@ -51,7 +65,7 @@ public class SEM {
 		bindingManager = new BindingManager(semconfig, evconfig, manager);
 		
 		//Insert fragment size distribution initializing here
-		System.err.println("Doing GMM on fragment size");
+		System.err.println("\nGMM on fragment size frequency...");
 		condModels = new HashMap<ExperimentCondition, List<BindingSubtype>>();
 		//Read fragment size distribution from each replicate, indexed by experiment condition
 		condFragSizeFrequency = new HashMap<ExperimentCondition, List<HashMap<Integer, Integer>>>();
@@ -94,7 +108,7 @@ public class SEM {
 		
 		//Find potential binding regions
 		//Check if user already provided the potential regions
-		System.err.println("Finding potential binding regions.");
+		System.err.println("Finding potential binding regions...");
 		potentialFilter = new PotentialRegionFilter(evconfig, semconfig, econfig, manager, bindingManager);
 		List<Region> potentials = potentialFilter.execute();
 		System.err.println(potentials.size()+" potential regions found.");
@@ -108,17 +122,14 @@ public class SEM {
 	//Run the mixture model to find binding events
 	public void runMixtureModel() {
 		
-		System.err.println("Initialize mixture model");
 		mixtureModel = new BindingMixture(gconfig, econfig, evconfig, semconfig, manager, bindingManager, potentialFilter);
-		System.out.println("Construct bindingMixture over");
 		int round = 0;
 		boolean converged = false;
 		while (!converged) {
 		
-			System.err.println("\n============================== Round "+(round+1)+" =====================");
+			System.err.println("\n============================== EM Round "+(round+1)+" =====================");
 			long start = System.currentTimeMillis();
-			//Execute the SEM mixture model, now only EM
-			//TODO: how to add ML step?
+			//Execute the SEM mixture model, only EM
 			if(round==0)
 				mixtureModel.execute(true, true, EMmode.CONSENSUS); //EM
 			else
@@ -147,15 +158,21 @@ public class SEM {
 			}
 			
 			//monitor: count time
-			Timer.summary();
-			Timer.showTime();
-			Timer.reset();
-			
+			if(semconfig.isVerbose()) {
+				Timer.summary();
+				Timer.showTime();
+				Timer.reset();
+			}
 		}
-		// print nucleosome comparison results to file
-		mixtureModel.printNucleosomeComparisonToFile();
+		//Final output
 		// print subtypes info
 		bindingManager.printSubtypes();
+		// print nucleosome information per condition
+		mixtureModel.printNucleosomeInfoToFile();
+		// print nucleosome comparison results to file
+		mixtureModel.printNucleosomeComparisonToFile();
+		
+		
 		// find alternative and consensus nucleosomes after EM mode has converged
 		// alternative nucleosome calling
 //		for(int i=0; i<2; i++) {
@@ -184,9 +201,11 @@ public class SEM {
 	 * Main driver method for SEM
 	 */
 	public static void main(String[] args) {
-		System.out.println("PARAMETERS: " + Arrays.toString(args));
+		// Logo
+		System.out.println(logo);
+		
 		GenomeConfig gcon = new GenomeConfig(args);
-		ExptConfig econ = new ExptConfig(gcon.getGenome(), args);
+		ExptConfig econ = new ExptConfig(gcon.getGenome(), args); econ.setLoadPairs(true); econ.setSortMid(true);			// SEM needs midpoint sorted read pairs
 		EventsConfig evconfig = new EventsConfig(gcon, args);
 		SEMConfig config = new SEMConfig(gcon, args);
 		if(config.helpWanted()){
@@ -206,8 +225,7 @@ public class SEM {
 	 */
 	public static String getSEMArgsList(){
 		return(new String("" +
-				"Copyright (C) Shaun Mahony 2012-2016\n" +
-				"<http://mahonylab.org/software/multigps>\n" +
+				logo +
 				"\n" +
 				"SEM comes with ABSOLUTELY NO WARRANTY.  This is free software, and you\n"+
 				"are welcome to redistribute it under certain conditions.  See the MIT license \n"+
@@ -220,58 +238,23 @@ public class SEM {
 				"\t--config <config file: all options here can be specified in a name<space>value text file, over-ridden by command-line args>\n" +
 				" Genome:\n" +
 				"\t--geninfo <genome info file> AND --seq <fasta seq directory reqd if using motif prior>\n" +
+				"\t--providedPotenialRegions <bed file to restrict nucleosome detection regions>" +
 				" Loading Data:\n" +
 				"\t--expt <file name> AND --format <SAM/BED/SCIDX>\n" +
 				"\t--ctrl <file name (optional argument. must be same format as expt files)>\n" +
 				"\t--design <experiment design file name to use instead of --expt and --ctrl; see website for format>\n"+
-				"\t--fixedpb <fixed per base limit (default: estimated from background model)>\n" +
-				"\t--poissongausspb <filter per base using a Poisson threshold parameterized by a local Gaussian sliding window>\n" +
 				"\t--nonunique [flag to use non-unique reads]\n" +
 				"\t--mappability <fraction of the genome that is mappable for these experiments (default=0.8)>\n" +
 				"\t--nocache [flag to turn off caching of the entire set of experiments (i.e. run slower with less memory)]\n" +
-				"Scaling control vs signal counts:\n" +
-				"\t--noscaling [flag to turn off auto estimation of signal vs control scaling factor]\n" +
-				"\t--medianscale [flag to use scaling by median ratio (default = scaling by NCIS)]\n" +
-				"\t--regressionscale [flag to use scaling by regression (default = scaling by NCIS)]\n" +
-				"\t--sesscale [flag to use scaling by SES (default = scaling by NCIS)]\n" +
-				"\t--fixedscaling <multiply control counts by total tag count ratio and then by this factor (default: NCIS)>\n" +
-				"\t--scalewin <window size for scaling procedure (default=10000)>\n" +
-				"\t--plotscaling [flag to plot diagnostic information for the chosen scaling method]\n" +
+				" Detecting nucleosome type:\n" +
+				"\t--numClusters <number of nucleosome types> \n\t\tnumber of clusters for finite GMM on fragment size distribution, if set -1, GMM with Dirichlet prior will be used to determine number of types\n" +
 				" Running SEM:\n" +
-				"\t--d <binding event read distribution file>\n" +
 				"\t--r <max. model update rounds, default=3>\n" +
-				"\t--nomodelupdate [flag to turn off binding model updates]\n" +
-				"\t--minmodelupdateevents <minimum number of events to support an update (default=500)>\n" +
-				"\t--nomodelsmoothing [flag to turn off binding model smoothing]\n" +
-				"\t--splinesmoothparam <spline smoothing parameter (default=30)>\n" +
-				"\t--gaussmodelsmoothing [flag to turn on Gaussian model smoothing (default = cubic spline)]\n" +
-				"\t--gausssmoothparam <Gaussian smoothing std dev (default=3)>\n" +
-				"\t--jointinmodel [flag to allow joint events in model updates (default=do not)]\n" +
-				"\t--fixedmodelrange [flag to keep binding model range fixed to inital size (default: vary automatically)]\n" +
-				"\t--prlogconf <Poisson log threshold for potential region scanning(default=-6)>\n" +
 				"\t--alphascale <alpha scaling factor(default=1.0>\n" +
-				"\t--fixedalpha <impose this alpha (default: set as 1)>\n" +
-				"\t--mlconfignotshared [flag to not share component configs in the ML step]\n" +
+				"\t--fixedalpha <minimum number of fragments a nucleosome should have (default=1, must >= 1)>\n" +
 				"\t--exclude <file of regions to ignore>\n" +
-				" MultiGPS priors:\n"+
-				"\t--noposprior [flag to turn off inter-experiment positional prior (default=on)]\n" +
-				"\t--probshared <probability that events are shared across conditions (default=0.9)>\n" +
-				"\t--nomotifs [flag to turn off motif-finding & motif priors]\n" +
-				"\t--nomotifprior [flag to turn off motif priors only]\n" +
-				"\t--memepath <path to the meme bin dir (default: meme is in $PATH)>\n" +
-				"\t--memenmotifs <number of motifs MEME should find for each condition (default=3)>\n" +
-				"\t--mememinw <minw arg for MEME (default=6)>\n"+
-				"\t--mememaxw <maxw arg for MEME (default=18)>\n"+
-				"\t--memeargs <additional args for MEME (default=  -dna -mod zoops -revcomp -nostatus)>\n"+
-				"\t--meme1proc [flag to enforce non-parallel version of MEME]\n"+
-				" Reporting binding events:\n" +
-				"\t--q <Q-value minimum (default=0.001)>\n" +
-				"\t--minfold <minimum event fold-change vs scaled control (default=1.5)>\n" +
-				"\t--nodifftests [flag to turn off differential enrichment tests]\n" +
-				"\t--rpath <path to the R bin dir (default: R is in $PATH). Note that you need to install edgeR separately>\n" +
-				"\t--edgerod <EdgeR overdispersion parameter (default=0.15)>\n" +
-				"\t--diffp <minimum p-value for reporting differential enrichment (default=0.01)>\n" +
-				"\t--eventsaretxt [add .txt to events file extension]\n" +
+				"\t--alternativeExclusion <alternative exclusion zone>\n" +
+				"\t--consensusExclusion <consensus exclusion zone>\n" +
 				""));
 	}
 }

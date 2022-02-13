@@ -203,7 +203,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		}
 		
 		// Print result
-		System.out.println("======================Final Results===================");
+		System.out.println("======================Nucleosome subtype parameters===================");
 		for(int j=0; j<mixNum; j++) {
 				System.out.println("["+j+"]");
 				System.out.println("means: "+m_means[j]);
@@ -314,12 +314,14 @@ public class FiniteGaussianMixture extends AbstractCluster{
 			}
 		}
 		
-		System.out.println("=================Initialization=================");
-		for(int i=0; i<mixNum; i++) {
-				System.out.println("[" + i + "]: ");
-				System.out.println("means : " + m_means[i]);
-				System.out.println("var : " + m_vars[i]);
-				System.out.println("weights: "+weights[i]);
+		if (semconfig.isVerbose()) {
+		System.out.println("=================GMM Initialization=================");
+			for(int i=0; i<mixNum; i++) {
+					System.out.println("[" + i + "]: ");
+					System.out.println("means : " + m_means[i]);
+					System.out.println("var : " + m_vars[i]);
+					System.out.println("weights: "+weights[i]);
+			}
 		}
 	}
 	

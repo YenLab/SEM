@@ -245,7 +245,7 @@ public class BindingEM implements BindingEM_interface {
 			hitCounts[c] = countc;
 			hitSize[c] = sizec;
 			
-			//Collapse duplicate fragments to reduce compuatation time
+			//Collapse duplicate fragments to reduce computation time
 			int uniquePos=1;
 			for(int k=0; k < hitPos[c].length-1; k++) {
 				if(hitSize[c][k+1] != hitSize[c][k] ||
@@ -1209,35 +1209,14 @@ public class BindingEM implements BindingEM_interface {
     		if(plotEM) {
     			EMStepPlotter.excute(mu, sumResp, fuzz, tau, iter, t);
     		}		    		
-    		
-    		//monitor
-//    		if(currRegion.getStart() == 166856143)
-//			        for(ExperimentCondition cond: manager.getConditions()) {
-//			        	int c = cond.getIndex();
-//			    		System.out.println("Binding Components:");
-//			        	for(int j=0; j<numComp; j++) {
-//			        		if(sumResp[c][j]>0) {
-//				        		System.out.println("\tindex: " + j);
-//				        		System.out.println("\tmu: " + mu[c][j]);
-//				        		System.out.println("\tfuzz: " + fuzz[c][j]);
-//				        		System.out.println("\tsumResp: "+ sumResp[c][j]);
-//				        		System.out.println("\ttau: " + Arrays.toString(tau[c][j]));
-//				        		
-//				        		int start = pairIndexAroundMu.get(c).get(j).car();
-//				        		int end = pairIndexAroundMu.get(c).get(j).cdr();
-//				        		for(int i=start; i<=end; i++) {
-//				        			System.out.println("\t\thitsize: " + hitSize[c][i] + "\thitPos: " + hitPos[c][i] + "\tresp: " + resp[c][j][i]);
-//				        		}
-//			        		}
-//			        	}
-//			        }
+    	
 	    		
     		 ///////////
           	//Check Stopping condition TODO: I don't know whether it is right to use Math.abs
           	////////////   		
             if (nonZeroComps>0 && (componentEliminated || (numConditions>1 && t<=semconfig.POSPRIOR_ITER) || (numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER) 
             		|| (semconfig.CALC_LL && Math.abs(LAP-lastLAP)>Math.abs(semconfig.EM_CONVERGENCE*lastLAP)) )){
-            	if(t==semconfig.MAX_EM_ITER) {
+            	if(t>=semconfig.MAX_EM_ITER && semconfig.isVerbose()) {
             		System.out.println(currRegion);
 	            	System.out.println("\tcriteria 1: "+(numConditions>1 && t<=semconfig.POSPRIOR_ITER));
 	            	System.out.println("\tcriteria 2: "+(numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER));
@@ -1256,47 +1235,6 @@ public class BindingEM implements BindingEM_interface {
             	break;
             }            
         } //LOOP: Run EM while not converged
-        
-//      //monitor
-//		if(currRegion.getStart() == 166856143) {
-//	        System.out.println(currRegion.toString());
-//	        for(ExperimentCondition cond: manager.getConditions()) {
-//	        	int c = cond.getIndex();
-//	    		System.out.println("Binding Components:");
-//	        	for(int j=0; j<numComp; j++) {
-//	        		if(sumResp[c][j]>0) {
-//		        		System.out.println("\tindex: " + j);
-//		        		System.out.println("\tmu: " + mu[c][j]);
-//		        		System.out.println("\tfuzz: " + fuzz[c][j]);
-//		        		System.out.println("\tsumResp: "+ sumResp[c][j]);
-//		        		System.out.println("\ttau: " + Arrays.toString(tau[c][j]));
-//	        		}
-//	        	}
-//	        }
-//	        System.exit(1);
-//		}
-//	        	System.out.println("rNoise > 0.5");
-//	            for(int i=0; i<hitNum[c]; i++) {
-//	            	if(rNoise[c][i]>0.5) {
-//	            		System.out.println("\tposition: " + hitPos[c][i]);
-//	            		System.out.println("\tsize: " + hitSize[c][i]);
-//	            	}
-//	            }
-//	            System.out.println("sum of Noise");
-//				double noise_resp = 0.0;
-//				for(int i=0; i<hitNum[c]; i++)
-//					noise_resp += hitCounts[c][i]*rNoise[c][i];
-//				System.out.println("\tnoise sum resp: " + noise_resp);
-//				System.out.println("sum of Binding components");
-//				double bind_resp = 0.0;
-//				for(int j=0; j<numComp; j++) {
-//					bind_resp += sumResp[c][j];
-//				}
-//				System.out.println("\tbinding component sum resp: " + bind_resp);
-//	        }
-//	        count++;
-//	        if(count>=20)
-//	        	System.exit(1);
         
     } // end of EM_MAP method
 	

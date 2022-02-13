@@ -1,6 +1,7 @@
 package org.seqcode.projects.sem.utilities;
 
 import org.seqcode.deepseq.stats.PoissonBackgroundModel;
+import org.seqcode.projects.sem.framework.SEMConfig;
 
 import cern.jet.random.Poisson;
 import cern.jet.random.engine.DRand;
@@ -28,16 +29,12 @@ public class PotentialRegionPoissonBackgroundModel extends PoissonBackgroundMode
 		Poisson p = new Poisson(0, re);
 		lambda = (totalReads*binWidth)/(regionLength*mappableRegion);
 		
-		//monitor code
-		System.out.println("lambda: "+lambda);
-		
 		p.setMean(lambda);
 		double l = 0;
 		for(int b=1; l<confThreshold; b++) {
 			l = p.cdf(b);
 			countThres = b;
 		}
-		System.out.println("threshold: "+countThres);
 		return(Math.max(1, countThres));
 	}
 }

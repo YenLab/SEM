@@ -56,8 +56,10 @@ public class BindingModel {
 		maxIR = (int)Math.rint(Math.sqrt(initialFuzziness) * 2.58) * 2;
 		
 		//monitor
-		System.out.println("Initialize Fuzziness: "+initialFuzziness);
-		System.out.println("Initialize maxIR: "+maxIR);
+		if (semconfig.isVerbose()){
+			System.out.println("Initialize Fuzziness: "+initialFuzziness);
+			System.out.println("Initialize maxIR: "+maxIR);
+		}
 		
 		if(!initialDyadFile.equals(""))
 			initializeFuzziness();

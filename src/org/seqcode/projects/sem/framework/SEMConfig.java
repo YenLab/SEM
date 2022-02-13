@@ -34,7 +34,7 @@ import org.seqcode.motifs.FreqMatrixImport;
  */
 public class SEMConfig {
 	
-	public static String version = "0.1";
+	public static String version = "1.0";
 	public boolean isGPS = true; //???
 	protected GenomeConfig gconfig;
 	protected Genome gen = null;
@@ -43,18 +43,18 @@ public class SEMConfig {
 	protected boolean printHelp = false;
 	protected double fThreshold = 1e-7;
 	protected double tThreshold = 1e-7;
-	protected double sigLogConf = -5; //???
-	protected double prLogConf = -10; //???
+	protected double sigLogConf = -5; 
+	protected double prLogConf = -10; 
 	protected int minModelUpdateRounds = 3; //Minimum number of EM training rounds
-	protected int maxModelUpdateRounds = 5; //Maximum number of EM training rounds (May increase @ Jianyu Yang)
-	protected int posPriorScaling = 10; //???
+	protected int maxModelUpdateRounds = 3; //Maximum number of EM training rounds (May increase @ Jianyu Yang)
+	protected int posPriorScaling = 10; 
 	protected int maxThreads = 1;
 	protected double alphaScalingFactor = 1; //Scaling the condition-specific alpha value by this factor
 	protected double fixedAlpha = 1; //Fixed alpha value if >= 0 else automatic mode (use 1 to find potential regions then automatically adjust alpha each EM round)
 	protected double betaScalingFactor = 1; //Scale the condition and component-specfic beta value by this factor (May change @ Jianyu Yang)
 	protected double extendWindow = 500; //Range extension around gff points
 	protected double prob_shared_binding = 0.9; //Prior probability that binding sites are shared between conditions
-	protected int bmAnalysisWindowMax = 2000; //???
+	protected int bmAnalysisWindowMax = 2000; 
 	protected int minComponentsForBMUpdate = 50;
 	protected int minRefsForBMUpdate = 25;
 	protected double minSubtypeFraction = 0.05; // A subtype needs to be associated with at least this fraction of binding events to be supported 
@@ -73,10 +73,10 @@ public class SEMConfig {
 	protected boolean shareSubtypes=true; //Share subtypes across experiments
 	protected boolean useAtacPrior=true;
 	protected boolean MLSharedComponentConfiguration = true; //For ML assignment: use a component configuration shared across all conditions or have condition-specific configs.
-	protected int alternativeExclusion = 30; // & Exclusion zone used to determine alternative nucleosome
-	protected int consensusExclusion = 127; // & Exclusion zone used to determine consensus nucleosome
-	protected int numClusters = -1; // & Number of clusters for GMM (if numCluster==-1 will use InfiniteGMM class to determine cluster number automatically)
-	protected String userPotentialRegs = ""; // & Potential regions provided by user, will skip PotentialRegionFilter step
+	protected int alternativeExclusion = 30; // Exclusion zone used to determine alternative nucleosome
+	protected int consensusExclusion = 127; // Exclusion zone used to determine consensus nucleosome
+	protected int numClusters = -1; // Number of clusters for GMM (if numCluster==-1 will use InfiniteGMM class to determine cluster number automatically)
+	protected String userPotentialRegs = ""; // Potential regions provided by user, will skip PotentialRegionFilter step
 	protected String initialDyad = "";	// & File containing the dyad locations for fuzziness initialization (format:chr	coordinate)
 	protected int test = 0; // Determine whether to use BindingEM_test instead of BindingEM_Statistic
 	protected Pair<String, Integer> plotDyad = new Pair<String, Integer>("II", 1564);
@@ -85,25 +85,25 @@ public class SEMConfig {
 	//Constants
 	public final double LOG2 = Math.log(2);
 	public final int POTREG_BIN_STEP = 100; //Sliding window step in potential region scanner(?)
-	public final int MAXSECTION = 5000000;
+	public final int MAXSECTION = 5000000; //Chunk size for detecting potential regions
 	public final double NOISE_EMISSION_MIN = 0; //Arbitrary floor on the emission probability of noise (must be non-zero to mop up noise reads)
     public final double NOISE_EMISSION_MAX = 0.95; //Arbitrary ceiling on the emission probability of noise
     public final int NOISE_DISTRIB_SMOOTHING_WIN = 50; //Smoothing window for the noise distribution used in the BindingMixture
-	public final int EM_MU_UPDATE_WIN = 50; // &
-	public final int MAX_EM_ITER = 100;
-	public final int EM_ML_ITER = 5; // &
-	public final int ALPHA_ANNEALING_ITER = 10; // &
-	public final int POSPRIOR_ITER = 15; // &
-	public final int FUZZINESS_ANNEALING_ITER = 2; // & Update fuzziness every 2 turns
-	public final int TAU_ANNEALING_ITER = 2; // & Update tau every 2 turns
-	public final double SPARSE_PRIOR_SUBTYPE = 0.2; // &
-	public final double EFFECT_PRIOR_SUBTYPE = 0;
-	public final boolean CALC_LL = true; // &
-	public final double EM_CONVERGENCE = 0.01; // &
-	public final int INIT_COMPONENT_SPACING = 100; // &
-	public final double INIT_FUZZINESS = 2500;			// initialized fuzziness
-//	public final double MAX_FUZZINESS = 10000;			// arbitrary ceiling on the fuzziness 
-//	public final double LEAST_FUZZINESS = 25;		// least value of fuzziness
+	public final int EM_MU_UPDATE_WIN = 50; //Maximum window for nucleosome dyad location update each round
+	public final int MAX_EM_ITER = 100; //Maximum iteration per EM round in each potential region
+	public final int EM_ML_ITER = 5; //# iterations before incorporating sparse priors (alpha/beta/epsilon for occupancy/prob_subtypes)
+	public final int ALPHA_ANNEALING_ITER = 10; //# iterations for annealing alpha/beta/epsilon
+	public final int POSPRIOR_ITER = 15; //# iterations after, start computing log likelihood to determine convergence
+	public final int FUZZINESS_ANNEALING_ITER = 2; //Update fuzziness every 2 turns
+	public final int TAU_ANNEALING_ITER = 2; //Update tau every 2 turns
+	public final double SPARSE_PRIOR_SUBTYPE = 0.2; //Sparse prior for subtype probability, any subtype with prob below this would be terminated
+	public final double EFFECT_PRIOR_SUBTYPE = 0; //Effect prior to motivate sparseness, this is similar to Chexmix, now set 0 (no influence)
+	public final boolean CALC_LL = true; //Flag to compute likelihood to determine convergence
+	public final double EM_CONVERGENCE = 0.01; //Convergence criteria
+	public final int INIT_COMPONENT_SPACING = 100; //Place initialized components spaced by this num
+	public final double INIT_FUZZINESS = 2500; // initialized fuzziness
+//	public final double MAX_FUZZINESS = 10000; // arbitrary ceiling on the fuzziness 
+//	public final double LEAST_FUZZINESS = 25; // least value of fuzziness
 	
 	protected String[] args;
 	public String getArgs() {

@@ -3,7 +3,6 @@ package org.seqcode.projects.sem.events;
 import java.io.*;
 import java.util.*;
 
-import org.junit.experimental.theories.FromDataPoints;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;
@@ -11,8 +10,6 @@ import org.seqcode.projects.sem.events.BindingEvent;
 import org.seqcode.projects.sem.events.BindingModel;
 import org.seqcode.projects.sem.events.BindingSubtype;
 import org.seqcode.projects.sem.framework.SEMConfig;
-
-import umontreal.ssj.functionfit.BSpline;
 
 /**
  * BindingManager stores lists of binding events and motifs associated with experiment conditions,
@@ -152,7 +149,7 @@ public class BindingManager {
 	
 	//Print the subtypes information into a file
 	public void printSubtypes() {
-		String filename = semconfig.getOutputIntermediateDir()+File.separator+semconfig.getOutBase() + "_subtypes.info";
+		String filename = semconfig.getOutputParentDir()+File.separator+semconfig.getOutBase() + "_subtypes.info";
 		try {
 			FileWriter fout = new FileWriter(filename);
 			for(ExperimentCondition cond: manager.getConditions()) {

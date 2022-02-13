@@ -16,8 +16,6 @@ import org.seqcode.projects.sem.framework.*;
 import org.seqcode.projects.sem.utilities.Timer;
 import org.seqcode.projects.sem.utilities.ConsoleProgressBar;
 
-import joinery.impl.Aggregation.Max;
-
 import org.seqcode.projects.sem.utilities.NucleosomePoissonBackgroundModel;
 import org.seqcode.projects.sem.utilities.EMmode;
 import org.seqcode.deepseq.experiments.*;
@@ -131,14 +129,16 @@ public class BindingMixture {
     		
     		noisePerBase[e] = nonPotRegCountsSigChannel/nonPotRegLengthTotal;  //Signal channel noise per base
     		
-    		System.out.println("Condition: "+cond.getName()+"\n"
-    				+ "potRegCountsSignalChannel: "+potRegCountsSigChannel+"\n"
-    				+ "nonPotRegCountsSignalChannel: "+nonPotRegCountsSigChannel+"\n"
-    				+ "potRegCountsCtrlChannel: "+potRegCountsCtrlChannel + "\n"
-    				+ "nonPotRegCountsCtrlChannel: " +nonPotRegCountsCtrlChannel+"\n"
-    				+ "potRegLengthTotal: " + potRegLengthTotal + "\n"
-    				+ "nonPotRegLengthTotal: " + nonPotRegLengthTotal + "\n");
-    		System.err.println("Global noise per base initialization for "+cond.getName()+" = "+String.format("%.4f", noisePerBase[e]));
+    		if(config.isVerbose()) {
+    			System.out.println("Condition: "+cond.getName()+"\n"
+    					+ "potRegCountsSignalChannel: "+potRegCountsSigChannel+"\n"
+    					+ "nonPotRegCountsSignalChannel: "+nonPotRegCountsSigChannel+"\n"
+    					+ "potRegCountsCtrlChannel: "+potRegCountsCtrlChannel + "\n"
+    					+ "nonPotRegCountsCtrlChannel: " +nonPotRegCountsCtrlChannel+"\n"
+    					+ "potRegLengthTotal: " + potRegLengthTotal + "\n"
+    					+ "nonPotRegLengthTotal: " + nonPotRegLengthTotal + "\n");
+    			System.err.println("Global noise per base initialization for "+cond.getName()+" = "+String.format("%.4f", noisePerBase[e]));
+    		}
     	}
     }
     
@@ -267,12 +267,41 @@ public class BindingMixture {
     }
     
     /**
+     * Print nucleosome information per condition to a file
+     * this will be called when EM ends
+     */
+    public void printNucleosomeInfoToFile() {
+    	try {
+    		for(ExperimentCondition cond: manager.getConditions()) {
+    			String filename = config.getOutputParentDir() + File.separator + config.getOutBase() + "_" + cond.getName() + "_nucleosome_info.tsv";
+    			BufferedWriter fout = new BufferedWriter(new FileWriter(filename));
+    			//header
+    			fout.write("chromosome\tdyad\toccupancy\tfuzziness\tsubtype\tProb_subtypes");
+    			if(config.getFixedAlpha()<0) fout.write("\tP-value");
+    			fout.write("\n");
+    			for(Region rr: activeComponents.keySet()) {
+    				List<List<BindingComponent>> comps = activeComponents.get(rr);
+    				for(BindingComponent comp: comps.get(cond.getIndex())) {
+    					fout.write(comp.standardInfo());
+	    				if(config.getFixedAlpha()<0)
+	    					fout.write("\t"+comp.getPValue());
+	    				fout.write("\n");
+    				}
+    			}
+    			fout.close();
+    		}
+    	} catch (IOException e) {
+    		e.printStackTrace();
+    	}
+    }
+    
+    /**
      * Print nucleosome comparison information to a file (now only for two conditions)
      */
     public void printNucleosomeComparisonToFile() {
     	try {
     		for(ExperimentCondition cond: manager.getConditions()) {
-	    		String filename = config.getOutputIntermediateDir() + File.separator + config.getOutBase() + "_" + cond.getName() + "_compare.info";
+	    		String filename = config.getOutputIntermediateDir() + File.separator + config.getOutBase() + "_" + cond.getName() + "_comparison_info.tsv";
 	    		BufferedWriter fout = new BufferedWriter(new FileWriter(filename));
 	    		//writer header information
 	    		fout.write("#nucleosome comparison result info of "+cond.getName()+"\n");
@@ -358,14 +387,7 @@ public class BindingMixture {
 						//Add the sum of noise responsibilities to this region
 						synchronized(noiseResp) { noiseResp.put(rr, noiseRSums);}
 						
-					} else {
-						//Run ML assignment
-						List<BindingEvent> windowBindingEvents = new ArrayList<BindingEvent>();
-						for (Region w: windows) {
-							windowBindingEvents.addAll(analyzeWindowML(w));
-						}
-						synchronized(bindingEvents) {bindingEvents.addAll(windowBindingEvents);}
-					}
+					} 
 				} catch(Exception e) {
 					System.err.println("ERROR: Exception when analyzing region"+rr.toString());
 					e.printStackTrace(System.err);
@@ -440,98 +462,6 @@ public class BindingMixture {
             return new Pair<List<NoiseComponent>, List<List<BindingComponent>>>(noiseComponents, nonZeroComponents);
 		}
 		
-		/**
-		 * Assign BindingComponents over a given window with ML solution
-		 * 
-		 * @param w
-		 * @return Pair of component lists (noise components and binding components) indexed by condition
-		 */
-		private List<BindingEvent> analyzeWindowML(Region w) throws Exception {
-			BindingMLAssignment ML = new BindingMLAssignment(econfig, evconfig, config, manager, bindingManager, conditionBackgrounds, potRegFilter.getPotentialRegions().size());
-			List<BindingComponent> bindingComponents = null;
-			List<NoiseComponent> noiseComponents = null;
-			List<BindingEvent> currEvents = new ArrayList<BindingEvent>();
-			
-			//Load signal data
-			List<List<StrandedPair>> signals = loadSignalData(w);
-			if (signals==null)
-				return currEvents;
-			
-			//Load control data
-			List<List<StrandedPair>> controls = loadControlData(w);
-			
-			//Initialize noise components
-			noiseComponents = initializeNoiseComponents(w, signals, controls);
-			
-			//Configuration seen in another condition
-			ArrayList<ComponentConfiguration> seenConfigs = new ArrayList<ComponentConfiguration>();
-			//Assign reads to components
-			for(ExperimentCondition cond: manager.getConditions()) {
-				//Initialize binding components: shared configuration or condition-specific
-				//Q: It looks like two paths determined by getMLSharedComponentConfiguration have the same result
-				if(config.getMLSharedComponentConfiguration()) {
-					bindingComponents = initializeBindingComponentsFromAllConditionActive(w, noiseComponents, false).get(cond.getIndex());				
-				} else {
-					bindingComponents = initializeBindingComponentsFromOneConditionActive(w, noiseComponents.get(cond.getIndex()), cond.getIndex());
-				}
-				int numComp = bindingComponents.size();
-				
-				//Construct configuration
-				ComponentConfiguration currCC = new ComponentConfiguration(bindingComponents, cond.getIndex());
-				
-				//Have we already seen this configuration?
-				boolean ccFound = false;
-				for(ComponentConfiguration cc: seenConfigs) {
-					if(currCC.isSameAs(cc)) {
-						int parent = cc.getParentCondition();
-						if(!config.getMLSharedComponentConfiguration()) {
-							for(BindingEvent be: currEvents)
-								if(be.isFoundInCondition(parent))
-									be.setIsFoundInCondition(cond.getIndex(), true);
-						}
-						ccFound=true;
-						break;
-					}
-				}
-				
-				if(!ccFound) {
-					//Add configuration to seenConfigs
-					seenConfigs.add(currCC);
-					
-					//ML assignment
-					List<BindingEvent> condEvents = ML.assign(signals, controls, w, noiseComponents, bindingComponents, numComp);
-					for(BindingEvent be: condEvents)
-						if(config.getMLSharedComponentConfiguration())
-							setFoundInConditions(be, w);
-						else
-							be.setIsFoundInCondition(cond.getIndex(), true);
-					currEvents.addAll(condEvents);
-				}
-			}
-			
-			//If we haven't used shared component ML, we need to edit and consolidate binding events
-            // 1) Consolidate, because otherwise you can have duplicate binding events
-            // 2) Edit - set counts to zero at conditions where the event is not active
-			if(!config.getMLSharedComponentConfiguration()) {
-				currEvents = consolidateBindingEvents(currEvents);
-			}
-			
-			//Add in sequences and final atac-seq scores here Q: I want to rewrite this part after finish atacFinder (which is similar to motif)
-//            if(evconfig.isAddingSequences()){
-//	            String seq = config.getFindingMotifs() ? motifFinder.getSeq(w):null;
-//	            Pair<Double[][], String[][]> motifScores = config.getFindingMotifs() ? motifFinder.scanRegionWithMotifsGetSeqs(w, seq) : null;
-//	            if(seq!=null && motifScores!=null){
-//		            for(ExperimentCondition cond : manager.getConditions()){
-//		            	for(BindingEvent b: currEvents){
-//		            		b.setMotifScore(cond, motifScores.car()[cond.getIndex()][b.getPoint().getLocation()-w.getStart()]);
-//		            		b.setSequence(cond, motifScores.cdr()[cond.getIndex()][b.getPoint().getLocation()-w.getStart()]);
-//		            	}
-//		            }
-//	            }
-//            }
-            
-            return currEvents;
-		}//end of analyzeWindowML method
 		
 		/**
 		 * Load all signal read hits in a region by condition. 
