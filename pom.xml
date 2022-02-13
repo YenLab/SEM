@@ -51,6 +51,12 @@
     	<artifactId>datumbox-framework-common</artifactId>
     	<version>0.8.1</version>
 	</dependency>
+	<!-- https://mvnrepository.com/artifact/com.datumbox/datumbox-framework-core -->
+	<dependency>
+	    <groupId>com.datumbox</groupId>
+	    <artifactId>datumbox-framework-core</artifactId>
+	    <version>0.8.1</version>
+	</dependency>
 	<!-- https://mvnrepository.com/artifact/com.datumbox/datumbox-framework-storage-inmemory -->
 	<dependency>
 	    <groupId>com.datumbox</groupId>
