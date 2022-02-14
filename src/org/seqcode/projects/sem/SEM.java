@@ -163,9 +163,6 @@ public class SEM {
 	 * Main driver method for SEM
 	 */
 	public static void main(String[] args) {
-		// Logo
-		System.out.println(logo);
-		
 		GenomeConfig gcon = new GenomeConfig(args);
 		ExptConfig econ = new ExptConfig(gcon.getGenome(), args); econ.setLoadPairs(true); econ.setSortMid(true);			// SEM needs midpoint sorted read pairs
 		EventsConfig evconfig = new EventsConfig(gcon, args);
@@ -173,6 +170,8 @@ public class SEM {
 		if(config.helpWanted()){
 			System.err.println(SEM.getSEMArgsList());
 		}else{
+			// Logo
+			System.out.println(logo);
 			ExperimentManager manager = new ExperimentManager(econ);
 			SEM sem = new SEM(gcon, econ, evconfig, config, manager);
 			sem.runMixtureModel();
@@ -193,30 +192,30 @@ public class SEM {
 				"are welcome to redistribute it under certain conditions.  See the MIT license \n"+
 				"for details.\n"+
 				"\n OPTIONS:\n" +
-				" General:\n"+
+				" Required:\n" +
 				"\t--out <output file prefix>\n" +
+				"\t--geninfo <genome info file> AND --seq <fasta seq directory reqd if using motif prior>\n" +
+				"\t--expt <file name> AND --format <SAM/BED/SCIDX>\n" +
+				"\tOR\n" +
+				"\t--design <experiment design file name to use instead of --expt and --ctrl; see website for format>\n"+
+				" General:\n"+
 				"\t--threads <number of threads to use (default=1)>\n" +
 				"\t--verbose [flag to print intermediate files and extra output]\n" +
 				"\t--config <config file: all options here can be specified in a name<space>value text file, over-ridden by command-line args>\n" +
 				" Genome:\n" +
-				"\t--geninfo <genome info file> AND --seq <fasta seq directory reqd if using motif prior>\n" +
-				"\t--providedPotenialRegions <bed file to restrict nucleosome detection regions>" +
+				"\t--providedPotenialRegions <bed file to restrict nucleosome detection regions>\n" +
 				" Loading Data:\n" +
-				"\t--expt <file name> AND --format <SAM/BED/SCIDX>\n" +
-				"\t--ctrl <file name (optional argument. must be same format as expt files)>\n" +
-				"\t--design <experiment design file name to use instead of --expt and --ctrl; see website for format>\n"+
 				"\t--nonunique [flag to use non-unique reads]\n" +
 				"\t--mappability <fraction of the genome that is mappable for these experiments (default=0.8)>\n" +
 				"\t--nocache [flag to turn off caching of the entire set of experiments (i.e. run slower with less memory)]\n" +
 				" Detecting nucleosome type:\n" +
 				"\t--numClusters <number of nucleosome types> \n\t\tnumber of clusters for finite GMM on fragment size distribution, if set -1, GMM with Dirichlet prior will be used to determine number of types\n" +
-				"\t--providedBindingSubtypes <custom binding subtypes (format: mean variance weight, sum of weights = 1)>" +
+				"\t--providedBindingSubtypes <custom binding subtypes (format: mean variance weight, sum of weights = 1)>\n" +
 				" Running SEM:\n" +
 				"\t--r <max. model update rounds, default=3>\n" +
 				"\t--alphascale <alpha scaling factor(default=1.0>\n" +
 				"\t--fixedalpha <minimum number of fragments a nucleosome should have (default=1, must >= 1)>\n" +
 				"\t--exclude <file of regions to ignore>\n" +
-				"\t--alternativeExclusion <alternative exclusion zone>\n" +
 				"\t--consensusExclusion <consensus exclusion zone>\n" +
 				""));
 	}
