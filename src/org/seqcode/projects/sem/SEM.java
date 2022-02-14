@@ -210,6 +210,7 @@ public class SEM {
 				"\t--nocache [flag to turn off caching of the entire set of experiments (i.e. run slower with less memory)]\n" +
 				" Detecting nucleosome type:\n" +
 				"\t--numClusters <number of nucleosome types> \n\t\tnumber of clusters for finite GMM on fragment size distribution, if set -1, GMM with Dirichlet prior will be used to determine number of types\n" +
+				"\t--providedBindingSubtypes <custom binding subtypes (format: mean variance weight, sum of weights = 1)>" +
 				" Running SEM:\n" +
 				"\t--r <max. model update rounds, default=3>\n" +
 				"\t--alphascale <alpha scaling factor(default=1.0>\n" +
