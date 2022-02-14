@@ -1,6 +1,14 @@
-# Size-based Expectation Maximum (SEM)
+# Size-based Expectation Maximum (SEM)<a name="sem"></a>
 
-@author Jianyu Yang
+- [Introduction](#intro)
+- [Installation](#install)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+  * [Detecting nucleosome subtypes](#subtype)
+  * [Running SEM](#run)
+  * [Restrict nucleosome finding regions](#restrict)
+
+## Introduction<a name="intro"></a>
 
 The SEM algorithm is designed for nucleosome subtype finding, which uses a Bayesian probablistic model to model each individual nucleosome's contribution to each observed MNase-seq read pair, expectation maximum (EM) is used to find the maximum posteriori probability (MAP) of the nucleosome parameters, including:
 
@@ -12,7 +20,7 @@ The SEM algorithm is designed for nucleosome subtype finding, which uses a Bayes
 The nucleosome subtype is defined as a Normal Distribution describing the probability of observing the particular protected fragment size from a nucleosome subtype, i.e., a canonical nucleosome should protect ~147bp DNA with some variation under extensive MNase digestion.
 
 
-## Installation
+## Installation<a name="install"></a>
 
 SEM is developed under JavaSE-11, it's recommended to use conda to create a new environment for running SEM, see [conda installation guide](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#) for more info.
 
@@ -24,7 +32,7 @@ $ conda create -n sem -c conda-forge openjdk=11.0.1
 
 You can download the latest runnable JAR file from [SEM releases](https://github.com/YenLab/SEM/releases).
 
-## Quick Start
+## Quick Start<a name="quick-start"></a>
 
 Run SEM on a single MNase-seq experiment:
 
@@ -34,7 +42,7 @@ $ java -jar sem_latest.jar --threads 15 --geninfo mm10.fa.fai --out test_run/ --
 
 The outputs will be inside the `test_run` directory in this example.
 
-## Usage
+## Usage<a name="usage"></a>
 
 ```
 Required:
@@ -80,7 +88,7 @@ mean_2	var_2	weight_2
 
 The sum of weights should be equal to 1
 
-### Running SEM
+### Running SEM<a name="run"></a>
 
 `--r` controls how many rounds of EM will be used, the default 3 rounds is able to return precise enough nucleosome predictions. This number can be increased to get more precise predictions but at the risk of overfitting.
 
@@ -88,7 +96,7 @@ The sum of weights should be equal to 1
 
 `--consensusExclusion` decides the exclusion zone between nucleosomes, the spacing between nucleosomes will be >= this threshold.
 
-### Restrict nucleosome finding regions
+### Restrict nucleosome finding regions<a name="restrict"></a>
 
 Since nucleosomes are everywhere on the genome, it's both computational intensive and time consuming to do EM on all the nucleosomes, besides, not all nucleosomes are of interest sometimes. `--providedPotenialRegions` accepts a bed file to restrict the regions where SEM will do nucleosome finding in, an example of potential regions could be candidate cis-regulatory regions (ccREs) from [ENCODE SCREEN project](https://screen.encodeproject.org/).
 
