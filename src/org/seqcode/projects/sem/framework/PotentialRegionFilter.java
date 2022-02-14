@@ -172,7 +172,7 @@ public class PotentialRegionFilter {
         	potRegionLengthTotal+=(double)r.getWidth();
         
 		//Check if user provides potential region list, replace the potential region list if true
-		if (config.getUserPotentialRegs() != "") {
+		if (!config.getUserPotentialRegs().equals("")) {
 			
 			System.out.println("User supplied potential region file: " + config.getUserPotentialRegs());
 			System.out.println("Pontential regions will be replaced...");

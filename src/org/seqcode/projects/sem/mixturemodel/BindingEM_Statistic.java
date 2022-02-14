@@ -1324,30 +1324,6 @@ public class BindingEM_Statistic implements BindingEM_interface {
     			EMStepPlotter.excute(mu, sumResp, fuzz, tau, iter, t);
     		}		    		
     		
-    		//monitor
-    		if(bindingManager.getBindingModel(manager.getIndexedCondition(0)).get(0).contains(currRegion))
-	    		if(!(nonZeroComps>0 && (componentEliminated || componentOverlapping || (numConditions>1 && t<=semconfig.POSPRIOR_ITER) || (numConditions==1 && t<=semconfig.ALPHA_ANNEALING_ITER) 
-	            		|| (semconfig.CALC_LL && Math.abs(LAP-lastLAP)>Math.abs(semconfig.EM_CONVERGENCE*lastLAP)) )))
-			        for(ExperimentCondition cond: manager.getConditions()) {
-			        	int c = cond.getIndex();
-			    		System.out.println("Binding Components:");
-			        	for(int j=0; j<numComp; j++) {
-			        		if(sumResp[c][j]>0) {
-				        		System.out.println("\tindex: " + j);
-				        		System.out.println("\tmu: " + mu[c][j]);
-				        		System.out.println("\tfuzz: " + fuzz[c][j]);
-				        		System.out.println("\tsumResp: "+ sumResp[c][j]);
-				        		System.out.println("\ttau: " + Arrays.toString(tau[c][j]));
-				        		
-				        		int start = pairIndexAroundMu.get(c).get(j).car();
-				        		int end = pairIndexAroundMu.get(c).get(j).cdr();
-				        		for(int i=start; i<=end; i++) {
-				        			System.out.println("\t\thitsize: " + hitSize[c][i] + "\thitPos: " + hitPos[c][i] + "\tresp: " + resp[c][j][i]);
-				        		}
-			        		}
-			        	}
-			        }
-	    		
     		 ///////////
           	//Check Stopping condition TODO: I don't know whether it is right to use Math.abs
           	////////////   		

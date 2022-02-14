@@ -3,11 +3,9 @@ package org.seqcode.projects.sem;
 import java.util.*;
 
 import org.seqcode.math.diff.Normalization;
-import org.apache.commons.math3.linear.RealVector;
 
 import org.seqcode.genome.GenomeConfig;
 import org.seqcode.genome.location.Region;
-import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;
 import org.seqcode.deepseq.experiments.ExptConfig;
@@ -17,7 +15,6 @@ import org.seqcode.projects.sem.events.BindingModel;
 import org.seqcode.projects.sem.events.BindingSubtype;
 import org.seqcode.projects.sem.mixturemodel.BindingMixture;
 import org.seqcode.projects.sem.GMM.AbstractCluster;
-import org.seqcode.projects.sem.GMM.GMMFactory;
 import org.seqcode.projects.sem.framework.SEMConfig;
 import org.seqcode.projects.sem.framework.OutputFormatter;
 import org.seqcode.projects.sem.framework.PotentialRegionFilter;
@@ -62,49 +59,14 @@ public class SEM {
 		manager = eMan;
 		semconfig = c;
 		semconfig.makeSEMOutputDirs(true);
-		bindingManager = new BindingManager(semconfig, evconfig, manager);
+		bindingManager = new BindingManager(semconfig, evconfig, gconfig, manager);
 		
-		//Insert fragment size distribution initializing here
-		System.err.println("\nGMM on fragment size frequency...");
-		condModels = new HashMap<ExperimentCondition, List<BindingSubtype>>();
-		//Read fragment size distribution from each replicate, indexed by experiment condition
-		condFragSizeFrequency = new HashMap<ExperimentCondition, List<HashMap<Integer, Integer>>>();
-		for(ExperimentCondition cond: manager.getConditions()) {
-			condFragSizeFrequency.put(cond, new ArrayList<HashMap<Integer, Integer>>());
-			for(ControlledExperiment rep: cond.getReplicates()) {
-				condFragSizeFrequency.get(cond).add(rep.getSignal().getFragSizeFrequency());
-			}
-		}
-		//Employ GMM on each experiment condition's fragment size distribution
-		for(ExperimentCondition cond: manager.getConditions()) {
-			int numClusters = semconfig.getNumClusters();
-			// Use DPMM to determine the number of clusters first if numClusters not specified
-			if(numClusters<=0) {
-				gmm = GMMFactory.getGMMClass(cond, semconfig, condFragSizeFrequency.get(cond), -1);
-				gmm.excute();
-				numClusters = gmm.getNumClusters();
-			}
-			gmm = GMMFactory.getGMMClass(cond, semconfig, condFragSizeFrequency.get(cond), numClusters);
-			gmm.excute();
-			List<BindingSubtype> fragSizeSubtypes = new ArrayList<BindingSubtype>();
-			int index=0;
-			for (RealVector para: gmm.getParameters()) {
-				fragSizeSubtypes.add(new BindingSubtype(cond, para, index));
-				index++;
-			}
-			bindingManager.setBindingSubtypes(cond, fragSizeSubtypes);
-			bindingManager.cache();
-			bindingManager.updateNumBindingTypes();
-		}
-		
-		//Insert bindingModel initialization here
-		condBindingModels = new HashMap<ExperimentCondition, List<BindingModel>>();
-		for(ExperimentCondition cond:manager.getConditions()) {
-			condBindingModels.put(cond, new ArrayList<BindingModel>());
-			condBindingModels.get(cond).add(new BindingModel(semconfig.getInitialDyad(),semconfig, manager, cond, gconfig));
-			bindingManager.setMaxInfluenceRange(cond, condBindingModels.get(cond).get(0).getMaxInfluenceRange());
-		}
-		bindingManager.setBindingModels(condBindingModels);
+		//Initialize Binding subtypes
+		System.err.println("\nInitialize Binding subtypes...");
+		bindingManager.initializeBindingSubtypes();
+		//Initialize Binding models
+		System.err.println("\nInitialize fuzziness...");
+		bindingManager.initializeBindingModels();
 		
 		//Find potential binding regions
 		//Check if user already provided the potential regions
