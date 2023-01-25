@@ -96,6 +96,9 @@ public class InfiniteGaussianMixture extends AbstractCluster{
 		    }
 		}
 		
+		if (semconfig.isVerbose())
+			System.out.println("Number of clusters reported by DPMM: " + maxEntry.getKey().toString());
+		
 		return maxEntry.getKey();
 	}
 	

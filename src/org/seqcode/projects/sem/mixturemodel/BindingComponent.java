@@ -126,8 +126,11 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	}
 	
 	public String toString(){
-//		return "B\tcoor: "+coord.getLocationString()+"\tpi: "+String.format("%.3f",pi)+"\tsumResp: "+String.format("%.3f", sumResp)+
-//				"\tfuzziness: "+fuzziness+"\ttau: "+Arrays.toString(tau)+"\tindex: "+index;
-		return "chr"+coord.getChrom()+"\t"+position+"\t"+pi+"\t"+sumResp+"\t"+fuzziness+ "\t" + Arrays.toString(tau) +  "\t"+subtypeIndex+"\t"+isPair;
+		return "chr"+coord.getChrom()+"\t"+position+"\t"+pi+"\t"+sumResp+"\t"+fuzziness+ "\t"+Arrays.toString(tau)+"\t"+subtypeIndex+"\t"+isPair;
+	}
+	
+	public String standardInfo() {
+		return "chr"+coord.getChrom()+"\t"+position+"\t"+sumResp+"\t"+fuzziness+"\t"+subtypeIndex+"\t"+Arrays.toString(tau);
+ 
 	}
 }

@@ -19,8 +19,6 @@ import org.seqcode.projects.sem.events.BindingModel;
 import org.seqcode.projects.sem.events.EventsConfig;
 import org.seqcode.projects.sem.utilities.PotentialRegionPoissonBackgroundModel;
 
-import umontreal.ssj.util.Systeme;
-
 import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;
@@ -87,7 +85,7 @@ public class PotentialRegionFilter {
     		//local windows won't work since we are testing per condition and we don't have a way to scale signal vs controls at the condition level (at least at this stage of execution)
     		
     		double thres = conditionBackgrounds.get(cond).getGenomicModelThreshold();
-    		System.err.println("PotentialRegionFilter: genomic threshold for "+cond.getName()+" with bin width "+binWidth+" = "+thres);
+    		if(config.isVerbose()) System.err.println("PotentialRegionFilter: genomic threshold for "+cond.getName()+" with bin width "+binWidth+" = "+thres);
     			
     		//Initialize counts
     		potRegCountsSigChannel.put(cond, 0.0);
@@ -165,8 +163,6 @@ public class PotentialRegionFilter {
         for(ExperimentCondition cond : manager.getConditions()){
     		for(ControlledExperiment rep : cond.getReplicates()){
     			if(rep.getSignalVsNoiseFraction()==0) { //Only update if not already initialized
-    				System.out.println(potRegCountsSigChannelByRep.get(rep));
-    				System.out.println(potRegCountsSigChannelByRep.get(rep)+nonPotRegCountsSigChannelByRep.get(rep));
     				rep.setSignalVsNoiseFraction(potRegCountsSigChannelByRep.get(rep)/(potRegCountsSigChannelByRep.get(rep)+nonPotRegCountsSigChannelByRep.get(rep)));
     			}
     		}
@@ -176,20 +172,20 @@ public class PotentialRegionFilter {
         	potRegionLengthTotal+=(double)r.getWidth();
         
 		//Check if user provides potential region list, replace the potential region list if true
-		if (config.getUserPotentialRegs() != "") {
+		if (!config.getUserPotentialRegs().equals("")) {
 			
 			System.out.println("User supplied potential region file: " + config.getUserPotentialRegs());
 			System.out.println("Pontential regions will be replaced...");
-			System.out.println("Warning: When user provides potential region file, fixedAlpha option must be > 0. Since SEM won't be able to compute genome-wide noise component responsibility during EM iteration");
+			System.out.println("Warning: When user provides potential region file, fixedAlpha option must be set >= 1. Since SEM won't be able to compute genome-wide noise component responsibility during EM iteration");
 			
-			if (config.getFixedAlpha()>0) {		
+			if (config.getFixedAlpha()>=1) {		
 				potentialRegions = new ArrayList<Region>();
 				//Load all suppied potential regions
 				try {
 					BufferedReader br = new BufferedReader(new FileReader(config.getUserPotentialRegs()));
 					String line;
 					while((line = br.readLine()) != null) {
-						System.out.println(line);
+						if(config.isVerbose()) System.out.println(line);
 						// Delimiter: Tab
 						String[] entry = line.split("\t");
 						potentialRegions.add(new Region(gen, entry[0], Integer.parseInt(entry[1]), Integer.parseInt(entry[2])));
@@ -198,7 +194,7 @@ public class PotentialRegionFilter {
 					e.printStackTrace();
 				}
 			} else {
-				System.out.println("Incompatible arguments: userPotentialRegs && fixedAlpha <= 0, exiting...");
+				System.out.println("Incompatible arguments: userPotentialRegs && fixedAlpha < 1, exiting...");
 				System.exit(1);
 			}
 		}

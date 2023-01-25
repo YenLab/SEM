@@ -3,16 +3,18 @@ package org.seqcode.projects.sem.events;
 import java.io.*;
 import java.util.*;
 
-import org.junit.experimental.theories.FromDataPoints;
+import org.apache.commons.math3.linear.MatrixUtils;
+import org.apache.commons.math3.linear.RealVector;
+
 import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;
-import org.seqcode.projects.sem.events.BindingEvent;
 import org.seqcode.projects.sem.events.BindingModel;
 import org.seqcode.projects.sem.events.BindingSubtype;
 import org.seqcode.projects.sem.framework.SEMConfig;
-
-import umontreal.ssj.functionfit.BSpline;
+import org.seqcode.genome.GenomeConfig;
+import org.seqcode.projects.sem.GMM.AbstractCluster;
+import org.seqcode.projects.sem.GMM.GMMFactory;
 
 /**
  * BindingManager stores lists of binding events and motifs associated with experiment conditions,
@@ -24,23 +26,22 @@ import umontreal.ssj.functionfit.BSpline;
 public class BindingManager {
 	protected SEMConfig semconfig;
 	protected EventsConfig config;
+	protected GenomeConfig gconfig;
 	protected ExperimentManager manager;
-	protected List<BindingEvent> events;
 	protected Map<ExperimentCondition, List<BindingModel>> condBindingModels;
-	protected Map<ExperimentCondition, List<BindingEvent>> conditionEvents;
 	protected Map<ExperimentCondition, List<BindingSubtype>> bindingSubtypes;
+	protected Map<ExperimentCondition, List<HashMap<Integer, Integer>>> condFragSizeFrequency;
+	protected AbstractCluster gmm;
 	protected Map<ExperimentCondition, Integer> numBindingType;
 	protected Map<ExperimentCondition, Double> alpha;
 	protected Map<ExperimentCondition, List<BindingSubtype>> potentialBindingSubtypes;
 	protected Map<ExperimentCondition, Integer> maxInfluenceRange;
 	protected Map<ExperimentCondition, double[][]> cachePDF; // &Indexed by ExperimentCondition:BindingSubtype index:fragment size
 	
-	public BindingManager(SEMConfig sconfig, EventsConfig con, ExperimentManager exptman) {
+	public BindingManager(SEMConfig sconfig, EventsConfig con, GenomeConfig gcon, ExperimentManager exptman) {
 		semconfig = sconfig;
 		config = con;
 		manager = exptman;
-		events = new ArrayList<BindingEvent>();
-		conditionEvents = new HashMap<ExperimentCondition, List<BindingEvent>>();
 		bindingSubtypes = new HashMap<ExperimentCondition, List<BindingSubtype>>();
 		alpha = new HashMap<ExperimentCondition, Double>();
 		numBindingType = new HashMap<ExperimentCondition, Integer>();
@@ -48,7 +49,6 @@ public class BindingManager {
 		cachePDF = new HashMap<ExperimentCondition, double[][]>();
 		maxInfluenceRange = new HashMap<ExperimentCondition, Integer>();
 		for(ExperimentCondition cond: manager.getConditions()) {
-			conditionEvents.put(cond,  new ArrayList<BindingEvent>());
 			bindingSubtypes.put(cond, new ArrayList<BindingSubtype>());
 			numBindingType.put(cond, 1);
 			alpha.put(cond, 0.0);
@@ -57,8 +57,6 @@ public class BindingManager {
 	}
 	
 	//Accessors
-	public List<BindingEvent> getBindingEvents(){return events;}
-	public List<BindingEvent> getConditionBindingEvents(ExperimentCondition ec){return conditionEvents.get(ec);}
 	public List<BindingSubtype> getBindingSubtypes(ExperimentCondition ec){return bindingSubtypes.get(ec);}
 	public Integer getNumBindingType(ExperimentCondition ec){return numBindingType.get(ec);}
 	public Double getAlpha(ExperimentCondition ec){return alpha.get(ec);}
@@ -69,8 +67,6 @@ public class BindingManager {
 	public List<BindingModel> getBindingModel(ExperimentCondition ec) {return condBindingModels.get(ec);}
 	
 	//Setters
-	public void setBindingEvents(List<BindingEvent> e){events =e;}
-	public void setConditionBindingEvents(ExperimentCondition ec, List<BindingEvent> e){conditionEvents.put(ec, e);}
 	public void setAlpha(ExperimentCondition ec, Double a){alpha.put(ec,a);}
 //	public void setAlignedEventPoints(ExperimentCondition ec, List<List<StrandedPoint>> points){alignedEventPoints.put(ec, points);}
 	public void addPotentialBindingSubtypes(ExperimentCondition ec, List<BindingSubtype> subtypes){potentialBindingSubtypes.get(ec).addAll(subtypes);}
@@ -81,6 +77,83 @@ public class BindingManager {
 		bindingSubtypes.put(ec, sub); 
 		numBindingType.put(ec, sub.size());
 		}
+	
+	/**
+	 *  Initialize binding subtypes using GMM
+	 */
+	public void initializeBindingSubtypes() {
+		//Read fragment size distribution from each replicate, indexed by experiment condition
+		condFragSizeFrequency = new HashMap<ExperimentCondition, List<HashMap<Integer, Integer>>>();
+		for(ExperimentCondition cond: manager.getConditions()) {
+			condFragSizeFrequency.put(cond, new ArrayList<HashMap<Integer, Integer>>());
+			for(ControlledExperiment rep: cond.getReplicates()) {
+				condFragSizeFrequency.get(cond).add(rep.getSignal().getFragSizeFrequency());
+			}
+		}
+		
+		if (semconfig.getUserBindingSubtypes().equals("")) {
+			System.out.println("GMM on fragment size distribution...");
+			//Employ GMM on each experiment condition's fragment size distribution
+			for(ExperimentCondition cond: manager.getConditions()) {
+				int numClusters = semconfig.getNumClusters();
+				// Use DPMM to determine the number of clusters first if numClusters not specified
+				if(numClusters<=0) {
+					gmm = GMMFactory.getGMMClass(cond, semconfig, condFragSizeFrequency.get(cond), -1);
+					gmm.excute();
+					numClusters = gmm.getNumClusters();
+				}
+				gmm = GMMFactory.getGMMClass(cond, semconfig, condFragSizeFrequency.get(cond), numClusters);
+				gmm.excute();
+				List<BindingSubtype> fragSizeSubtypes = new ArrayList<BindingSubtype>();
+				int index=0;
+				for (RealVector para: gmm.getParameters()) {
+					fragSizeSubtypes.add(new BindingSubtype(cond, para, index));
+					index++;
+				}
+			    setBindingSubtypes(cond, fragSizeSubtypes);
+			}
+		} else {
+			System.out.println("User provided binding subtypes, loading...");
+			//Load user provided Binding subtypes info
+			for(ExperimentCondition cond: manager.getConditions()) {
+				try {
+					BufferedReader br = new BufferedReader(new FileReader(semconfig.getUserBindingSubtypes()));
+					String line;
+					List<BindingSubtype> fragSizeSubtypes = new ArrayList<BindingSubtype>();
+					int index=0;
+					while((line = br.readLine()) != null) {
+						if(semconfig.isVerbose()) System.out.println(line);
+						// Delimiter: Tab
+						String[] entry = line.split("\t");
+						fragSizeSubtypes.add(new BindingSubtype(cond, MatrixUtils.createRealVector(new double[] {
+							Double.parseDouble(entry[0]), Double.parseDouble(entry[1]), Double.parseDouble(entry[2])	
+						}), index));
+						index++;
+					}
+					setBindingSubtypes(cond, fragSizeSubtypes);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		cache();
+		updateNumBindingTypes();
+	}
+	
+	/**
+	 * Initialize binding model (fuzziness)
+	 */
+	public void initializeBindingModels() {
+		//Insert bindingModel initialization here
+		condBindingModels = new HashMap<ExperimentCondition, List<BindingModel>>();
+		for(ExperimentCondition cond:manager.getConditions()) {
+			condBindingModels.put(cond, new ArrayList<BindingModel>());
+			condBindingModels.get(cond).add(new BindingModel(semconfig, manager, cond, gconfig));
+			setMaxInfluenceRange(cond, condBindingModels.get(cond).get(0).getMaxInfluenceRange());
+		}
+		setBindingModels(condBindingModels);
+		
+	}
 	
 	/**
 	 * Cache PDF value for fragment size ranging from min to max
@@ -109,50 +182,9 @@ public class BindingManager {
 		}
 	}
 	
-	
-	//For each controlled experiment, simply calculate the proportion of reads in the provided list of
-	//binding events to everything else.
-	public void estimateSignalVsNoiseFractions(List<BindingEvent> signalEvents) {
-		for(ExperimentCondition cond: manager.getConditions()) {
-			for(ControlledExperiment r: cond.getReplicates()) {
-				double repSigCount = 0, repNoiseCount = 0;
-				for(BindingEvent event: signalEvents) {
-					if(event.isFoundInCondition(cond)) {
-						repSigCount += event.getRepSigHits(r);
-					}
-				}
-				repNoiseCount = r.getSignal().getHitCount() - repSigCount;
-				r.setSignalVsNoiseFraction(repSigCount/repNoiseCount); //??? I think the original code is wrong
-				System.err.println(r.getName()+"\t"+r.getIndex()+"\tsignal-noise ratio:\t" + String.format("%.4f", r.getSignalVsNoiseFraction()));
-			}
-		}
-	}
-	
-	//Count the binding events present in a given condition
-	public int countSubtypeEventsInCondition(ExperimentCondition cond, double qMinThres) {
-		int count = 0;
-		for(BindingEvent e: events) {
-			if(e.isFoundInCondition(cond) && e.getCondSigVCtrlP(cond)<=qMinThres) {
-				count++;
-			}
-		}
-		return count;
-	}
-	
-	//Count the differential binding events present in a given pair of conditions
-	public int countDiffEventsBetweenConditions(ExperimentCondition cond, ExperimentCondition othercond, double qMinThres, double diffPMinThres) {
-		int count = 0;
-		for(BindingEvent e: events) {
-			if(e.isFoundInCondition(cond) && e.getCondSigVCtrlP(cond)<=qMinThres) 
-				if(e.getInterCondP(cond, othercond)<=diffPMinThres && e.getInterCondFold(cond, othercond)>0)
-					count++;
-		}
-		return count;
-	}
-	
 	//Print the subtypes information into a file
 	public void printSubtypes() {
-		String filename = semconfig.getOutputIntermediateDir()+File.separator+semconfig.getOutBase() + "_subtypes.info";
+		String filename = semconfig.getOutputParentDir()+File.separator+semconfig.getOutBase() + "_subtypes.info";
 		try {
 			FileWriter fout = new FileWriter(filename);
 			for(ExperimentCondition cond: manager.getConditions()) {
