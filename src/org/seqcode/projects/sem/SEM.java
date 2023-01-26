@@ -48,7 +48,7 @@ public class SEM {
 			+ "╚══════╝╚══════╝╚═╝     ╚═╝\r\n"
 			+ "                           \r\n"
 			+ "\n" +
-			"Copyright (C) Jianyu Yang 2019-2022\n"
+			"Copyright (C) Jianyu Yang 2019-2023\n"
 //			"<http://mahonylab.org/software/multigps>\n"
 			;
 	
