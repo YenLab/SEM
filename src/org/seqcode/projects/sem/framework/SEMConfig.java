@@ -122,7 +122,7 @@ public class SEMConfig {
 		this.args = arguments;
 		this.isGPS = isGPS;
 		ArgParser ap = new ArgParser(args);
-		if(args.length==0 || ap.hasKey("h")) {
+		if(args.length==0 || ap.hasKey("h") || ap.hasKey("help")) {
 			printHelp=true;
 		} else {
 			try {
