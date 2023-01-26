@@ -191,6 +191,8 @@ public class SEM {
 				"SEM comes with ABSOLUTELY NO WARRANTY.  This is free software, and you\n"+
 				"are welcome to redistribute it under certain conditions.  See the MIT license \n"+
 				"for details.\n"+
+				"\n" +
+				"For detailed input format description and usage, please refer to <https://github.com/YenLab/SEM>, also feel free to open new issues on features or bugs!\n" +
 				"\n OPTIONS:\n" +
 				" Required:\n" +
 				"\t--out <output file prefix>\n" +
