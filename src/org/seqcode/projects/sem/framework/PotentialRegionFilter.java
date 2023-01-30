@@ -188,7 +188,9 @@ public class PotentialRegionFilter {
 						if(config.isVerbose()) System.out.println(line);
 						// Delimiter: Tab
 						String[] entry = line.split("\t");
-						potentialRegions.add(new Region(gen, entry[0], Integer.parseInt(entry[1]), Integer.parseInt(entry[2])));
+						potentialRegions.add(new Region(gen, 
+								entry[0].replaceFirst("^chromosome", "").replaceFirst("^chrom", "").replaceFirst("^chr", ""), 
+								Integer.parseInt(entry[1]), Integer.parseInt(entry[2])));
 					}
 				} catch (IOException e) {
 					e.printStackTrace();
