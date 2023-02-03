@@ -1,6 +1,5 @@
 package org.seqcode.projects.sem.events;
 
-import org.seqcode.projects.sem.events.EventsConfig;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;

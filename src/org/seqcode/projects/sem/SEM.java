@@ -1,5 +1,6 @@
 package org.seqcode.projects.sem;
 
+import java.io.ObjectInputFilter.Config;
 import java.util.*;
 
 import org.seqcode.math.diff.Normalization;
@@ -16,7 +17,6 @@ import org.seqcode.projects.sem.events.BindingSubtype;
 import org.seqcode.projects.sem.mixturemodel.BindingMixture;
 import org.seqcode.projects.sem.GMM.AbstractCluster;
 import org.seqcode.projects.sem.framework.SEMConfig;
-import org.seqcode.projects.sem.framework.OutputFormatter;
 import org.seqcode.projects.sem.framework.PotentialRegionFilter;
 import org.seqcode.projects.sem.utilities.EMmode;
 import org.seqcode.projects.sem.utilities.Timer;
@@ -31,7 +31,6 @@ public class SEM {
 	protected BindingManager bindingManager;
 	protected BindingMixture mixtureModel;
 	protected PotentialRegionFilter potentialFilter;
-	protected OutputFormatter outFormatter;
 	protected Normalization normalizer;
 	protected AbstractCluster gmm;
 	protected Map<ExperimentCondition, List<BindingModel>> condBindingModels;

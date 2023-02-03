@@ -1,11 +1,9 @@
 package org.seqcode.projects.sem.mixturemodel;
 
-import java.util.Map;
 import java.util.HashMap;
 
 import org.seqcode.deepseq.ReadHit;
 import org.seqcode.deepseq.StrandedBaseCount;
-import org.seqcode.deepseq.StrandedPair;
 import org.seqcode.genome.location.Region;
 
 /**

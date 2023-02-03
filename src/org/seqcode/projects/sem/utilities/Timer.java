@@ -1,5 +1,4 @@
 package org.seqcode.projects.sem.utilities;
-import java.util.*;
 
 /**
  * Count time for each step in BindingMixture

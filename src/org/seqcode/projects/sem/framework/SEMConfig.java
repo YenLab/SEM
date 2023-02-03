@@ -6,24 +6,15 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.text.DateFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import org.seqcode.data.io.BackgroundModelIO;
-import org.seqcode.data.io.IOUtil;
 import org.seqcode.data.io.RegionFileUtilities;
-import org.seqcode.data.motifdb.CountsBackgroundModel;
-import org.seqcode.data.motifdb.MarkovBackgroundModel;
-import org.seqcode.data.motifdb.WeightMatrix;
 import org.seqcode.genome.Genome;
 import org.seqcode.genome.GenomeConfig;
 import org.seqcode.genome.location.Point;
 import org.seqcode.genome.location.Region;
-import org.seqcode.genome.location.StrandedPoint;
-import org.seqcode.genome.location.StrandedRegion;
 import org.seqcode.gseutils.*;
-import org.seqcode.motifs.FreqMatrixImport;
 
 /**
  * SEMConfig:
@@ -34,7 +25,7 @@ import org.seqcode.motifs.FreqMatrixImport;
  */
 public class SEMConfig {
 	
-	public static String version = "1.0";
+	public static String version = "1.1.2";
 	public boolean isGPS = true; //???
 	protected GenomeConfig gconfig;
 	protected Genome gen = null;
@@ -148,6 +139,7 @@ public class SEMConfig {
 				        	confArgs.add(rest);
 			        	}
 			        }
+			        reader.close();
 				
 				String [] confArgsArr = confArgs.toArray(new String[confArgs.size()]);
 		        String [] newargs =new String[args.length + confArgsArr.length];

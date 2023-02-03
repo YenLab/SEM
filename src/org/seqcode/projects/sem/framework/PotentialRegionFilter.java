@@ -15,7 +15,6 @@ import java.util.Map;
 
 import org.seqcode.deepseq.StrandedPair;
 import org.seqcode.projects.sem.events.BindingManager;
-import org.seqcode.projects.sem.events.BindingModel;
 import org.seqcode.projects.sem.events.EventsConfig;
 import org.seqcode.projects.sem.utilities.PotentialRegionPoissonBackgroundModel;
 
@@ -25,12 +24,9 @@ import org.seqcode.deepseq.experiments.ExperimentManager;
 import org.seqcode.deepseq.experiments.ExptConfig;
 import org.seqcode.deepseq.experiments.Sample;
 import org.seqcode.deepseq.stats.BackgroundCollection;
-import org.seqcode.deepseq.stats.PoissonBackgroundModel;
 import org.seqcode.genome.Genome;
-import org.seqcode.genome.GenomeConfig;
 import org.seqcode.genome.location.Region;
 import org.seqcode.gsebricks.verbs.location.ChromosomeGenerator;
-import org.seqcode.gseutils.RealValuedHistogram;
 
 
 /**

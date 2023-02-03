@@ -1,7 +1,6 @@
 package org.seqcode.projects.sem.utilities;
 
 import org.seqcode.deepseq.stats.PoissonBackgroundModel;
-import org.seqcode.projects.sem.framework.SEMConfig;
 
 import cern.jet.random.Poisson;
 import cern.jet.random.engine.DRand;

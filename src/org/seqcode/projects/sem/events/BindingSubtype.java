@@ -1,10 +1,6 @@
 package org.seqcode.projects.sem.events;
 
-import java.util.*;
-
 import org.apache.commons.math3.linear.RealVector;
-
-import org.seqcode.gseutils.Pair;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 
 

@@ -1,16 +1,10 @@
 package org.seqcode.projects.sem.mixturemodel;
 
 import java.io.*;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.seqcode.deepseq.StrandedBaseCount;
 import org.seqcode.deepseq.StrandedPair;
-import org.seqcode.gseutils.Args;
 import org.seqcode.gseutils.Pair;
-import org.seqcode.projects.sem.mixturemodel.BindingComponent;
-import org.seqcode.projects.sem.mixturemodel.NoiseComponent;
 import org.seqcode.projects.sem.events.*;
 import org.seqcode.projects.sem.framework.*;
 import org.seqcode.projects.sem.utilities.Timer;
@@ -19,8 +13,6 @@ import org.seqcode.projects.sem.utilities.ConsoleProgressBar;
 import org.seqcode.projects.sem.utilities.NucleosomePoissonBackgroundModel;
 import org.seqcode.projects.sem.utilities.EMmode;
 import org.seqcode.deepseq.experiments.*;
-import org.seqcode.deepseq.stats.BackgroundCollection;
-import org.seqcode.deepseq.stats.PoissonBackgroundModel;
 import org.seqcode.genome.*;
 import org.seqcode.genome.location.*;
 import org.seqcode.gsebricks.verbs.location.ChromosomeGenerator;

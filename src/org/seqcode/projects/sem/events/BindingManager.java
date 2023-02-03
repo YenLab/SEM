@@ -9,8 +9,6 @@ import org.apache.commons.math3.linear.RealVector;
 import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.deepseq.experiments.ExperimentManager;
-import org.seqcode.projects.sem.events.BindingModel;
-import org.seqcode.projects.sem.events.BindingSubtype;
 import org.seqcode.projects.sem.framework.SEMConfig;
 import org.seqcode.genome.GenomeConfig;
 import org.seqcode.projects.sem.GMM.AbstractCluster;

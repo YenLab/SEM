@@ -1,20 +1,12 @@
 package org.seqcode.projects.sem.events;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.util.*;
 import org.apache.commons.math3.distribution.NormalDistribution;
 
-import org.seqcode.gseutils.Pair;
-import org.seqcode.deepseq.StrandedPair;
 import org.seqcode.deepseq.experiments.ExperimentManager;
-import org.seqcode.deepseq.experiments.ControlledExperiment;
 import org.seqcode.deepseq.experiments.ExperimentCondition;
 import org.seqcode.genome.GenomeConfig;
-import org.seqcode.genome.location.Region;
 import org.seqcode.projects.sem.framework.SEMConfig;
-
-import org.seqcode.genome.location.Point;
 
 /**
  * BindingModel defines a (probabilistic) model of read occurrences around a binding event.
