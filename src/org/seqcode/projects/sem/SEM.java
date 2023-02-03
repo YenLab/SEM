@@ -188,7 +188,8 @@ public class SEM {
 		return(new String("" +
 				logo +
 				"\n" +
-				"SEM comes with ABSOLUTELY NO WARRANTY.  This is free software, and you\n"+
+				"version " +  SEMConfig.version + "\n" +
+				"\nSEM comes with ABSOLUTELY NO WARRANTY.  This is free software, and you\n"+
 				"are welcome to redistribute it under certain conditions.  See the MIT license \n"+
 				"for details.\n"+
 				"\n" +
