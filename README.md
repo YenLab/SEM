@@ -22,15 +22,13 @@ The nucleosome subtype is defined as a Normal Distribution describing the probab
 
 ## Installation<a name="install"></a>
 
-SEM is developed under JavaSE-11, it's recommended to use conda to create a new environment for running SEM, see [conda installation guide](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#) for more info.
-
-After installing conda, create a new environment with openJDK 11.0.1
+SEM is available on [bioconda](https://bioconda.github.io/). To install, simply run:
 
 ```bash
-$ conda create -n sem -c conda-forge openjdk=11.0.1
+$ conda install -c bioconda sem
 ```
 
-You can download the latest runnable JAR file from [SEM releases](https://github.com/YenLab/SEM/releases).
+Also you can download the latest runnable JAR file from [SEM releases](https://github.com/YenLab/SEM/releases).
 
 ## Quick Start<a name="quick-start"></a>
 
