@@ -76,7 +76,7 @@ In SEM, Gaussian Mixture Model (GMM) is used on MNase-seq fragment size distribu
 
 It's recommended to use `Picard CollectInsertSizeMetrics` first to check the distribution of fragment size distribution to decide the number of clusters. When there is no prior knowledge on the number of nucleosome subtypes, `--numClusters` can also be set as `-1` to let SEM decide it by a Dirichlet Process Mixture Model (DPMM).
 
-Users can also provide their own nucleosome subtype information instead of using SEM built-in functions by setting `--providedBindingSubtypes`, file should be in the below format with tab delimited:
+Users can also provide their own nucleosome subtype information instead of using SEM built-in functions by providing a file through `--providedBindingSubtypes`, file should be in the below format with tab delimited:
 
 ```
 mean_1	var_1	weight_1
