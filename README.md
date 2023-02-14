@@ -98,11 +98,11 @@ The sum of weights should be equal to 1
 
 Since nucleosomes are everywhere on the genome, it's both computational intensive and time consuming to do EM on all the nucleosomes, besides, not all nucleosomes are of interest sometimes. `--providedPotenialRegions` can accept a bed file to restrict the regions where SEM will do nucleosome finding in, an example of potential regions could be candidate cis-regulatory regions (ccREs) from [ENCODE SCREEN project](https://screen.encodeproject.org/).
 
-A potential issue when running SEM in this way is that large number of small pieces of regions could lead to imprecise nucleosome finding at the edge of region. So it's recommended to expand each region then merge the regions close to each other, below is the comparison between original ccRE regions and merged ccRE regions by `bedtools slop -b 500` and `bedtools merge -d 500`
+A potential issue when running SEM in this way is that large number of small pieces of regions could lead to imprecise nucleosome finding at the edge of regions. So it's recommended to expand each region then merge the regions close to each other, below is the comparison between original ccRE regions and merged ccRE regions by `bedtools slop -b 500` and `bedtools merge -d 500`
 
 ![example region of user provided regions](https://raw.githubusercontent.com/YenLab/SEM/master/images/igv_comparison_expanded_merged_ccREs.png)
 
-> Note: even provided with a potential region file, SEM will still use all MNase-seq fragments on the genome to decide nucleosome subtypes, if you want a different behavior, please refer to [Detecting nucleosome subtypes](#subtype) for how to provide custom nucleosome subtypes information.
+> Note: even provided with a potential region file, SEM will still use all MNase-seq fragments on the genome to decide nucleosome subtypes, if you want a different behavior, please refer to [Detecting nucleosome subtypes](#subtype) for how to provide customized nucleosome subtypes information.
 
 
 
