@@ -1,8 +1,8 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>sem-master</groupId>
-  <artifactId>sem-master</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <groupId>org.seqcode.projects</groupId>
+  <artifactId>sem</artifactId>
+  <version>1.2.0</version>
   <build>
     <sourceDirectory>src</sourceDirectory>
     <plugins>
@@ -17,34 +17,6 @@
     </plugins>
   </build>
   <dependencies>
-    <dependency>
-    	<groupId>org.slf4j</groupId>
-    	<artifactId>slf4j-simple</artifactId>
-    	<version>1.6.2</version>
-    </dependency>
-    <dependency>
-    	<groupId>org.slf4j</groupId>
-    	<artifactId>slf4j-simple</artifactId>
-    	<version>1.6.2</version>
-    </dependency>
-    <!-- https://mvnrepository.com/artifact/org.hdfgroup/hdf-java -->
-	<dependency>
-    	<groupId>org.hdfgroup</groupId>
-    	<artifactId>hdf-java</artifactId>
-    	<version>2.6.1</version>
-	</dependency>
-	<!-- https://mvnrepository.com/artifact/colt/colt -->
-	<dependency>
-    	<groupId>colt</groupId>
-    	<artifactId>colt</artifactId>
-    	<version>1.2.0</version>
-	</dependency>
-	<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-math3 -->
-	<dependency>
-    	<groupId>org.apache.commons</groupId>
-    	<artifactId>commons-math3</artifactId>
-    	<version>3.6.1</version>
-	</dependency>
 	<!-- https://mvnrepository.com/artifact/com.datumbox/datumbox-framework-common -->
 	<dependency>
 	    <groupId>com.datumbox</groupId>
