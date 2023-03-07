@@ -63,6 +63,13 @@ public class SEM {
 		//Initialize Binding subtypes
 		System.err.println("\nInitialize Binding subtypes...");
 		bindingManager.initializeBindingSubtypes();
+		bindingManager.printSubTypesToPNG();
+		bindingManager.printSubtypesToFile();
+		if (c.ifOnlyGMM()) {
+			System.out.println("GMM is done, please check output files for subtype information");
+			System.exit(0);
+		}
+		
 		//Initialize Binding models
 		System.err.println("\nInitialize fuzziness...");
 		bindingManager.initializeBindingModels();
@@ -126,8 +133,6 @@ public class SEM {
 			}
 		}
 		//Final output
-		// print subtypes info
-		bindingManager.printSubtypes();
 		// print nucleosome information per condition
 		mixtureModel.printNucleosomeInfoToFile();
 		// print nucleosome comparison results to file
@@ -214,6 +219,7 @@ public class SEM {
 				" Detecting nucleosome type:\n" +
 				"\t--numClusters <number of nucleosome types> \n\t\tnumber of clusters for finite GMM on fragment size distribution, if set -1, GMM with Dirichlet prior will be used to determine number of types\n" +
 				"\t--providedBindingSubtypes <custom binding subtypes (format: mean variance weight, sum of weights = 1)>\n" +
+				"\t--onlyGMM <only Run GMM without the following nucleosome calling steps, use it to optimize nucleosome subtype parameters>" +
 				" Running SEM:\n" +
 				"\t--r <max. model update rounds, default=3>\n" +
 				"\t--alphascale <alpha scaling factor(default=1.0>\n" +

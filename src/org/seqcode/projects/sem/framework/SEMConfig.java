@@ -32,6 +32,7 @@ public class SEMConfig {
 	protected String outName = "sem", outBase = "sem";
 	protected File outDir = null, interDir = null, imagesDir = null;
 	protected boolean printHelp = false;
+	protected boolean onlyGMM = false;
 	protected double fThreshold = 1e-7;
 	protected double tThreshold = 1e-7;
 	protected double sigLogConf = -5; 
@@ -234,6 +235,9 @@ public class SEMConfig {
 				//Not share subtype motifs across experiments
 				shareSubtypes = Args.parseFlags(args).contains("subtypenotshared") ? false : true;
 				
+				//Only run GMM on input
+				onlyGMM = Args.parseFlags(args).contains("onlyGMM") ? true : false;
+				
 				
 			} catch (FileNotFoundException e){
 				e.printStackTrace();
@@ -246,6 +250,7 @@ public class SEMConfig {
 	//Accessors
 	public Genome getGenome(){return gen;}
 	public boolean helpWanted(){return printHelp;}
+	public boolean ifOnlyGMM() {return onlyGMM;}
 	public double getFThreshold() {return fThreshold;}
 	public double getTThreshold() {return tThreshold;}
 	public double getSigLogConf(){return sigLogConf;}

@@ -14,6 +14,15 @@ import org.seqcode.genome.GenomeConfig;
 import org.seqcode.projects.sem.GMM.AbstractCluster;
 import org.seqcode.projects.sem.GMM.GMMFactory;
 
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartUtilities;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
+import org.jfree.data.xy.XYDataset;
+
+
 /**
  * BindingManager stores lists of binding events and motifs associated with experiment conditions,
  * and binding models associated with replicates.
@@ -180,15 +189,57 @@ public class BindingManager {
 		}
 	}
 	
+	/**
+	 * Save fragment length probability distribution of each nucleosome type into a JPEG file
+	 * @param outFile
+	 * @param delimiter
+	 * @throws IOException 
+	 */
+	public void printSubTypesToPNG() {
+		for(ExperimentCondition cond: manager.getConditions()) {
+			String filename = semconfig.getOutputIntermediateDir() + File.separator + semconfig.getOutBase() + "_" + cond.getName() + "_fragLenDist.jpeg";
+			
+			// Create a XYSeries dataset for each binding subtype
+			final XYSeriesCollection dataset = new XYSeriesCollection();
+			for(BindingSubtype b: bindingSubtypes.get(cond)) {
+				final XYSeries fragLenDist = new XYSeries(b.toString());
+				for(int i=0; i<=500; i++) {
+					fragLenDist.add(i, b.probability(i));
+				}
+				dataset.addSeries(fragLenDist);
+			}
+			
+			// Plot Line Chart
+			JFreeChart xylineChart = ChartFactory.createXYLineChart(
+					"Fragment Length Distribution on " + cond.getName(), 
+					"Fragment Length", 
+					"Frequency", 
+					dataset, 
+					PlotOrientation.VERTICAL, 
+					true, true, false);
+			
+			// Save into jpeg
+			int width = 640;
+			int height = 480;
+			File XYChart = new File(filename);
+			try {
+				ChartUtilities.saveChartAsJPEG(XYChart, xylineChart, width, height);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+ 		}
+	}
+	
+	
 	//Print the subtypes information into a file
-	public void printSubtypes() {
+	public void printSubtypesToFile() {
 		String filename = semconfig.getOutputParentDir()+File.separator+semconfig.getOutBase() + "_subtypes.info";
 		try {
 			FileWriter fout = new FileWriter(filename);
 			for(ExperimentCondition cond: manager.getConditions()) {
 				fout.write(cond.getName() + "\n");
-				for(BindingSubtype bs: bindingSubtypes.get(cond)) {
-					fout.write("\t" + bs + "\n");
+				for(BindingSubtype b: bindingSubtypes.get(cond)) {
+					fout.write("\t" + b + "\n");
 				}
 			}
 			fout.close();

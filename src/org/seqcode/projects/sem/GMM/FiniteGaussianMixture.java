@@ -10,8 +10,6 @@ import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
 
-
-
 public class FiniteGaussianMixture extends AbstractCluster{
 	protected ExperimentCondition cond;
 	protected SEMConfig semconfig;
@@ -325,10 +323,10 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		}
 	}
 	
-	public double getProbability(double data) {
+	public double getProbability(double x) {
 		double p = 0;
 		for(int i=0; i<mixNum; i++) {
-			p += weights[i] * getProbability(data, i);
+			p += weights[i] * getProbability(x, i);
 		}
 		return p;
 	}
@@ -345,13 +343,13 @@ public class FiniteGaussianMixture extends AbstractCluster{
 	}
 	
 	//Save cluster parameters to csv file
-	public void save(String outFile, String csvSplitBy) {
+	public void saveCSV(String outFile) {
 		
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(outFile))) {
         	
         	for(Object o: clusterMu.keySet()) {
         		bw.write(Double.toString(clusterMu.get(o).getEntry(0)));
-        		bw.write(csvSplitBy);
+        		bw.write(',');
         		bw.write(Double.toString(clusterSigma.get(o).getEntry(0, 0)));
         		bw.newLine();
         	}
@@ -386,7 +384,7 @@ public class FiniteGaussianMixture extends AbstractCluster{
 		
 			FiniteGaussianMixture g = new FiniteGaussianMixture(csvFile, csvSplitBy);
 			g.excute();
-			g.save(outFile, csvSplitBy);
+			g.saveCSV(outFile);
 		}
 	}
 }
