@@ -37,21 +37,18 @@ jobs:
       run: ls target/
       
     - name: print tag name
-      run: echo ${GITHUB_REF##*/v}
+      id: name
+      run: echo "name=sem-${GITHUB_REF##*/v}" >> $GITHUB_OUTPUT
       
     - name: Test jar file
-      run: java -jar target/sem-${GITHUB_REF##*/v}-jar-with-dependencies.jar
-      
-    - name: Rename jar file
-      id: rename
-      run: |
-        cp target/sem-${GITHUB_REF##*/v}-jar-with-dependencies.jar target/sem-${GITHUB_REF##*/}.jar
-        echo "new_name=target/sem-${GITHUB_REF##*/}.jar" >> $GITHUB_OUTPUT
+      run: java -jar target/${{ steps.basename.outputs.name }}-jar-with-dependencies.jar
       
     - name: Pack jar file
       run: |
-        tar -zcvf target/sem-${GITHUB_REF##*/v}.tar.gz ${{ steps.rename.outputs.new_name }}
-        rm ${{ steps.rename.outputs.new_name }}
+        mkdir target/${{ steps.name.outputs.name }}
+        cp target/${{ steps.name.outputs.name }}-jar-with-dependencies.jar target/${{ steps.name.outputs.name }}
+        tar -zcvf target/${{ steps.name.outputs.name }}.tar.gz target/${{ steps.name.outputs.name }}
+        rm -rf target/${{ steps.basename.outputs.name }}
       
     - name: Create release
       uses: ncipollo/release-action@v1
