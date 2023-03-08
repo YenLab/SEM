@@ -41,14 +41,14 @@ jobs:
       run: echo "name=sem-${GITHUB_REF##*/v}" >> $GITHUB_OUTPUT
       
     - name: Test jar file
-      run: java -jar target/${{ steps.basename.outputs.name }}-jar-with-dependencies.jar
+      run: java -jar target/${{ steps.name.outputs.name }}-jar-with-dependencies.jar
       
     - name: Pack jar file
       run: |
         mkdir target/${{ steps.name.outputs.name }}
         cp target/${{ steps.name.outputs.name }}-jar-with-dependencies.jar target/${{ steps.name.outputs.name }}
         tar -zcvf target/${{ steps.name.outputs.name }}.tar.gz target/${{ steps.name.outputs.name }}
-        rm -rf target/${{ steps.basename.outputs.name }}
+        rm -rf target/${{ steps.name.outputs.name }}
       
     - name: Create release
       uses: ncipollo/release-action@v1
