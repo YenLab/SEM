@@ -47,7 +47,7 @@ jobs:
       run: |
         mkdir target/${{ steps.name.outputs.name }}
         cp target/${{ steps.name.outputs.name }}-jar-with-dependencies.jar target/${{ steps.name.outputs.name }}
-        tar -zcvf target/${{ steps.name.outputs.name }}.tar.gz target/${{ steps.name.outputs.name }}
+        tar -zcvf -C target target/${{ steps.name.outputs.name }}.tar.gz ${{ steps.name.outputs.name }}
         rm -rf target/${{ steps.name.outputs.name }}
       
     - name: Create release
