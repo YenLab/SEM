@@ -62,6 +62,7 @@ Loading Data:
 Detecting nucleosome type:
 	--numClusters <number of nucleosome types> 
 	--providedBindingSubtypes <custom binding subtypes (format: mean variance weight, sum of weights = 1)> 
+	--onlyGMM <only Run GMM without the following nucleosome calling steps, use it to optimize nucleosome subtype parameters>
 Running SEM:
 	--r <max. model update rounds, default=3>
 	--alphascale <alpha scaling factor(default=1.0>
