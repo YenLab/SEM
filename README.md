@@ -107,7 +107,7 @@ A potential issue when running SEM in this way is that large number of small pie
 
 > Note: even provided with a potential region file, SEM will still use all MNase-seq fragments on the genome to decide nucleosome subtypes, if you want a different behavior, please refer to [Detecting nucleosome subtypes](#subtype) for how to provide customized nucleosome subtypes information.
 
-Feel free to open new issues or contact the author <a href="mailto:jmy5455@psu.edu">Jianyu Yang</a> on usage or feature requests!
+Feel free to open new issues or contact the author Jianyu Yang (<a href="mailto:jmy5455@psu.edu">jmy5455@psu.edu</a>) on usage or feature requests!
 
 
 
