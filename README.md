@@ -97,7 +97,7 @@ The sum of weights should be equal to 1
 
 `--consensusExclusion` decides the exclusion zone between nucleosomes, the spacing between nucleosomes will be >= this threshold, deafult exclusion zone is 127bp.
 
-### Restrict nucleosome finding regions<a name="restrict"></a>
+### Restrict nucleosome calling regions<a name="restrict"></a>
 
 Since nucleosomes are everywhere on the genome, it's both computational intensive and time consuming to do EM on all the nucleosomes, besides, not all nucleosomes are of interest sometimes. `--providedPotenialRegions` can accept a bed file to restrict the regions where SEM will do nucleosome finding in, an example of potential regions could be candidate cis-regulatory regions (ccREs) from [ENCODE SCREEN project](https://screen.encodeproject.org/).
 
