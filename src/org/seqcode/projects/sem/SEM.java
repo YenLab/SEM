@@ -226,6 +226,8 @@ public class SEM {
 				"\t--fixedalpha <minimum number of fragments a nucleosome should have (default=1, must >= 1)>\n" +
 				"\t--exclude <file of regions to ignore>\n" +
 				"\t--consensusExclusion <consensus exclusion zone>\n" +
+				" Miscellaneous:\n" +
+				"\t--bmanalysiswindowmax <Preferred potential region length, default=2000>" +
 				""));
 	}
 }

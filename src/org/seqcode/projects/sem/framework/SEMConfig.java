@@ -159,6 +159,8 @@ public class SEMConfig {
 				minComponentsForBMUpdate = Args.parseInteger(args,"minmodelupdateevents",minComponentsForBMUpdate);
 				//Minimum number of motif references  to support a binding model update		
 				minRefsForBMUpdate = Args.parseInteger(args,"minmodelupdaterefs",minRefsForBMUpdate);
+				//Preferred window size when breaking potential regions
+				bmAnalysisWindowMax = Args.parseInteger(args, "bmanalysiswindowmax", bmAnalysisWindowMax);
 				//Parameter for Gaussian smoothing (std. dev.)
 				gauss_smooth = Args.parseDouble(args,"gausssmoothparam",gauss_smooth);
 				//Threshold used for statistic test (f test/ t test)
