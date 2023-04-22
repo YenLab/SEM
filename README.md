@@ -10,14 +10,14 @@
 
 ## Introduction<a name="intro"></a>
 
-The SEM algorithm is designed for nucleosome subtype finding, which uses a Bayesian probablistic model to model each individual nucleosome's contribution to each observed MNase-seq read pair, expectation maximum (EM) is used to find the maximum posteriori probability (MAP) of the nucleosome parameters, including:
+SEM is a nucleosome calling package, which focuses on characterizing nucleosome types genome-wide. The following nucleosome metrics would be produced in the output:
 
 - Dyad location
 - Occupancy
 - Fuzziness
 - Nucleosome subtype mixture probability
 
-The nucleosome subtype is defined as a Normal Distribution describing the probability of observing the particular protected fragment size from a nucleosome subtype, i.e., a canonical nucleosome should protect ~147bp DNA with some variation under extensive MNase digestion.
+SEM distinguishes nucleosome type according to the DNA fragment length protected by the nucleosome. For example, a canonical nucleosome protects ~147bp DNA under extensive MNase digestion, while a hexamer should protect relatively shorter DNA. SEM assumes each type of nucleosome has its own distinct fragment length distribution, it deconvolves the fragment length profile of all DNA fragments to infer each distribution's parameters.
 
 
 ## Installation<a name="install"></a>
@@ -62,6 +62,7 @@ Loading Data:
 Detecting nucleosome type:
 	--numClusters <number of nucleosome types> 
 	--providedBindingSubtypes <custom binding subtypes (format: mean variance weight, sum of weights = 1)> 
+	--onlyGMM <only Run GMM without the following nucleosome calling steps, use it to optimize nucleosome subtype parameters>
 Running SEM:
 	--r <max. model update rounds, default=3>
 	--alphascale <alpha scaling factor(default=1.0>
@@ -75,6 +76,8 @@ Running SEM:
 In SEM, Gaussian Mixture Model (GMM) is used on MNase-seq fragment size distribution to find the potential nucleosome subtypes, each nucleosome subtype is represented by a Normal Distribution with parameters mean and variance. When `--numClusters` is set as a positive integer, a finite GMM will be used to find out the parameters of each nucleosome subtype.
 
 It's recommended to use `Picard CollectInsertSizeMetrics` first to check the distribution of fragment size distribution to decide the number of clusters. When there is no prior knowledge on the number of nucleosome subtypes, `--numClusters` can also be set as `-1` to let SEM decide it by a Dirichlet Process Mixture Model (DPMM).
+
+You can use `--onlyGMM` option to let SEM only run the nucleosome subtype characterization, the distribution of each nucleosome subtype would be plotted in `intermediate-results` directory in the results folder.
 
 Users can also provide their own nucleosome subtype information instead of using SEM built-in functions by providing a file through `--providedBindingSubtypes`, file should be in the below format with tab delimited:
 
@@ -92,9 +95,9 @@ The sum of weights should be equal to 1
 
 `--fixedalpha` decides the threshold for nucleosome occupancy, during EM, all nucleosomes below this threshold will be terminated, which ensures all the remaining nucleosomes have occupancy >= `fixedalpha`
 
-`--consensusExclusion` decides the exclusion zone between nucleosomes, the spacing between nucleosomes will be >= this threshold.
+`--consensusExclusion` decides the exclusion zone between nucleosomes, the spacing between nucleosomes will be >= this threshold, deafult exclusion zone is 127bp.
 
-### Restrict nucleosome finding regions<a name="restrict"></a>
+### Restrict nucleosome calling regions<a name="restrict"></a>
 
 Since nucleosomes are everywhere on the genome, it's both computational intensive and time consuming to do EM on all the nucleosomes, besides, not all nucleosomes are of interest sometimes. `--providedPotenialRegions` can accept a bed file to restrict the regions where SEM will do nucleosome finding in, an example of potential regions could be candidate cis-regulatory regions (ccREs) from [ENCODE SCREEN project](https://screen.encodeproject.org/).
 
@@ -104,7 +107,7 @@ A potential issue when running SEM in this way is that large number of small pie
 
 > Note: even provided with a potential region file, SEM will still use all MNase-seq fragments on the genome to decide nucleosome subtypes, if you want a different behavior, please refer to [Detecting nucleosome subtypes](#subtype) for how to provide customized nucleosome subtypes information.
 
-
+Feel free to open new issues or contact the author Jianyu Yang (<a href="mailto:jmy5455@psu.edu">jmy5455@psu.edu</a>) on usage or feature requests!
 
 
 
