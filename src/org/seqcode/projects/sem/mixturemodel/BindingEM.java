@@ -1163,7 +1163,7 @@ public class BindingEM implements BindingEM_interface {
             				for(int s=0; s<numSubtypes; s++)
             					for(int i=pairIndexAroundMu.get(c).get(j).car(); i<=pairIndexAroundMu.get(c).get(j).cdr(); i++)
             						if(rBindS[c][j][s][i] > 0)
-            							LL += Math.log(rBindS[c][j][s][i]/semconfig.LOG2) * hitCounts[c][i];
+            							LL += Math.log(rBindS[c][j][s][i])/semconfig.LOG2 * hitCounts[c][i];
         			}
         			if(semconfig.getFixedAlpha()<0)
 	        			for(int i=0; i<numPairs; i++) {
