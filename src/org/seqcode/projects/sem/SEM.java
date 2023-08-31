@@ -227,7 +227,7 @@ public class SEM {
 				"\t--exclude <file of regions to ignore>\n" +
 				"\t--consensusExclusion <consensus exclusion zone>\n" +
 				" Miscellaneous:\n" +
-				"\t--bmanalysiswindowmax <Preferred potential region length, default=2000>" +
+				"\t--bmanalysiswindowmax <Preferred potential region length, default=50000>" +
 				""));
 	}
 }
