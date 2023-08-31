@@ -46,7 +46,7 @@ public class SEMConfig {
 	protected double betaScalingFactor = 1; //Scale the condition and component-specfic beta value by this factor (May change @ Jianyu Yang)
 	protected double extendWindow = 500; //Range extension around gff points
 	protected double prob_shared_binding = 0.9; //Prior probability that binding sites are shared between conditions
-	protected int bmAnalysisWindowMax = 2000; 
+	protected int bmAnalysisWindowMax = 50000; 
 	protected int minComponentsForBMUpdate = 50;
 	protected int minRefsForBMUpdate = 25;
 	protected double minSubtypeFraction = 0.05; // A subtype needs to be associated with at least this fraction of binding events to be supported 
