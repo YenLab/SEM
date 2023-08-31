@@ -101,6 +101,7 @@ public class Statistics {
             
             //monitor
             if(df<0) {
+            	System.out.println("Detect negative degrees of freedom");
             	System.out.println(n1+"\t"+n2+"\t"+var1+"\t"+var2);
             }
             
