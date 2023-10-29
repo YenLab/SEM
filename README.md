@@ -35,10 +35,11 @@ Also you can download the latest runnable JAR file from [SEM releases](https://g
 Run SEM on a single MNase-seq experiment:
 
 ```bash
-$ sem --threads 15 --geninfo mm10.fa.fai --out test_run/ --expt mES_MNase-seq.bam --format SAM 
+# clone the repo and run in the root directory
+$ sem --expt data/test.bam --geninfo data/mm10.fa.fai --out test/ --numClusters 3 --threads 1
 ```
 
-The outputs will be inside the `test_run` directory in this example.
+The outputs will be in the `test` directory in this example.
 
 ## Usage<a name="usage"></a>
 
