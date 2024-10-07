@@ -36,10 +36,10 @@ Run SEM on a single MNase-seq experiment:
 
 ```bash
 # clone the repo and run in the root directory
-$ sem --expt data/test.bam --geninfo data/mm10.fa.fai --out test/ --numClusters 3 --threads 1
+$ sem -Xmx20G --expt data/test.bam --geninfo data/mm10.fa.fai --out test/ --numClusters 3 --threads 1
 ```
 
-The outputs will be in the `test` directory in this example.
+Here `-Xmx20G` specify the maximum memory SEM can use, increase it if you run into out of memory issue. The outputs will be in the `test` directory in this example.
 
 ## Usage<a name="usage"></a>
 
