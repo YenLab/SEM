@@ -19,6 +19,8 @@ SEM is a nucleosome calling package, which focuses on characterizing nucleosome 
 
 SEM distinguishes nucleosome type according to the DNA fragment length protected by the nucleosome. For example, a canonical nucleosome protects ~147bp DNA under extensive MNase digestion, while a hexamer should protect relatively shorter DNA. SEM assumes each type of nucleosome has its own distinct fragment length distribution, it deconvolves the fragment length profile of all DNA fragments to infer each distribution's parameters.
 
+Checkout the full paper for more details:
+[Size-based expectation maximization for characterizing nucleosome positions and subtypes](http://dx.doi.org/10.1101/gr.279138.124)
 
 ## Installation<a name="install"></a>
 
