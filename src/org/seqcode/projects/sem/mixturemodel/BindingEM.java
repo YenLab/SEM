@@ -201,9 +201,21 @@ public class BindingEM implements BindingEM_interface {
 			
 			// Load Read pairs (merge from all replicates), sort it
 			List<StrandedPair> pairs = new ArrayList<StrandedPair>();
+			int fs;
 			for(ControlledExperiment rep: cond.getReplicates()) {
 				List<StrandedPair> repSignals = signals.get(rep.getIndex());
-				pairs.addAll(repSignals);
+				for (StrandedPair p: repSignals) {
+					fs = p.getFragmentSize();
+					if (fs > semconfig.getMaxFragmentLen()) {
+						System.err.println("Skip over long fragment: " + p);
+						continue;
+					}
+					if (fs == -1) {
+						System.err.println("Skip invalid fragment due to either not on the same chromosome or they are not in the right orientation: " + p);
+						continue;
+					}
+					pairs.add(p);
+				}
 			}
 			Collections.sort(pairs, signalCompare);
 			
@@ -212,12 +224,12 @@ public class BindingEM implements BindingEM_interface {
 
 			// Load replicate index for each read
 			repIndices[c] = new int[numPairs];
-			int y=0, z=0;
+			int y;
 			for(ControlledExperiment rep: cond.getReplicates()) {
-				z=0;
-				while(z<signals.get(rep.getIndex()).size()) {
+				y=0;
+				while(y<numPairs) {
 					repIndices[c][y] = rep.getIndex();
-					z++; y++;
+					y++;
 				}
 			}
 			

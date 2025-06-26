@@ -49,6 +49,7 @@ public class SEMConfig {
 	protected int bmAnalysisWindowMax = 50000; 
 	protected int minComponentsForBMUpdate = 50;
 	protected int minRefsForBMUpdate = 25;
+	protected int maxFragmentLen = 1000;
 	protected double minSubtypeFraction = 0.05; // A subtype needs to be associated with at least this fraction of binding events to be supported 
 	protected double minComponentReadFactorForBM = 3;// Components must have (this factor times the condition alpha) number of reads assigned before being included in BM update
 	protected boolean updateBM = true; //Set to false to turn off binding model update
@@ -159,6 +160,8 @@ public class SEMConfig {
 				minComponentsForBMUpdate = Args.parseInteger(args,"minmodelupdateevents",minComponentsForBMUpdate);
 				//Minimum number of motif references  to support a binding model update		
 				minRefsForBMUpdate = Args.parseInteger(args,"minmodelupdaterefs",minRefsForBMUpdate);
+				//Maximum fragment length would be considered
+				maxFragmentLen = Args.parseInteger(args, "maxfragmentlen", maxFragmentLen);
 				//Preferred window size when breaking potential regions
 				bmAnalysisWindowMax = Args.parseInteger(args, "bmanalysiswindowmax", bmAnalysisWindowMax);
 				//Parameter for Gaussian smoothing (std. dev.)
@@ -272,6 +275,7 @@ public class SEMConfig {
 	public boolean doBMUpdate(){return updateBM;}
 	public int getMinComponentsForBMUpdate(){return minComponentsForBMUpdate;}
 	public int getMinRefsForBMUpdate(){return minRefsForBMUpdate;}
+	public int getMaxFragmentLen() {return maxFragmentLen;}
 	public double getMinSubtypeFraction(){return minSubtypeFraction;}
 	public double getMinComponentReadFactorForBM(){return minComponentReadFactorForBM;}
 	public double getGaussSmoothParam(){return gauss_smooth;}

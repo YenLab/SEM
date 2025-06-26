@@ -18,9 +18,9 @@ public class BindingSubtype {
 	protected double mean;
 	protected double var;
 	protected double weight;
-	protected double[] probStore = new double[1001];
+	protected double[] probStore = new double[5001];
 	protected int index; 
-	protected double min=0, max=1000;
+	protected double min=0, max=5000;
 
 	public BindingSubtype(double mean, double variance, double weight) {
 		this.mean = mean;
@@ -28,7 +28,7 @@ public class BindingSubtype {
 		this.weight = weight;
 		
 		// Pre-compute the probability of each fragment size to reduce time
-		for(int i=0; i<=1000; i++) {
+		for(int i=0; i<=5000; i++) {
 			probStore[i] = computeProbability(i);
 		}
 	}
@@ -46,7 +46,7 @@ public class BindingSubtype {
 		max = mean + 2.58 * Math.sqrt(var);
 		
 		// Pre-compute the probability of each fragment size to reduce time
-		for(int i=0; i<=1000; i++) {
+		for(int i=0; i<=5000; i++) {
 			probStore[i] = computeProbability(i);
 		}
 	}
@@ -58,7 +58,7 @@ public class BindingSubtype {
 	public int getIndex() {return index;}
 	
 	public double probability(int fragSize) {
-		if(fragSize <= 1000)
+		if(fragSize <= 5000)
 			return probStore[fragSize];
 		else
 			return computeProbability(fragSize);

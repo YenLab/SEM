@@ -94,7 +94,9 @@ public class BindingManager {
 		for(ExperimentCondition cond: manager.getConditions()) {
 			condFragSizeFrequency.put(cond, new ArrayList<HashMap<Integer, Integer>>());
 			for(ControlledExperiment rep: cond.getReplicates()) {
-				condFragSizeFrequency.get(cond).add(rep.getSignal().getFragSizeFrequency());
+				HashMap<Integer, Integer> freq = rep.getSignal().getFragSizeFrequency();
+				freq.keySet().removeIf(size -> size>semconfig.getMaxFragmentLen()); 				// remove fragment sizes over the set max length
+				condFragSizeFrequency.get(cond).add(freq);
 			}
 		}
 		
@@ -171,9 +173,9 @@ public class BindingManager {
 	 */
 	public void cache() {
 		for(ExperimentCondition cond: manager.getConditions()) {
-			double[][] interCache = new double[numBindingType.get(cond)][1001];
+			double[][] interCache = new double[numBindingType.get(cond)][semconfig.getMaxFragmentLen()+1];
 			for(BindingSubtype b: bindingSubtypes.get(cond)) {
-				for(int j=0; j<=1000; j++) {
+				for(int j=0; j<=semconfig.getMaxFragmentLen(); j++) {
 					interCache[b.getIndex()][j]=b.probability(j);
 				}
 			}
