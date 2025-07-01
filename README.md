@@ -30,7 +30,7 @@ You need openJDK 11 to run SEM, one way is to install it by conda:
 
 ```bash
 # creat a conda environment named sem with openJDK11 installed
-conda create -n sem openjdk==11.0.27
+$ conda create -n sem openjdk==11.0.27
 ```
 
 Then download the latest runnable JAR file from [SEM releases](https://github.com/YenLab/SEM/releases).
