@@ -24,21 +24,26 @@ Checkout the full paper for more details:
 
 ## Installation<a name="install"></a>
 
-SEM is available on [bioconda](https://bioconda.github.io/). To install, simply run:
+> We paused publishing SEM on bioconda as it's currently being actively modified, please use SEM by downloading jar file directly.
+
+You need openJDK 11 to run SEM, one way is to install it by conda:
 
 ```bash
-$ conda install -c bioconda sem
+# creat a conda environment named sem with openJDK11 installed
+conda create -n sem openjdk==11.0.27
 ```
 
-Also you can download the latest runnable JAR file from [SEM releases](https://github.com/YenLab/SEM/releases).
+Then download the latest runnable JAR file from [SEM releases](https://github.com/YenLab/SEM/releases).
 
 ## Quick Start<a name="quick-start"></a>
 
 Run SEM on a single MNase-seq experiment:
 
 ```bash
+# activate conda env
+conda activate sem
 # clone the repo and run in the root directory
-$ sem -Xmx20G --expt data/test.bam --geninfo data/mm10.fa.fai --out test/ --numClusters 3 --threads 1
+$ java -jar sem-v<latest-version>.jar -Xmx20G --expt data/test.bam --geninfo data/mm10.fa.fai --out test/ --numClusters 3 --threads 1
 ```
 
 Here `-Xmx20G` specify the maximum memory SEM can use, increase it if you run into out of memory issue. The outputs will be in the `test` directory in this example.
