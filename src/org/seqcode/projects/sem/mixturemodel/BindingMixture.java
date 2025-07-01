@@ -67,7 +67,7 @@ public class BindingMixture {
 		
 		activeComponents = new HashMap<Region, List<List<BindingComponent>>>();
 		for(ExperimentCondition cond: manager.getConditions()) {
-			System.out.println(config.getGenome().getGenomeLength()-potRegFilter.getPotRegionLengthTotal());
+			//System.out.println(config.getGenome().getGenomeLength()-potRegFilter.getPotRegionLengthTotal());
 			conditionBackgrounds.put(cond, new NucleosomePoissonBackgroundModel(-1, config.getSigLogConf(), cond.getTotalSignalPairCount()*(1-cond.getTotalSignalPairVsNoisePairFrac()), config.getGenome().getGenomeLength()-potRegFilter.getPotRegionLengthTotal(), econfig.getMappableGenomeProp(), bindingManager.getMaxInfluenceRange(cond), '.', 1, true));
 			// ignore fixed alpha when determining threshold for each nucleosome
 			double alf = (double)conditionBackgrounds.get(cond).calcCountThreshold(bindingManager.getMaxInfluenceRange(cond));

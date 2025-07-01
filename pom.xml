@@ -81,10 +81,5 @@
 	    <artifactId>datumbox-framework-storage-inmemory</artifactId>
 	    <version>0.8.1</version>
 	</dependency>
-	<dependency>
-	    <groupId>org.seqcode</groupId>
-	    <artifactId>seqcode-core</artifactId>
-	    <version>1.0.0</version>
-	</dependency>
 </dependencies>
 </project>

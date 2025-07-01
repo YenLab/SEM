@@ -46,8 +46,8 @@ public class SEM {
 			+ "███████║███████╗██║ ╚═╝ ██║\r\n"
 			+ "╚══════╝╚══════╝╚═╝     ╚═╝\r\n"
 			+ "                           \r\n"
-			+ "\n" +
-			"Copyright (C) Jianyu Yang 2019-2023\n"
+			+ "\n"
+//			"Copyright (C) Jianyu Yang 2019-2023\n"
 //			"<http://mahonylab.org/software/multigps>\n"
 			;
 	
@@ -66,7 +66,7 @@ public class SEM {
 		bindingManager.printSubTypesToPNG();
 		bindingManager.printSubtypesToFile();
 		if (c.ifOnlyGMM()) {
-			System.out.println("GMM is done, please check output files for subtype information");
+			System.err.println("GMM is done, please check output files for subtype information");
 			System.exit(0);
 		}
 		
@@ -167,6 +167,12 @@ public class SEM {
 	 * Main driver method for SEM
 	 */
 	public static void main(String[] args) {
+		// add --format BAMPE option
+		String[] newArgs = Arrays.copyOf(args, args.length+2);
+		newArgs[args.length] = "--format";
+		newArgs[args.length+1] = "BAMPE";
+		args = newArgs; // replace the original arguments
+		
 		GenomeConfig gcon = new GenomeConfig(args);
 		ExptConfig econ = new ExptConfig(gcon.getGenome(), args); econ.setLoadPairs(true); econ.setSortMid(true);			// SEM needs midpoint sorted read pairs
 		EventsConfig evconfig = new EventsConfig(gcon, args);

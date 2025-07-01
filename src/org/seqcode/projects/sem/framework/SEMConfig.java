@@ -25,7 +25,7 @@ import org.seqcode.gseutils.*;
  */
 public class SEMConfig {
 	
-	public static String version = "1.2.3";
+	public static String version = "1.3.0";
 	public boolean isGPS = true; //???
 	protected GenomeConfig gconfig;
 	protected Genome gen = null;
