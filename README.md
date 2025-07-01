@@ -41,7 +41,7 @@ Run SEM on a single MNase-seq experiment:
 
 ```bash
 # activate conda env
-conda activate sem
+$ conda activate sem
 # clone the repo and run in the root directory
 $ java -jar sem-v<latest-version>.jar -Xmx20G --expt data/test.bam --geninfo data/mm10.fa.fai --out test/ --numClusters 3 --threads 1
 ```
