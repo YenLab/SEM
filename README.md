@@ -46,7 +46,7 @@ $ conda activate sem
 $ java -jar sem-v<latest-version>.jar -Xmx20G --expt data/test.bam --geninfo data/mm10.fa.fai --out test/ --numClusters 3 --threads 1
 ```
 
-Note it's better to have the bam file sorted by name, although it still runs on unsorted bam file but it could take significantly more memory than sorted file.
+> Note: it's better to have the bam file sorted by name, although it still runs on unsorted bam file but it could take significantly more memory than sorted file.
 
 Here `-Xmx20G` specify the maximum memory SEM can use, increase it if you run into out of memory issue. The outputs will be in the `test` directory in this example.
 
