@@ -22,6 +22,8 @@ SEM distinguishes nucleosome type according to the DNA fragment length protected
 Checkout the full paper for more details:
 [Size-based expectation maximization for characterizing nucleosome positions and subtypes](http://dx.doi.org/10.1101/gr.279138.124)
 
+Feel free to open new issues or contact the author Jianyu Yang (<a href="mailto:jmy5455@psu.edu">jmy5455@psu.edu</a>) on usage issue or feature requests!
+
 ## Installation<a name="install"></a>
 
 > We paused publishing SEM on bioconda as it's currently being actively modified, please use SEM by downloading jar file directly.
@@ -117,7 +119,6 @@ A potential issue when running SEM in this way is that large number of small pie
 
 > Note: even provided with a potential region file, SEM will still use all MNase-seq fragments on the genome to decide nucleosome subtypes, if you want a different behavior, please refer to [Detecting nucleosome subtypes](#subtype) for how to provide customized nucleosome subtypes information.
 
-Feel free to open new issues or contact the author Jianyu Yang (<a href="mailto:jmy5455@psu.edu">jmy5455@psu.edu</a>) on usage or feature requests!
 
 
 
